@@ -1,0 +1,65 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "akeeba/grafida",
+    "type": "project",
+    "description": "Grafida — a cross-platform desktop application to create and edit Joomla! articles via the Joomla Web Services API.",
+    "keywords": ["joomla", "desktop", "editor", "boson", "articles"],
+    "homepage": "https://github.com/akeeba/grafida",
+    "license": "GPL-3.0-or-later",
+    "authors": [
+        {
+            "name": "Nicholas K. Dionysopoulos",
+            "homepage": "https://www.akeeba.com"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "boson-php/http-static-provider": "^0.19",
+        "boson-php/runtime": "^0.19",
+        "boson-php/webview-ext-web-components": "^0.19",
+        "joomla/language": "^3.0",
+        "league/commonmark": "^2.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Grafida\\": "src"
+        }
+    },
+    "require-dev": {
+        "boson-php/compiler": "^0.19",
+        "friendsofphp/php-cs-fixer": "^3.88",
+        "phpstan/phpstan": "^2.1",
+        "phpstan/phpstan-strict-rules": "^2.0",
+        "phpunit/phpunit": "^12.4",
+        "symfony/var-dumper": "^6.4|^7.0|^8.0"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Grafida\\Tests\\": "tests"
+        }
+    },
+    "scripts-aliases": {
+        "test:unit": ["unit"],
+        "test:integration": ["integration"],
+        "linter:check": ["linter", "stan"],
+        "phpcs:check": ["phpcs", "cs", "psr", "per"]
+    },
+    "scripts": {
+        "post-create-project-cmd": "boson init",
+        "compile": "boson compile",
+        "test": ["@test:unit", "@test:integration", "@test:feature"],
+        "test:unit": "phpunit --testsuite=unit --testdox",
+        "test:feature": "phpunit --testsuite=feature --testdox",
+        "test:integration": "phpunit --testsuite=integration --testdox",
+        "linter:check": "phpstan analyse --configuration phpstan.neon --memory-limit 256M",
+        "linter:baseline": "@linter:check --generate-baseline",
+        "phpcs:check": "@phpcs:fix --dry-run",
+        "phpcs:fix": "php-cs-fixer fix --config=.php-cs-fixer.php --allow-risky=yes --verbose --diff"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

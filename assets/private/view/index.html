@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Grafida</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Roboto+Condensed:wght@100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/app.css">
+    <script src="/js/tinymce/tinymce.min.js" referrerpolicy="origin"></script>
+</head>
+<body>
+
+<div id="app">
+
+    <!-- ========== SIDEBAR ========== -->
+    <aside id="sidebar">
+        <div id="sidebar-header">
+            <h1>Grafida</h1>
+            <div class="subtitle">Joomla Article Editor</div>
+        </div>
+
+        <div id="site-selector">
+            <select id="site-select" aria-label="Select site"></select>
+        </div>
+
+        <nav id="main-nav" aria-label="Main navigation">
+            <a data-screen="sites" href="#" role="menuitem">
+                <span class="nav-icon" aria-hidden="true">🌐</span>
+                <span data-i18n="GRAFIDA_NAV_SITES">Sites</span>
+            </a>
+            <a data-screen="articles" href="#" role="menuitem">
+                <span class="nav-icon" aria-hidden="true">📄</span>
+                <span data-i18n="GRAFIDA_NAV_ARTICLES">Articles</span>
+            </a>
+            <a data-screen="settings" href="#" role="menuitem">
+                <span class="nav-icon" aria-hidden="true">⚙️</span>
+                <span data-i18n="GRAFIDA_NAV_SETTINGS">Settings</span>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- ========== MAIN CONTENT ========== -->
+    <div id="content">
+
+        <!-- ===== SITES SCREEN ===== -->
+        <section id="sites-screen" class="screen" role="main">
+            <div class="screen-header">
+                <h2 data-i18n="GRAFIDA_NAV_SITES">Sites</h2>
+                <button id="btn-add-site" class="btn btn-primary">
+                    <span data-i18n="GRAFIDA_BTN_ADD_SITE">Add Site</span>
+                </button>
+            </div>
+            <div id="sites-list"></div>
+        </section>
+
+        <!-- ===== ARTICLES SCREEN ===== -->
+        <section id="articles-screen" class="screen" role="main">
+            <div class="screen-header">
+                <h2 data-i18n="GRAFIDA_NAV_ARTICLES">Articles</h2>
+                <div id="articles-toolbar">
+                    <button id="btn-new-article" class="btn btn-primary" disabled>
+                        <span data-i18n="GRAFIDA_BTN_NEW_ARTICLE">New Article</span>
+                    </button>
+                </div>
+            </div>
+            <div id="articles-container"></div>
+        </section>
+
+        <!-- ===== EDITOR SCREEN ===== -->
+        <section id="editor-screen" class="screen" role="main">
+            <div id="editor-layout">
+
+                <!-- Editor main column -->
+                <div id="editor-main">
+                    <div id="editor-toolbar">
+                        <button id="btn-back-to-articles" class="btn btn-secondary btn-sm">← Back</button>
+                        <button id="btn-import-md" class="btn btn-secondary btn-sm">
+                            <span data-i18n="GRAFIDA_BTN_IMPORT_MD">Import Markdown</span>
+                        </button>
+                        <button id="btn-refresh-refs" class="btn btn-secondary btn-sm">↻ Refresh</button>
+                        <div class="btn-group">
+                            <button id="btn-save-draft" class="btn btn-secondary">
+                                <span data-i18n="GRAFIDA_BTN_SAVE">Save</span>
+                            </button>
+                            <button id="btn-publish" class="btn btn-primary">
+                                <span data-i18n="GRAFIDA_BTN_PUBLISH">Publish</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="editor-title-bar">
+                        <input id="editor-title-input" type="text" placeholder="Article title…" autocomplete="off">
+                    </div>
+
+                    <div id="tinymce-wrapper">
+                        <textarea id="tinymce-editor"></textarea>
+                    </div>
+                </div>
+
+                <!-- Editor metadata sidebar -->
+                <aside id="editor-sidebar" aria-label="Article metadata">
+                    <div id="editor-sidebar-inner"></div>
+                </aside>
+
+            </div>
+        </section>
+
+        <!-- ===== SETTINGS SCREEN ===== -->
+        <section id="settings-screen" class="screen" role="main">
+            <div class="screen-header">
+                <h2 data-i18n="GRAFIDA_LBL_SETTINGS">Settings</h2>
+            </div>
+            <div class="card settings-card">
+                <p class="card-title" data-i18n="GRAFIDA_LBL_UI_LANGUAGE">Interface Language</p>
+                <div class="form-group">
+                    <label for="settings-language-select" data-i18n="GRAFIDA_LBL_UI_LANGUAGE">Language</label>
+                    <select id="settings-language-select" class="form-control"></select>
+                </div>
+            </div>
+        </section>
+
+    </div><!-- /#content -->
+
+</div><!-- /#app -->
+
+<!-- ========== MODAL ========== -->
+<div id="modal-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal">
+        <h2 class="modal-title" id="modal-title"></h2>
+        <div class="modal-body" id="modal-body"></div>
+        <div class="modal-footer" id="modal-footer">
+            <button id="btn-modal-close" class="btn btn-secondary">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== TOAST CONTAINER ========== -->
+<div id="toast-container" aria-live="polite" aria-atomic="false"></div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>

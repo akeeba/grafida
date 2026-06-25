@@ -1,0 +1,22 @@
+.DS_Store
+Thumbs.db
+
+/.idea
+/.cursor
+/.claude
+/.vscode
+/.zed
+/.fleet
+
+# Build artifacts and dependencies
+/build/*
+!/build/glossaries/
+/vendor
+
+# Implementation step plans (working notes, not shipped)
+/.plans
+
+# Local runtime data produced while developing
+/storage/runtime
+*.sqlite
+*.sqlite3

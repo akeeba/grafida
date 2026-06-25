@@ -1,0 +1,52 @@
+{
+    "name": "grafida",
+    "target": [
+        {
+            "type": "macos",
+            "arch": "arm64"
+        }
+    ],
+    "entrypoint": "index.php",
+    "output": "./build",
+    "extensions": [
+        "ctype",
+        "iconv",
+        "curl",
+        "dom",
+        "libxml",
+        "mbstring",
+        "pdo_sqlite",
+        "sqlite3"
+    ],
+    "mount": [
+        "assets/public"
+    ],
+    "build": {
+        "directories": [
+            "assets/private",
+            "language",
+            "storage/migrations"
+        ],
+        "finder": [
+            {
+                "directory": "src",
+                "name": "*.php"
+            },
+            {
+                "directory": "vendor",
+                "not-directory": "vendor/boson-php/compiler",
+                "name": "*.php",
+                "not-name": [
+                    "*Test.php",
+                    "*TestCase.php",
+                    ".phpstorm.meta.php"
+                ]
+            }
+        ]
+    },
+    "ini": {
+        "memory_limit": "256M",
+        "opcache.enable": false,
+        "opcache.enable_cli": false
+    }
+}

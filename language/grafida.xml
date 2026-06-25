@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Grafida — edit Joomla! articles on your desktop.
+
+    Copyright (c) 2026 Nicholas K. Dionysopoulos
+    GNU General Public License version 3, or later.
+
+    Language manifest. Every language Grafida ships is registered here, the
+    Joomla way. When adding a new language, add BOTH its `.ini` and `.sys.ini`
+    entries below — the application only loads languages listed here.
+-->
+<extension type="component" method="upgrade">
+    <name>GRAFIDA_XML_NAME</name>
+    <author>Nicholas K. Dionysopoulos</author>
+    <copyright>Copyright (c) 2026 Nicholas K. Dionysopoulos</copyright>
+    <license>GNU General Public License version 3, or later</license>
+    <description>GRAFIDA_XML_DESCRIPTION</description>
+
+    <languages>
+        <language tag="en-GB">en-GB/en-GB.com_grafida.ini</language>
+        <language tag="en-GB">en-GB/en-GB.com_grafida.sys.ini</language>
+
+        <language tag="el-GR">el-GR/el-GR.com_grafida.ini</language>
+        <language tag="el-GR">el-GR/el-GR.com_grafida.sys.ini</language>
+
+        <language tag="fr-FR">fr-FR/fr-FR.com_grafida.ini</language>
+        <language tag="fr-FR">fr-FR/fr-FR.com_grafida.sys.ini</language>
+
+        <language tag="de-DE">de-DE/de-DE.com_grafida.ini</language>
+        <language tag="de-DE">de-DE/de-DE.com_grafida.sys.ini</language>
+
+        <language tag="es-ES">es-ES/es-ES.com_grafida.ini</language>
+        <language tag="es-ES">es-ES/es-ES.com_grafida.sys.ini</language>
+
+        <language tag="it-IT">it-IT/it-IT.com_grafida.ini</language>
+        <language tag="it-IT">it-IT/it-IT.com_grafida.sys.ini</language>
+
+        <language tag="pt-PT">pt-PT/pt-PT.com_grafida.ini</language>
+        <language tag="pt-PT">pt-PT/pt-PT.com_grafida.sys.ini</language>
+    </languages>
+</extension>

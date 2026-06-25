@@ -1,0 +1,92 @@
+:root {
+    --color-bg: #0d1119;
+    --color-text: rgba(255, 255, 255, 0.9);
+    --color-text-brand: #F93904;
+
+    --font-fallback-main: BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+    --font-fallback-mono: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+
+    --font-title: 'Roboto Condensed', var(--font-fallback-main);
+    --font-mono: 'JetBrains Mono', var(--font-fallback-mono);
+    --font-main: Inter, var(--font-fallback-main);
+
+    --font-size: 17px;
+    --font-line-height: 1.7;
+
+    --font-size-h1: 44px;
+    --font-line-height-h1: 110%;
+}
+
+html,
+body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-main), sans-serif;
+    font-size: var(--font-size);
+    line-height: var(--font-line-height);
+    margin: 0;
+    padding: 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-title), sans-serif;
+    color: var(--color-text);
+    margin: 0;
+    padding: 0;
+}
+
+h1 {
+    font-size: var(--font-size-h1);
+    line-height: var(--font-line-height-h1);
+    font-weight: 600;
+}
+
+h1 em {
+    font-style: normal;
+    color: var(--color-text-brand);
+    display: block;
+}
+
+.layout {
+    padding: 25px;
+    box-sizing: border-box;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+}
+
+.main {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99;
+    position: relative;
+    text-align: center;
+}
+
+.logo {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logo img {
+    max-width: 170vw;
+    max-height: 150vh;
+    opacity: .2;
+    animation: bg 10s infinite;
+}
+
+@keyframes bg {
+    0%, 100% {
+        opacity: 0;
+    }
+    80% {
+        opacity: .4;
+    }
+}
