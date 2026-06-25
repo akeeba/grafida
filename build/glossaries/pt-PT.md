@@ -30,3 +30,5 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | yes | Sim | Botão de confirmação em avisos Sim/Não (ex.: eliminação). |
 | no | Não | Botão de cancelar/recusar em avisos Sim/Não. |
 | delete draft | Eliminar rascunho | Ação para remover definitivamente um rascunho local. |
+| back | Voltar | Botão para sair do editor e voltar à lista de artigos. |
+| refresh | Atualizar | Botão para recarregar os dados de referência (categorias, etiquetas, etc.). |

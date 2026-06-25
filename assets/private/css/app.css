@@ -221,6 +221,11 @@ nav#main-nav a .nav-icon {
     cursor: not-allowed;
 }
 
+/* Leading FontAwesome icons sit slightly smaller than the label text. */
+.btn > .fa-solid {
+    font-size: 0.95em;
+}
+
 .btn-primary {
     background: var(--color-accent);
     color: #fff;

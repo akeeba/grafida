@@ -115,6 +115,24 @@ function btn(labelKey, ...classes) {
     return b;
 }
 
+/**
+ * Create a decorative FontAwesome solid icon element. The icon is purely
+ * visual, so it is hidden from assistive technology.
+ */
+function icon(name) {
+    const i = document.createElement('i');
+    i.className = 'fa-solid fa-' + name;
+    i.setAttribute('aria-hidden', 'true');
+    return i;
+}
+
+/** Create an action button with a leading icon followed by a text label. */
+function iconBtn(iconName, label, ...classes) {
+    const b = el('button', classes.join(' '), icon(iconName), txt(label));
+    b.type = 'button';
+    return b;
+}
+
 /** Create a labelled form-control group using DOM methods. */
 function formGroup(labelText, inputEl) {
     const group = document.createElement('div');
@@ -259,13 +277,8 @@ function closeModal() {
  */
 function confirmYesNo(titleText, bodyNodes) {
     return new Promise(resolve => {
-        const yesBtn = el('button', 'btn btn-danger');
-        yesBtn.type = 'button';
-        yesBtn.textContent = t('GRAFIDA_BTN_YES');
-
-        const noBtn = el('button', 'btn btn-info');
-        noBtn.type = 'button';
-        noBtn.textContent = t('GRAFIDA_BTN_NO');
+        const yesBtn = iconBtn('check', t('GRAFIDA_BTN_YES'), 'btn', 'btn-danger');
+        const noBtn = iconBtn('xmark', t('GRAFIDA_BTN_NO'), 'btn', 'btn-info');
 
         const buttons = [yesBtn, noBtn];
         let active = 0; // default: Yes
@@ -440,14 +453,10 @@ function buildSiteItem(site) {
         el('div', 'site-item-url', site.baseUrl || site.url || '')
     );
 
-    const btnEdit = el('button', 'btn btn-sm btn-secondary');
-    btnEdit.type = 'button';
-    btnEdit.textContent = t('GRAFIDA_BTN_EDIT');
+    const btnEdit = iconBtn('pen', t('GRAFIDA_BTN_EDIT'), 'btn', 'btn-sm', 'btn-secondary');
     btnEdit.addEventListener('click', () => openEditSiteModal(site.id));
 
-    const btnDel = el('button', 'btn btn-sm btn-danger');
-    btnDel.type = 'button';
-    btnDel.textContent = t('GRAFIDA_BTN_DELETE');
+    const btnDel = iconBtn('trash', t('GRAFIDA_BTN_DELETE'), 'btn', 'btn-sm', 'btn-danger');
     btnDel.addEventListener('click', () => confirmDeleteSite(site.id));
 
     const actions = el('div', 'site-item-actions', btnEdit, btnDel);
@@ -489,10 +498,8 @@ function buildSiteFormBody(site = null) {
     const tokenGroup = el('div', 'form-group', tokenLabel, tokenInput);
 
     // Test connection row
-    const testBtn = el('button', 'btn btn-secondary');
-    testBtn.type = 'button';
+    const testBtn = iconBtn('plug', t('GRAFIDA_BTN_TEST_CONNECTION'), 'btn', 'btn-secondary');
     testBtn.id = 'btn-test-connection';
-    testBtn.textContent = t('GRAFIDA_BTN_TEST_CONNECTION');
     const testResult = el('span', null);
     testResult.id = 'test-result';
     const testRow = el('div', 'form-actions', testBtn, testResult);
@@ -506,15 +513,11 @@ function buildSiteFormBody(site = null) {
 }
 
 function buildSiteFormFooter(saveHandler) {
-    const cancelBtn = el('button', 'btn btn-secondary');
-    cancelBtn.type = 'button';
-    cancelBtn.textContent = t('GRAFIDA_BTN_CANCEL');
+    const cancelBtn = iconBtn('xmark', t('GRAFIDA_BTN_CANCEL'), 'btn', 'btn-secondary');
     cancelBtn.addEventListener('click', closeModal);
 
-    const saveBtn = el('button', 'btn btn-primary');
-    saveBtn.type = 'button';
+    const saveBtn = iconBtn('floppy-disk', t('GRAFIDA_BTN_SAVE'), 'btn', 'btn-primary');
     saveBtn.id = 'btn-save-site';
-    saveBtn.textContent = t('GRAFIDA_BTN_SAVE');
     saveBtn.addEventListener('click', saveHandler);
 
     return [cancelBtn, saveBtn];
@@ -626,14 +629,10 @@ function showInsecureWarning() {
     return new Promise((resolve) => {
         const msgP = el('p', null, t('GRAFIDA_MSG_INSECURE_WARNING'));
 
-        const declineBtn = el('button', 'btn btn-secondary');
-        declineBtn.type = 'button';
-        declineBtn.textContent = t('GRAFIDA_BTN_CANCEL');
+        const declineBtn = iconBtn('xmark', t('GRAFIDA_BTN_CANCEL'), 'btn', 'btn-secondary');
         declineBtn.id = 'btn-insecure-decline';
 
-        const acceptBtn = el('button', 'btn btn-primary');
-        acceptBtn.type = 'button';
-        acceptBtn.textContent = t('GRAFIDA_BTN_SAVE');
+        const acceptBtn = iconBtn('floppy-disk', t('GRAFIDA_BTN_SAVE'), 'btn', 'btn-primary');
         acceptBtn.id = 'btn-insecure-accept';
 
         showModal('⚠️ Warning', [msgP], [declineBtn, acceptBtn]);
@@ -650,15 +649,11 @@ async function confirmDeleteSite(id) {
     const siteNameStrong = el('strong', null, site.title || '');
     const msgP = el('p', null, ...formatNodes(t('GRAFIDA_MSG_DELETE_SITE_CONFIRM'), siteNameStrong));
 
-    const cancelBtn = el('button', 'btn btn-secondary');
-    cancelBtn.type = 'button';
-    cancelBtn.textContent = t('GRAFIDA_BTN_CANCEL');
+    const cancelBtn = iconBtn('xmark', t('GRAFIDA_BTN_CANCEL'), 'btn', 'btn-secondary');
     cancelBtn.addEventListener('click', closeModal);
 
-    const delBtn = el('button', 'btn btn-danger');
-    delBtn.type = 'button';
+    const delBtn = iconBtn('trash', t('GRAFIDA_BTN_DELETE'), 'btn', 'btn-danger');
     delBtn.id = 'btn-confirm-delete';
-    delBtn.textContent = t('GRAFIDA_BTN_DELETE');
     delBtn.addEventListener('click', async () => {
         try {
             await api.deleteSite(id);
@@ -762,7 +757,7 @@ function buildArticleItem(article, type) {
         delBtn.type = 'button';
         delBtn.title = t('GRAFIDA_BTN_DELETE');
         delBtn.setAttribute('aria-label', t('GRAFIDA_BTN_DELETE'));
-        delBtn.textContent = '🗑';
+        delBtn.appendChild(icon('trash'));
         delBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             confirmDeleteDraft(article);
@@ -1509,9 +1504,7 @@ async function handleEditorBack() {
 function showUnsavedChangesDialog() {
     const msgP = el('p', null, t('GRAFIDA_MSG_UNSAVED_CHANGES'));
 
-    const saveBtn = el('button', 'btn btn-success');
-    saveBtn.type = 'button';
-    saveBtn.textContent = t('GRAFIDA_BTN_SAVE_AND_BACK');
+    const saveBtn = iconBtn('floppy-disk', t('GRAFIDA_BTN_SAVE_AND_BACK'), 'btn', 'btn-success');
     saveBtn.addEventListener('click', async () => {
         try {
             await saveDraft();
@@ -1522,14 +1515,10 @@ function showUnsavedChangesDialog() {
         leaveEditor();
     });
 
-    const keepBtn = el('button', 'btn btn-info');
-    keepBtn.type = 'button';
-    keepBtn.textContent = t('GRAFIDA_BTN_KEEP_EDITING');
+    const keepBtn = iconBtn('pen', t('GRAFIDA_BTN_KEEP_EDITING'), 'btn', 'btn-info');
     keepBtn.addEventListener('click', closeModal);
 
-    const discardBtn = el('button', 'btn btn-danger');
-    discardBtn.type = 'button';
-    discardBtn.textContent = t('GRAFIDA_BTN_DISCARD_CHANGES');
+    const discardBtn = iconBtn('trash', t('GRAFIDA_BTN_DISCARD_CHANGES'), 'btn', 'btn-danger');
     discardBtn.addEventListener('click', async () => {
         closeModal();
         await discardNewDraftIfNeeded();
@@ -1565,15 +1554,11 @@ async function publishDraft() {
                 bodyNodes.push(list);
             }
 
-            const cancelBtn = el('button', 'btn btn-secondary');
-            cancelBtn.type = 'button';
-            cancelBtn.textContent = t('GRAFIDA_BTN_CANCEL');
+            const cancelBtn = iconBtn('xmark', t('GRAFIDA_BTN_CANCEL'), 'btn', 'btn-secondary');
             cancelBtn.addEventListener('click', closeModal);
 
-            const copyBtn = el('button', 'btn btn-secondary');
-            copyBtn.type = 'button';
+            const copyBtn = iconBtn('copy', t('GRAFIDA_BTN_COPY_HTML'), 'btn', 'btn-secondary');
             copyBtn.id = 'btn-copy-html';
-            copyBtn.textContent = t('GRAFIDA_BTN_COPY_HTML');
             copyBtn.addEventListener('click', () => {
                 const html = State.tinyMCEEditor ? State.tinyMCEEditor.getContent() : '';
                 navigator.clipboard.writeText(html).then(() => {

@@ -30,3 +30,5 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | yes | Oui | Bouton de confirmation dans les invites Oui/Non (ex. suppression). |
 | no | Non | Bouton d'annulation/refus dans les invites Oui/Non. |
 | delete draft | Supprimer le brouillon | Action de supprimer définitivement un brouillon local. |
+| back | Retour | Bouton pour quitter l'éditeur et revenir à la liste des articles. |
+| refresh | Actualiser | Bouton pour recharger les données de référence (catégories, étiquettes, etc.). |

@@ -36,3 +36,5 @@ Eigennamen (Grafida, Joomla!, API, Markdown, HTML, TinyMCE) werden nicht überse
 | yes | Ja | Bestätigungsschaltfläche in Ja/Nein-Abfragen (z. B. Löschbestätigung). |
 | no | Nein | Abbrechen-/Ablehnen-Schaltfläche in Ja/Nein-Abfragen. |
 | delete draft | Entwurf löschen | Aktion zum endgültigen Entfernen eines lokalen Entwurfs. |
+| back | Zurück | Schaltfläche, um den Editor zu verlassen und zur Artikelliste zurückzukehren. |
+| refresh | Aktualisieren | Schaltfläche zum erneuten Laden der Referenzdaten (Kategorien, Tags usw.). |

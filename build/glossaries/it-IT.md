@@ -30,3 +30,5 @@ I nomi propri non si traducono: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | yes | Sì | Pulsante di conferma nei messaggi Sì/No (es. eliminazione). |
 | no | No | Pulsante di annullamento/rifiuto nei messaggi Sì/No. |
 | delete draft | Elimina bozza | Azione per rimuovere definitivamente una bozza locale. |
+| back | Indietro | Pulsante per uscire dall'editor e tornare all'elenco degli articoli. |
+| refresh | Aggiorna | Pulsante per ricaricare i dati di riferimento (categorie, tag, ecc.). |

@@ -30,3 +30,5 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | yes | Ναι | Confirmation button in Yes/No prompts (e.g. delete confirmation). |
 | no | Όχι | Cancel/decline button in Yes/No prompts. |
 | delete draft | Διαγραφή προχείρου | Action to permanently remove a local draft. |
+| back | Πίσω | Button to leave the editor and return to the article list. |
+| refresh | Ανανέωση | Button to reload reference data (categories, tags, etc.). |
