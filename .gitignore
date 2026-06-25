@@ -20,3 +20,6 @@ Thumbs.db
 /storage/runtime
 *.sqlite
 *.sqlite3
+
+# A running list of things I am working on
+TODO.md
