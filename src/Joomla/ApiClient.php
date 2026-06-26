@@ -236,6 +236,26 @@ final class ApiClient
         return $this->unwrapResource($response);
     }
 
+    /**
+     * Lists the contents of a Media Manager folder.
+     *
+     * @param string $path Adapter path to browse, e.g. "local-images:/" for the
+     *                     images root, or "" to list the default adapter root.
+     *
+     * @return list<array<string, mixed>> Folder and file entries (each carries a
+     *                                    `type` of "dir"/"file"; files include `url`).
+     */
+    public function listMedia(string $base, string $token, string $path = ''): array
+    {
+        $query = ['url' => 1];
+
+        if ($path !== '') {
+            $query['path'] = $path;
+        }
+
+        return $this->collection($base, $token, 'media/files', $query);
+    }
+
     // ---------------------------------------------------------------------
     //  Low-level request plumbing
     // ---------------------------------------------------------------------

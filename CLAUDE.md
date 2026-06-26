@@ -36,9 +36,21 @@ whole back-end is testable without opening a window (see `tests/Feature/ApiRouti
   (intro+full text rejoined around the read-more marker, tag IDs resolved to titles) and
   opens it as an **unsaved** draft — drafts (new or imported) are only written to the DB on
   the first Save, so an unchanged remote article leaves no local draft.
-- `src/Media/` — offline image blobs (`media_blobs`).
+- `src/Media/` — offline image blobs (`media_blobs`). `ApiClient::listMedia()` browses the
+  site's Media Manager (`GET /v1/media/files`); `ApiController` exposes it as
+  `GET /api/sites/{id}/media?path=…` and serves an offline blob's data: URI back to the SPA
+  via `GET /api/media/{id}` (to preview a not-yet-published intro/full-text image).
 - `src/Html/` — `ContentSplitter` (read-more split), `CssRebaser`, `InlineMedia`, `HtmlDocument`.
 - `src/Publish/PublishService.php` — the publish pipeline (media upload, tags, fields, split, POST/PATCH).
+  A draft's `images` object holds Joomla's eight `image_intro*` / `image_fulltext*` subfields; the
+  intro/full-text image picked from a local file is stored as a `grafida-media://N` sentinel that
+  `resolveImages()` uploads (via the shared offline-blob upload) and swaps for a public URL on publish.
+  The SPA's editor "Images" section lets you pick a local file, browse the site's media, or paste a URL,
+  and includes Joomla's `image_*_alt_empty` "decorative image" toggle. The same picker backs TinyMCE's
+  Insert/Edit Image dialog (its file-picker opens the media browser, with a "Choose file…" upload button):
+  a local pick is inserted as `<img src="data:…" data-grafida-media-id="N">` (`GRAFIDA_MEDIA_ATTR`,
+  mirroring `InlineMedia::ATTRIBUTE`) so `PublishService` uploads it on publish; a site-media pick is
+  inserted as its public URL.
 - `src/Markdown/`, `src/I18n/`, `src/Storage/` — Markdown import, language service, SQLite + migrations.
   `StorageService` reports the DB file path, opens its folder in the OS file browser
   (`open`/`explorer`/`xdg-open`), and resets local storage (deletes tokens + wipes all

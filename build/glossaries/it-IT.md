@@ -41,3 +41,10 @@ I nomi propri non si traducono: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | close | Chiudi | Button label; closes a dialog. |
 | license | Licenza | Software licence (GPL). The full licence text and the Joomla! disclaimer are non-translatable legal content. |
 | version | Versione | Application version label. |
+| intro image | Immagine introduttiva | Joomla article images.image_intro. |
+| full article image | Immagine dell’articolo completo | Joomla article images.image_fulltext. |
+| alt text | Testo alternativo | Image alt attribute. |
+| caption | Didascalia | Image caption. |
+| image class | Classe immagine | Joomla float_intro/float_fulltext: a free-text CSS class. |
+| media library | Media | The site's Media Manager, browsed when picking an image. |
+| decorative image | immagine decorativa | image_*_alt_empty: alt text intentionally empty. |

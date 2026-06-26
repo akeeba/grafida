@@ -26,10 +26,13 @@ use PHPUnit\Framework\TestCase;
  */
 final class ApiRoutingTest extends TestCase
 {
+    private ?\PDO $lastPdo = null;
+
     private function kernel(): Kernel
     {
         $pdo = Database::connect(':memory:');
         (new Migrator($pdo))->migrate();
+        $this->lastPdo = $pdo;
 
         $static = new class implements StaticProviderInterface {
             public function findFileByRequest(RequestInterface $request): ?ResponseInterface
@@ -39,6 +42,17 @@ final class ApiRoutingTest extends TestCase
         };
 
         return new Kernel($static, $pdo, \dirname(__DIR__, 2));
+    }
+
+    /** Inserts a bare site row (drafts reference sites via a foreign key). */
+    private function seedSite(string $title = 'Site'): int
+    {
+        $now = gmdate('Y-m-d H:i:s');
+        $this->lastPdo?->prepare(
+            'INSERT INTO sites (title, base_url, created_at, updated_at) VALUES (?, ?, ?, ?)'
+        )->execute([$title, 'https://example.test', $now, $now]);
+
+        return (int) ($this->lastPdo?->lastInsertId() ?? 0);
     }
 
     private function call(Kernel $kernel, string $method, string $path, ?string $body = null): array
@@ -108,19 +122,59 @@ final class ApiRoutingTest extends TestCase
         self::assertArrayHasKey('directory', $json['data']);
     }
 
+    public function testDraftRoundTripsArticleImages(): void
+    {
+        $kernel  = $this->kernel();
+        $siteId  = $this->seedSite();
+
+        $images = [
+            'image_intro'           => 'images/banner.jpg',
+            'image_intro_alt'       => 'A banner',
+            'image_intro_alt_empty' => '1',
+            'image_intro_caption'   => 'Caption',
+            'float_intro'           => 'right',
+            'image_fulltext'        => 'grafida-media://7',
+        ];
+
+        [$status, $created] = $this->call(
+            $kernel,
+            'POST',
+            '/api/sites/' . $siteId . '/drafts',
+            json_encode(['title' => 'With images', 'images' => $images])
+        );
+
+        self::assertSame(200, $status);
+        self::assertSame('images/banner.jpg', $created['data']['images']['image_intro']);
+        self::assertSame('grafida-media://7', $created['data']['images']['image_fulltext']);
+
+        [, $fetched] = $this->call($kernel, 'GET', '/api/drafts/' . $created['data']['id']);
+        self::assertSame($images['image_intro_alt'], $fetched['data']['images']['image_intro_alt']);
+        self::assertSame('1', $fetched['data']['images']['image_intro_alt_empty']);
+        self::assertSame('right', $fetched['data']['images']['float_intro']);
+    }
+
+    public function testMediaBlobMissingIs404(): void
+    {
+        [$status, $json] = $this->call($this->kernel(), 'GET', '/api/media/999');
+
+        self::assertSame(404, $status);
+        self::assertFalse($json['ok']);
+    }
+
     public function testResetStorageWipesData(): void
     {
         $kernel = $this->kernel();
+        $siteId = $this->seedSite();
 
         // Seed a draft directly so the reset has something to remove.
-        [, $created] = $this->call($kernel, 'POST', '/api/sites/1/drafts', json_encode(['title' => 'Doomed']));
+        [, $created] = $this->call($kernel, 'POST', '/api/sites/' . $siteId . '/drafts', json_encode(['title' => 'Doomed']));
         self::assertTrue($created['ok']);
 
         [$status, $json] = $this->call($kernel, 'POST', '/api/settings/storage/reset');
         self::assertSame(200, $status);
         self::assertTrue($json['ok']);
 
-        [, $drafts] = $this->call($kernel, 'GET', '/api/sites/1/drafts');
+        [, $drafts] = $this->call($kernel, 'GET', '/api/sites/' . $siteId . '/drafts');
         self::assertSame([], $drafts['data']);
     }
 }

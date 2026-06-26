@@ -41,3 +41,10 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | close | Fermer | Button label; closes a dialog. |
 | license | Licence | Software licence (GPL). The full licence text and the Joomla! disclaimer are non-translatable legal content. |
 | version | Version | Application version label. |
+| intro image | Image d’introduction | Joomla article images.image_intro. |
+| full article image | Image de l’article complet | Joomla article images.image_fulltext. |
+| alt text | Texte alternatif | Image alt attribute. |
+| caption | Légende | Image caption. |
+| image class | Classe de l’image | Joomla float_intro/float_fulltext: a free-text CSS class. |
+| media library | Médias | The site's Media Manager, browsed when picking an image. |
+| decorative image | image décorative | image_*_alt_empty: alt text intentionally empty. |

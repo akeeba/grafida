@@ -50,6 +50,16 @@ const State = {
     editorCss: null,
     tinyMCEEditor: null,
     activeScreen: 'sites',
+    // Working copy of the open draft's article images (intro + full text), the
+    // single source of truth for the editor's Images section. See collectImages().
+    editorImages: {},
+    // Cache of preview data: URIs for offline image blobs, keyed by their
+    // `grafida-media://N` reference, so re-renders don't re-fetch.
+    mediaPreviews: {},
+    // Maps a data: URI inserted into TinyMCE this session to the offline blob id
+    // it came from, so inline images get tagged with data-grafida-media-id and
+    // are uploaded to the site on publish (see the editor's tagging handler).
+    inlineMediaByUri: {},
 };
 
 // ============================================================
@@ -214,6 +224,8 @@ const api = {
     deleteDraft: (id) => apiFetch('DELETE', `/api/drafts/${id}`),
     publishDraft: (id) => apiFetch('POST', `/api/drafts/${id}/publish`),
     uploadMedia: (siteId, body) => apiFetch('POST', `/api/sites/${siteId}/media`, body),
+    browseMedia: (siteId, path = '') => apiFetch('GET', `/api/sites/${siteId}/media?path=${encodeURIComponent(path)}`),
+    getMediaBlob: (id) => apiFetch('GET', `/api/media/${id}`),
     convertMarkdown: (markdown) => apiFetch('POST', '/api/markdown', { markdown }),
     setLanguage: (tag) => apiFetch('POST', '/api/settings/language', { tag }),
     getStorageInfo: () => apiFetch('GET', '/api/settings/storage'),
@@ -941,6 +953,10 @@ function renderEditorSidebar(draft) {
     const sidebar = document.getElementById('editor-sidebar-inner');
     clearNode(sidebar);
 
+    // Seed the working copy of the article images from the draft (preserved
+    // across metadata reloads, which pass the collected images back in).
+    State.editorImages = normalizeImages(draft.images);
+
     const refs = State.references || {
         categories: [], tags: [], levels: [], languages: [],
         fields: { supported: [], unsupported: [] },
@@ -1008,6 +1024,9 @@ function renderEditorSidebar(draft) {
     metakeyEl.className = 'form-control';
     metakeyEl.value = draft.metakey || '';
     sidebar.appendChild(formGroup('Meta keywords', metakeyEl));
+
+    // Intro / full-text article images (Joomla's "Images and Links" tab).
+    sidebar.appendChild(renderImagesSection(draft.siteId));
 
     // Reload the site's reference metadata (categories, tags, access levels,
     // languages, custom fields). Re-renders the sidebar afterwards, preserving
@@ -1426,6 +1445,9 @@ async function initTinyMCE(draft) {
         skin: 'oxide-dark',
         content_css: cssOpts.length ? cssOpts : 'dark',
         document_base_url: baseUrl,
+        // Keep the offline-image tag (data-grafida-media-id) in the editor output
+        // so it survives save/getContent and reaches PublishService.
+        extended_valid_elements: 'img[src|alt|title|class|style|width|height|loading|data-grafida-media-id]',
         menubar: 'file edit view insert format tools table',
         plugins: [
             'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
@@ -1481,7 +1503,20 @@ async function initTinyMCE(draft) {
             editor.on('init', () => {
                 editor.setContent(draft.html || '');
             });
+
+            // Tag offline images (data: URIs uploaded this session) with their
+            // blob id so PublishService uploads them and rewrites the src. Runs
+            // after the picker inserts, after paste/drag, and after setContent.
+            editor.on('SetContent NodeChange', () => {
+                editor.dom.select('img[src^="data:"]').forEach(img => {
+                    if (img.getAttribute(GRAFIDA_MEDIA_ATTR)) return;
+                    const id = State.inlineMediaByUri[img.getAttribute('src')];
+                    if (id) editor.dom.setAttrib(img, GRAFIDA_MEDIA_ATTR, String(id));
+                });
+            });
         },
+        // Pasted / dragged images: store offline and remember the blob id so the
+        // inserted <img data:…> gets tagged for upload on publish.
         images_upload_handler: async (blobInfo) => {
             const filename = blobInfo.filename() || 'image.png';
             const mime = blobInfo.blob().type || 'image/png';
@@ -1490,38 +1525,382 @@ async function initTinyMCE(draft) {
                 const result = await api.uploadMedia(editorSiteId, {
                     filename, mime, dataBase64, draftId: State.currentDraftId,
                 });
+                State.inlineMediaByUri[result.dataUri] = result.id;
                 return result.dataUri;
             } catch (err) {
                 throw new Error(err.message);
             }
         },
+        // The Insert/Edit Image dialog's "browse" button opens the unified picker:
+        // browse the site's Media Manager, or "Choose file…" to upload a local one.
         file_picker_callback: (callback, _value, meta) => {
             if (meta.filetype !== 'image') return;
-            const fileInput = document.createElement('input');
-            fileInput.type = 'file';
-            fileInput.accept = 'image/*';
-            fileInput.onchange = () => {
-                const file = fileInput.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const dataUrl = e.target.result;
-                    const dataBase64 = dataUrl.split(',')[1];
-                    const mime = file.type || 'image/png';
-                    try {
-                        const result = await api.uploadMedia(editorSiteId, {
-                            filename: file.name, mime, dataBase64,
-                            draftId: State.currentDraftId,
-                        });
-                        callback(result.dataUri, { title: file.name, alt: file.name });
-                    } catch (err) {
-                        showToast(err.message, 'error');
-                    }
-                };
-                reader.readAsDataURL(file);
-            };
-            fileInput.click();
+            openMediaBrowser(editorSiteId, { allowUpload: true }).then(entry => {
+                if (!entry || typeof entry.url !== 'string') return;
+                if (entry.mediaId) {
+                    State.inlineMediaByUri[entry.url] = entry.mediaId;
+                }
+                callback(entry.url, { alt: entry.name || '' });
+            });
         },
+    });
+}
+
+// --------------------------------------------------------
+//  Article images (intro / full text)
+// --------------------------------------------------------
+
+// The Joomla `images` subfields, kept in a stable order so the working copy
+// serialises deterministically for change detection. `*_alt_empty` marks a
+// decorative image whose alt text is intentionally empty.
+const IMAGE_KEYS = [
+    'image_intro', 'image_intro_alt', 'image_intro_alt_empty', 'float_intro', 'image_intro_caption',
+    'image_fulltext', 'image_fulltext_alt', 'image_fulltext_alt_empty', 'float_fulltext', 'image_fulltext_caption',
+];
+
+// An image picked from a local file is stored as this sentinel until publish,
+// when its offline blob is uploaded and the value swapped for the public URL.
+const MEDIA_REF_PREFIX = 'grafida-media://';
+
+// Attribute tagging an inline (in-article) offline image with its blob id; must
+// match InlineMedia::ATTRIBUTE on the PHP side. PublishService uploads these.
+const GRAFIDA_MEDIA_ATTR = 'data-grafida-media-id';
+
+const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'avif', 'bmp'];
+
+/** Coerce a raw images object into all eight subfields, each a string. */
+function normalizeImages(raw) {
+    const src = raw && typeof raw === 'object' ? raw : {};
+    const out = {};
+    IMAGE_KEYS.forEach(k => { out[k] = typeof src[k] === 'string' ? src[k] : ''; });
+    return out;
+}
+
+/** Snapshot the working image copy (kept current by the section's inputs). */
+function collectImages() {
+    return normalizeImages(State.editorImages);
+}
+
+/** Base URL (no trailing slash) of the site the open draft belongs to. */
+function siteBaseUrl(siteId) {
+    const site = State.sites.find(s => s.id === siteId);
+    return site ? (site.baseUrl || '').replace(/\/+$/, '') : '';
+}
+
+/**
+ * Resolve an image field value to a displayable URL, or null when there is
+ * nothing to show yet. Offline blobs resolve from the preview cache; absolute
+ * and data: URLs are used as-is; site-relative paths are made absolute.
+ */
+function imagePreviewUrl(value, siteId) {
+    if (!value) return null;
+    if (value.startsWith(MEDIA_REF_PREFIX)) return State.mediaPreviews[value] || null;
+    const clean = value.split('#')[0];
+    if (/^https?:\/\//i.test(clean) || clean.startsWith('data:')) return clean;
+    return siteBaseUrl(siteId) + '/' + clean.replace(/^\/+/, '');
+}
+
+/** Turn an absolute media URL into a path relative to the site root if possible. */
+function relativeImagePath(url, siteId) {
+    const base = siteBaseUrl(siteId);
+    return base && url.startsWith(base + '/') ? url.slice(base.length + 1) : url;
+}
+
+/** Whether a Media Manager entry looks like an image we can use. */
+function isImageEntry(entry) {
+    const mime = String(entry.mime_type || entry.mimeType || '').toLowerCase();
+    if (mime.startsWith('image/')) return true;
+    const ext = String(entry.extension || '').toLowerCase();
+    return IMAGE_EXTENSIONS.includes(ext);
+}
+
+/** The Media Manager path one level up from `path` (or root). */
+function parentMediaPath(path) {
+    const idx = path.lastIndexOf('/');
+    if (idx <= 0) return '';
+    const parent = path.slice(0, idx);
+    return parent.endsWith(':') ? parent + '/' : parent;
+}
+
+/** Build the editor's Images section (intro + full-text blocks). */
+function renderImagesSection(siteId) {
+    const sec = el('div', 'images-section');
+    sec.id = 'editor-images-section';
+    sec.appendChild(el('div', 'section-title', t('GRAFIDA_LBL_IMAGES')));
+    sec.appendChild(buildImageBlock('intro', siteId));
+    sec.appendChild(buildImageBlock('fulltext', siteId));
+    return sec;
+}
+
+/** Replace the Images section in place (after a pick / browse / clear). */
+function rerenderImagesSection(siteId) {
+    const old = document.getElementById('editor-images-section');
+    if (old) old.replaceWith(renderImagesSection(siteId));
+}
+
+/** Set the intro/full-text image value and re-render the section. */
+function setImageValue(kind, value, siteId) {
+    State.editorImages['image_' + kind] = value;
+    rerenderImagesSection(siteId);
+}
+
+function buildImageBlock(kind, siteId) {
+    const imgKey = 'image_' + kind;
+    const floatKey = 'float_' + kind;
+    const altKey = 'image_' + kind + '_alt';
+    const capKey = 'image_' + kind + '_caption';
+    const labelKey = kind === 'intro' ? 'GRAFIDA_LBL_INTRO_IMAGE' : 'GRAFIDA_LBL_FULLTEXT_IMAGE';
+    const value = State.editorImages[imgKey] || '';
+
+    const block = el('div', 'image-block');
+    block.appendChild(el('div', 'image-block-label', t(labelKey)));
+
+    // Preview thumbnail with a placeholder fallback. showPreview() toggles
+    // between the two so typing a URL updates the preview without a re-render.
+    const preview = el('div', 'image-preview');
+    const img = document.createElement('img');
+    img.alt = '';
+    const empty = el('span', 'image-preview-empty', t('GRAFIDA_MSG_NO_IMAGE'));
+    const showPreview = (src) => {
+        if (src) {
+            img.src = src;
+            img.style.display = '';
+            empty.style.display = 'none';
+        } else {
+            img.removeAttribute('src');
+            img.style.display = 'none';
+            empty.style.display = '';
+        }
+    };
+    preview.appendChild(img);
+    preview.appendChild(empty);
+
+    const url = imagePreviewUrl(value, siteId);
+    if (url) {
+        showPreview(url);
+    } else if (value && value.startsWith(MEDIA_REF_PREFIX)) {
+        // Offline blob whose preview is not cached yet — fetch then fill in.
+        showPreview(null);
+        const id = parseInt(value.slice(MEDIA_REF_PREFIX.length), 10);
+        api.getMediaBlob(id)
+            .then(r => { State.mediaPreviews[value] = r.dataUri; showPreview(r.dataUri); })
+            .catch(() => {});
+    } else {
+        showPreview(null);
+    }
+    block.appendChild(preview);
+
+    // Action buttons: pick a local file, browse the site media, or clear.
+    const actions = el('div', 'image-actions');
+    const chooseBtn = iconBtn('upload', t('GRAFIDA_BTN_CHOOSE_FILE'), 'btn', 'btn-sm', 'btn-secondary');
+    chooseBtn.addEventListener('click', () => chooseImageFile(kind, siteId));
+    const browseBtn = iconBtn('folder-open', t('GRAFIDA_BTN_BROWSE_MEDIA'), 'btn', 'btn-sm', 'btn-secondary');
+    browseBtn.addEventListener('click', () => browseImageMedia(kind, siteId));
+    actions.appendChild(chooseBtn);
+    actions.appendChild(browseBtn);
+    if (value) {
+        const clearBtn = iconBtn('xmark', t('GRAFIDA_BTN_CLEAR_IMAGE'), 'btn', 'btn-sm', 'btn-secondary');
+        clearBtn.addEventListener('click', () => setImageValue(kind, '', siteId));
+        actions.appendChild(clearBtn);
+    }
+    block.appendChild(actions);
+
+    // Editable URL / path (a pasted image address, or a browsed media path). An
+    // offline blob shows blank here; typing replaces it with the typed address.
+    const urlInput = document.createElement('input');
+    urlInput.type = 'text';
+    urlInput.className = 'form-control';
+    urlInput.value = value.startsWith(MEDIA_REF_PREFIX) ? '' : value;
+    urlInput.addEventListener('input', () => {
+        const v = urlInput.value.trim();
+        State.editorImages[imgKey] = v;
+        showPreview(imagePreviewUrl(v, siteId));
+    });
+    block.appendChild(formGroup(t('GRAFIDA_LBL_IMAGE_URL'), urlInput));
+
+    // Alt text, the "decorative" toggle (Joomla's image_*_alt_empty), caption and
+    // image CSS class — all write straight back to the working copy. (Joomla's
+    // float_intro/float_fulltext is a free-text CSS class field.)
+    const altInput = boundImageInput(altKey);
+    const altEmptyKey = 'image_' + kind + '_alt_empty';
+    altInput.disabled = State.editorImages[altEmptyKey] === '1';
+    block.appendChild(formGroup(t('GRAFIDA_LBL_IMAGE_ALT'), altInput));
+    block.appendChild(buildDecorativeToggle(altEmptyKey, altInput));
+    block.appendChild(formGroup(t('GRAFIDA_LBL_IMAGE_CAPTION'), boundImageInput(capKey)));
+    block.appendChild(formGroup(t('GRAFIDA_LBL_IMAGE_CLASS'), boundImageInput(floatKey)));
+
+    return block;
+}
+
+/**
+ * A checkbox for Joomla's image_*_alt_empty: when ticked the image is decorative
+ * and its alt is intentionally empty, so the alt input is disabled.
+ */
+function buildDecorativeToggle(key, altInput) {
+    const wrap = el('label', 'image-decorative');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = State.editorImages[key] === '1';
+    cb.addEventListener('change', () => {
+        State.editorImages[key] = cb.checked ? '1' : '';
+        altInput.disabled = cb.checked;
+    });
+    wrap.appendChild(cb);
+    wrap.appendChild(el('span', null, t('GRAFIDA_LBL_IMAGE_DECORATIVE')));
+    return wrap;
+}
+
+/** A text input bound to one image subfield in the working copy. */
+function boundImageInput(key) {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'form-control';
+    input.value = State.editorImages[key] || '';
+    input.addEventListener('input', () => { State.editorImages[key] = input.value; });
+    return input;
+}
+
+/**
+ * Prompt for a local image file, store it as an offline blob, and call back with
+ * `{url: <dataUri>, name, mediaId}` (or null on cancel/failure). Shared by the
+ * intro/full-text picker and the in-editor image picker.
+ */
+function uploadLocalImage(siteId, cb) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = () => {
+        const file = input.files[0];
+        if (!file) { cb(null); return; }
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const dataBase64 = String(e.target.result).split(',')[1];
+            try {
+                const result = await api.uploadMedia(siteId, {
+                    filename: file.name, mime: file.type || 'image/png',
+                    dataBase64, draftId: State.currentDraftId,
+                });
+                cb({ url: result.dataUri, name: file.name, mediaId: result.id });
+            } catch (err) {
+                showToast(err.message, 'error');
+                cb(null);
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+    input.click();
+}
+
+/** Pick a local image file, store it offline, and set it as the kind's image. */
+function chooseImageFile(kind, siteId) {
+    uploadLocalImage(siteId, (entry) => {
+        if (!entry) return;
+        const ref = MEDIA_REF_PREFIX + entry.mediaId;
+        State.mediaPreviews[ref] = entry.url;
+        setImageValue(kind, ref, siteId);
+    });
+}
+
+/** Browse the site's Media Manager and adopt the chosen file as the image. */
+async function browseImageMedia(kind, siteId) {
+    const file = await openMediaBrowser(siteId);
+    const url = file && typeof file.url === 'string' ? file.url : '';
+    if (url) setImageValue(kind, relativeImagePath(url, siteId), siteId);
+}
+
+/**
+ * Modal browser over the site's Media Manager. Resolves with the chosen file
+ * entry, or null if the user cancels / closes the dialog.
+ *
+ * With `opts.allowUpload`, a "Choose file…" button uploads a local image as an
+ * offline blob and resolves with a synthetic entry `{url: <dataUri>, name,
+ * mediaId}` — the caller tags it so it is uploaded to the site on publish.
+ */
+function openMediaBrowser(siteId, opts = {}) {
+    return new Promise(resolve => {
+        const crumb = el('div', 'media-browser-path');
+        const grid = el('div', 'media-browser-grid');
+        const container = el('div', 'media-browser', crumb, grid);
+
+        let settled = false;
+        const escHandler = (e) => { if (e.key === 'Escape') finish(null); };
+        const finish = (val) => {
+            if (settled) return;
+            settled = true;
+            document.removeEventListener('keydown', escHandler, true);
+            closeModal();
+            resolve(val);
+        };
+
+        async function load(path) {
+            clearNode(grid);
+            grid.appendChild(el('div', 'media-browser-loading', '…'));
+            let data;
+            try {
+                data = await api.browseMedia(siteId, path);
+            } catch (err) {
+                clearNode(grid);
+                grid.appendChild(el('div', 'media-browser-error', err.message));
+                return;
+            }
+
+            clearNode(crumb);
+            if (path) {
+                const up = iconBtn('arrow-up', t('GRAFIDA_BTN_MEDIA_UP'), 'btn', 'btn-sm', 'btn-secondary');
+                up.addEventListener('click', () => load(parentMediaPath(path)));
+                crumb.appendChild(up);
+            }
+            crumb.appendChild(el('span', 'media-browser-current', path || '/'));
+
+            clearNode(grid);
+            const entries = Array.isArray(data.entries) ? data.entries : [];
+            const dirs = entries.filter(en => en.type === 'dir');
+            const files = entries.filter(en => en.type === 'file' && isImageEntry(en));
+
+            if (dirs.length === 0 && files.length === 0) {
+                grid.appendChild(el('div', 'media-browser-empty', t('GRAFIDA_MSG_MEDIA_EMPTY')));
+                return;
+            }
+
+            dirs.forEach(d => {
+                const item = el('button', 'media-item media-item-dir', icon('folder'), el('span', 'media-item-name', d.name || ''));
+                item.type = 'button';
+                item.addEventListener('click', () => load(typeof d.path === 'string' ? d.path : ''));
+                grid.appendChild(item);
+            });
+            files.forEach(f => {
+                const item = el('button', 'media-item media-item-file');
+                item.type = 'button';
+                if (typeof f.url === 'string') {
+                    const im = document.createElement('img');
+                    im.src = f.url;
+                    im.alt = '';
+                    item.appendChild(im);
+                }
+                item.appendChild(el('span', 'media-item-name', f.name || ''));
+                item.addEventListener('click', () => finish(f));
+                grid.appendChild(item);
+            });
+        }
+
+        const footer = [];
+        if (opts.allowUpload) {
+            const uploadBtn = iconBtn('upload', t('GRAFIDA_BTN_CHOOSE_FILE'), 'btn', 'btn-secondary');
+            uploadBtn.addEventListener('click', () => {
+                uploadLocalImage(siteId, (entry) => { if (entry) finish(entry); });
+            });
+            footer.push(uploadBtn);
+        }
+        const cancelBtn = iconBtn('xmark', t('GRAFIDA_BTN_CANCEL'), 'btn', 'btn-secondary');
+        cancelBtn.addEventListener('click', () => finish(null));
+        footer.push(cancelBtn);
+
+        document.addEventListener('keydown', escHandler, true);
+        showModal(t('GRAFIDA_LBL_MEDIA_BROWSER'), container, footer);
+        const overlay = document.getElementById('modal-overlay');
+        overlay.onclick = (e) => { if (e.target === overlay) finish(null); };
+
+        load('');
     });
 }
 
@@ -1572,6 +1951,7 @@ function collectDraftFormData() {
         html: editor ? editor.getContent() : '',
         fields,
         tags,
+        images: collectImages(),
         metadesc: metadescEl ? metadescEl.value : '',
         metakey: metakeyEl ? metakeyEl.value : '',
     };
@@ -1586,7 +1966,8 @@ function isEditorDirty() {
 
 /**
  * Build the full save payload: the editable form plus the working draft's
- * site/remote link and the fields not exposed in the form (alias, images).
+ * site/remote link and the fields not exposed in the form (alias). The article
+ * images are part of collectDraftFormData() (the editor's Images section).
  */
 function buildDraftSaveBody() {
     const draft = State.currentDraft || {};
@@ -1595,7 +1976,6 @@ function buildDraftSaveBody() {
         siteId: draft.siteId,
         remoteId: draft.remoteId ?? null,
         alias: draft.alias || '',
-        images: draft.images || {},
     };
 }
 

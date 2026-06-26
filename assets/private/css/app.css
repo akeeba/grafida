@@ -520,7 +520,9 @@ input[type="color"].form-control {
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.6);
-    z-index: 1000;
+    /* Above TinyMCE's own dialogs (z-index 1300) so the media picker, opened
+       from the Insert/Edit Image dialog, sits on top of it. */
+    z-index: 1400;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -925,6 +927,151 @@ input[type="color"].form-control {
     letter-spacing: 0.8px;
     color: var(--color-text-muted);
     margin: 0 0 8px;
+}
+
+/* Article images (intro / full text) */
+.images-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.image-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.image-block:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.image-block-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.image-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 90px;
+    background: var(--color-input-bg);
+    border: 1px solid var(--color-input-border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.image-preview img {
+    max-width: 100%;
+    max-height: 160px;
+    display: block;
+}
+
+.image-preview-empty {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    padding: 12px;
+}
+
+.image-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.image-decorative {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.image-decorative input {
+    margin: 0;
+}
+
+/* Media library browser */
+.modal:has(.media-browser) {
+    width: 760px;
+}
+
+.media-browser {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.media-browser-path {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+    word-break: break-all;
+}
+
+.media-browser-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.media-browser-empty,
+.media-browser-error,
+.media-browser-loading {
+    grid-column: 1 / -1;
+    padding: 24px;
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 13px;
+}
+
+.media-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 8px;
+    background: var(--color-input-bg);
+    border: 1px solid var(--color-input-border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color var(--transition), background var(--transition);
+    font: inherit;
+    color: var(--color-text);
+}
+
+.media-item:hover {
+    border-color: var(--color-input-focus);
+}
+
+.media-item-dir .fa-solid {
+    font-size: 28px;
+    margin-top: 8px;
+    color: var(--color-accent);
+}
+
+.media-item-file img {
+    width: 100%;
+    height: 80px;
+    object-fit: cover;
+    border-radius: calc(var(--radius) - 2px);
+}
+
+.media-item-name {
+    font-size: 11px;
+    text-align: center;
+    word-break: break-word;
+    line-height: 1.3;
 }
 
 /* Tags input */

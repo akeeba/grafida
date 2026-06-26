@@ -65,6 +65,12 @@ final class ApiController
         'GRAFIDA_LBL_ABOUT', 'GRAFIDA_BTN_ABOUT', 'GRAFIDA_LBL_VERSION', 'GRAFIDA_LBL_LICENSE',
         'GRAFIDA_ABOUT_VIEW_LICENSE', 'GRAFIDA_BTN_CLOSE',
         'GRAFIDA_LBL_SITE', 'GRAFIDA_MSG_CHANGE_SITE_TITLE', 'GRAFIDA_MSG_CHANGE_SITE_CONFIRM',
+        'GRAFIDA_LBL_IMAGES', 'GRAFIDA_LBL_INTRO_IMAGE', 'GRAFIDA_LBL_FULLTEXT_IMAGE',
+        'GRAFIDA_LBL_IMAGE_URL', 'GRAFIDA_LBL_IMAGE_ALT', 'GRAFIDA_LBL_IMAGE_CAPTION',
+        'GRAFIDA_LBL_IMAGE_DECORATIVE', 'GRAFIDA_LBL_IMAGE_CLASS', 'GRAFIDA_LBL_MEDIA_BROWSER',
+        'GRAFIDA_BTN_CHOOSE_FILE', 'GRAFIDA_BTN_BROWSE_MEDIA', 'GRAFIDA_BTN_CLEAR_IMAGE',
+        'GRAFIDA_BTN_MEDIA_UP',
+        'GRAFIDA_MSG_NO_IMAGE', 'GRAFIDA_MSG_MEDIA_EMPTY',
     ];
 
     public function __construct(
@@ -119,14 +125,14 @@ final class ApiController
             $method === 'POST' && $path === '/api/settings/storage/reset' => $this->resetStorage(),
             $method === 'POST' && $path === '/api/open-url'          => $this->openUrl($body),
 
-            default => $this->parameterised($method, $path, $body),
+            default => $this->parameterised($method, $path, $body, $request),
         };
     }
 
     /**
      * @param array<string, mixed> $body
      */
-    private function parameterised(string $method, string $path, array $body): ResponseInterface
+    private function parameterised(string $method, string $path, array $body, RequestInterface $request): ResponseInterface
     {
         if (preg_match('#^/api/sites/(\d+)$#', $path, $m) === 1) {
             $id = (int) $m[1];
@@ -159,8 +165,14 @@ final class ApiController
         if ($method === 'POST' && preg_match('#^/api/sites/(\d+)/drafts$#', $path, $m) === 1) {
             return $this->saveDraft((int) $m[1], null, $body);
         }
+        if ($method === 'GET' && preg_match('#^/api/sites/(\d+)/media$#', $path, $m) === 1) {
+            return $this->browseMedia((int) $m[1], $request->url->query->get('path', '') ?? '');
+        }
         if ($method === 'POST' && preg_match('#^/api/sites/(\d+)/media$#', $path, $m) === 1) {
             return $this->uploadOfflineMedia((int) $m[1], $body);
+        }
+        if ($method === 'GET' && preg_match('#^/api/media/(\d+)$#', $path, $m) === 1) {
+            return $this->mediaBlob((int) $m[1]);
         }
         if (preg_match('#^/api/drafts/(\d+)$#', $path, $m) === 1) {
             $id = (int) $m[1];
@@ -522,6 +534,36 @@ final class ApiController
         $result = $this->publish->publish($draft, $site);
 
         return Json::ok($result);
+    }
+
+    /**
+     * Lists a folder of the site's Media Manager so the editor can pick an
+     * existing image for the intro / full-text article image.
+     */
+    private function browseMedia(int $siteId, string $path): ResponseInterface
+    {
+        $site  = $this->requireSite($siteId);
+        $token = $this->sites->tokenFor($site);
+
+        if ($token === null || $site->apiBase === null) {
+            return Json::error('The site is not connected.', 409);
+        }
+
+        $entries = $this->apiClient->listMedia($site->apiBase, $token, $path);
+
+        return Json::ok(['path' => $path, 'entries' => $entries]);
+    }
+
+    /** Returns the data: URI of a stored offline image blob (for editor previews). */
+    private function mediaBlob(int $id): ResponseInterface
+    {
+        $dataUri = $this->media->dataUri($id);
+
+        if ($dataUri === null) {
+            return Json::error('Media not found', 404);
+        }
+
+        return Json::ok(['id' => $id, 'dataUri' => $dataUri]);
     }
 
     /** @param array<string, mixed> $body */

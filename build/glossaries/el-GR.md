@@ -41,3 +41,10 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | close | Κλείσιμο | Button label; closes a dialog. |
 | license | Άδεια χρήσης | Software licence (GPL). The full licence text and the Joomla! disclaimer are non-translatable legal content. |
 | version | Έκδοση | Application version label. |
+| intro image | Εικόνα εισαγωγής | Joomla article images.image_intro. |
+| full article image | Εικόνα πλήρους άρθρου | Joomla article images.image_fulltext. |
+| alt text | Εναλλακτικό κείμενο | Image alt attribute. |
+| caption | Λεζάντα | Image caption. |
+| image class | Κλάση εικόνας | Joomla float_intro/float_fulltext: a free-text CSS class. |
+| media library | Βιβλιοθήκη πολυμέσων | The site's Media Manager, browsed when picking an image. |
+| decorative image | διακοσμητική εικόνα | image_*_alt_empty: alt text intentionally empty. |

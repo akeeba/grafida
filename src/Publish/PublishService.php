@@ -37,6 +37,15 @@ final class PublishService
 {
     private const READMORE_MARKER = "\n<hr id=\"system-readmore\" />\n";
 
+    /** Sentinel an editor image carries until its offline blob is uploaded on publish. */
+    private const MEDIA_REF_PREFIX = 'grafida-media://';
+
+    /** The Joomla article `images` subfields, in the order the editor presents them. */
+    private const IMAGE_KEYS = [
+        'image_intro', 'image_intro_alt', 'image_intro_alt_empty', 'float_intro', 'image_intro_caption',
+        'image_fulltext', 'image_fulltext_alt', 'image_fulltext_alt_empty', 'float_fulltext', 'image_fulltext_caption',
+    ];
+
     public function __construct(
         private readonly SiteService $sites,
         private readonly ApiClient $api,
@@ -97,8 +106,9 @@ final class PublishService
         if ($draft->metakey !== '') {
             $attributes['metakey'] = $draft->metakey;
         }
-        if ($draft->images !== []) {
-            $attributes['images'] = $draft->images;
+        $images = $this->resolveImages($draft->images, $site, $base, $token);
+        if ($images !== []) {
+            $attributes['images'] = $images;
         }
         if ($tagIds !== []) {
             $attributes['tags'] = $tagIds;
@@ -160,28 +170,80 @@ final class PublishService
         $map = [];
 
         foreach ($pending as $mediaId) {
-            $blob = $this->media->find($mediaId);
+            $url = $this->uploadBlob($mediaId, $site, $base, $token);
 
-            if ($blob === null) {
-                continue;
+            if ($url !== null) {
+                $map[$mediaId] = $url;
             }
-
-            if ($blob['remote_url'] !== null) {
-                $map[$mediaId] = $blob['remote_url'];
-
-                continue;
-            }
-
-            $path        = 'images/grafida/' . $this->safeName($blob['filename'], $mediaId);
-            $resource    = $this->api->uploadMedia($base, $token, $path, $blob['data']);
-            $resourceUrl = $resource['url'] ?? null;
-            $url         = is_string($resourceUrl) ? $resourceUrl : ($site->baseUrl . '/' . $path);
-
-            $this->media->markUploaded($mediaId, $path, $url);
-            $map[$mediaId] = $url;
         }
 
         return $this->inlineMedia->applyUploadedUrls($draft->html, $map);
+    }
+
+    /**
+     * Uploads a single offline media blob to the site (or returns the URL it was
+     * already uploaded to). Returns null when the blob no longer exists.
+     */
+    private function uploadBlob(int $mediaId, Site $site, string $base, string $token): ?string
+    {
+        $blob = $this->media->find($mediaId);
+
+        if ($blob === null) {
+            return null;
+        }
+
+        if ($blob['remote_url'] !== null) {
+            return $blob['remote_url'];
+        }
+
+        $path        = 'images/grafida/' . $this->safeName($blob['filename'], $mediaId);
+        $resource    = $this->api->uploadMedia($base, $token, $path, $blob['data']);
+        $resourceUrl = $resource['url'] ?? null;
+        $url         = is_string($resourceUrl) ? $resourceUrl : ($site->baseUrl . '/' . $path);
+
+        $this->media->markUploaded($mediaId, $path, $url);
+
+        return $url;
+    }
+
+    /**
+     * Produces the canonical Joomla `images` object from the draft's stored
+     * values: only the known subfields are kept, and the intro / full-text image
+     * references (a `grafida-media://N` sentinel for an image picked offline) are
+     * uploaded and swapped for their public URLs.
+     *
+     * @param array<string, mixed> $images
+     *
+     * @return array<string, string>
+     */
+    private function resolveImages(array $images, Site $site, string $base, string $token): array
+    {
+        $out = [];
+
+        foreach (self::IMAGE_KEYS as $key) {
+            if (!array_key_exists($key, $images)) {
+                continue;
+            }
+
+            $value = $images[$key];
+            $out[$key] = is_string($value) ? $value : '';
+        }
+
+        foreach (['image_intro', 'image_fulltext'] as $key) {
+            $value = $out[$key] ?? '';
+
+            if ($value === '' || !str_starts_with($value, self::MEDIA_REF_PREFIX)) {
+                continue;
+            }
+
+            $mediaId = (int) substr($value, strlen(self::MEDIA_REF_PREFIX));
+            $url     = $mediaId > 0 ? $this->uploadBlob($mediaId, $site, $base, $token) : null;
+
+            // Drop the reference if its blob vanished, rather than publishing the sentinel.
+            $out[$key] = $url ?? '';
+        }
+
+        return $out;
     }
 
     /**
