@@ -1099,16 +1099,14 @@ function renderRemoteArticles() {
     clearNode(list);
     clearNode(pager);
 
-    // A remote article that already has a local draft is shown only as that draft.
-    const linkedRemoteIds = new Set(State.drafts.map(d => d.remoteId).filter(id => id != null));
-    const remoteArticles = State.remoteArticles.filter(a => !linkedRemoteIds.has(a.id));
-
-    if (!remoteArticles.length) {
+    if (!State.remoteArticles.length) {
         list.appendChild(el('div', 'empty-state', el('p', null, t('GRAFIDA_MSG_NO_REMOTE_ARTICLES'))));
         return;
     }
 
-    remoteArticles.forEach(article => list.appendChild(buildArticleItem(article, 'remote')));
+    // A remote article that already has a local draft stays in the list, but is
+    // flagged so the user can jump straight to that draft (see openEditorFor).
+    State.remoteArticles.forEach(article => list.appendChild(buildArticleItem(article, 'remote')));
 
     const { page, totalPages } = State.articlePaging;
     if (totalPages <= 1) return;
@@ -1157,6 +1155,16 @@ function buildArticleItem(article, type) {
     const badge = el('span', `article-badge ${badgeClass}`, badgeText);
 
     item.appendChild(infoDiv);
+
+    // A remote article that is already mirrored by a local draft gets an extra
+    // badge; clicking it opens that draft rather than re-importing the article.
+    const hasDraft = type === 'remote'
+        && State.drafts.some(d => d.remoteId != null && d.remoteId === article.id);
+    if (hasDraft) {
+        item.classList.add('article-item-has-draft');
+        item.appendChild(el('span', 'article-badge badge-draft', t('GRAFIDA_LBL_HAS_LOCAL_DRAFT')));
+    }
+
     item.appendChild(badge);
 
     // Local drafts can be deleted; remote articles are read-only here.

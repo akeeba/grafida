@@ -71,7 +71,11 @@ whole back-end is testable without opening a window (see `tests/Feature/ApiRouti
   (Joomla's `meta['total-pages']`). Default sort is `a.id` desc. The SPA renders a filter/sort
   toolbar (search, sort column + direction, category/tag/language/state/featured/checked-out
   dropdowns, per-page limit, clear-filters) above the remote list with prev/next pagination;
-  local drafts are listed separately above it and are never paginated. The API only accepts a
+  local drafts are listed separately above it and are never paginated. A remote article that
+  is already mirrored by a local draft (same site + `remote_id`) **stays** in the remote list
+  (it is not hidden), tagged with an extra `GRAFIDA_LBL_HAS_LOCAL_DRAFT` "Local draft" badge and
+  a left accent; clicking it opens the existing draft rather than re-importing the article
+  (`openEditorFor()` reuses the matching draft). The API only accepts a
   **single** category/tag and an INT `state`, so there is no multi-select or "all states"; an
   author filter is omitted (no local user list).
 - `src/Media/` — offline image blobs (`media_blobs`). `ApiClient::listMedia()` browses the

@@ -937,6 +937,11 @@ input[type="color"].form-control {
     border: 1px solid rgba(48, 128, 224, 0.3);
 }
 
+/* A remote article that is already mirrored by a local draft. */
+.article-item-has-draft {
+    border-left: 3px solid var(--color-warning);
+}
+
 /* Loading spinner */
 .spinner {
     display: inline-block;
