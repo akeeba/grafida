@@ -131,6 +131,12 @@ whole back-end is testable without opening a window (see `tests/Feature/ApiRouti
   opens `openSourceCodeEditor()` — a `showModal()` dialog hosting a CodeMirror `htmlmixed`
   editor (light `default` / dark `material-darker` theme, matched to `State.resolvedTheme`).
   Save writes the source back via `editor.setContent(…, {source_view: true})` in one undo step.
+  The active site is remembered client-side in `localStorage` (`grafida.lastSiteId`, via
+  `rememberLastSite()` / `recallLastSite()`); it is not persisted server-side. On startup
+  `bootstrap()` opens the **Articles** page (instead of **Sites**) when at least one site is
+  defined and a previously remembered last active site is still in the list — the remembered id
+  is read *before* `renderSiteSelector()` writes its first-site fallback, so a freshly added but
+  never-selected site does not trigger the Articles default.
 - `language/<tag>/<tag>.com_grafida.ini` + `language/grafida.xml` — translations + manifest.
 - `storage/migrations/*.sql` — schema. `.plans/` — implementation step notes (gitignored).
 - `build/glossaries/` — per-language translation glossaries.
