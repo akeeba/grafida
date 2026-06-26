@@ -1196,7 +1196,21 @@ function buildCategorySelect(categories, selectedCatid) {
     sel.appendChild(none);
 
     if (categories.length > 0 && categories[0].level !== undefined) {
-        appendCategoryOptions(sel, categories, 0, selectedCatid);
+        // Joomla returns each category's nested-set position: `lft` gives the
+        // tree order and `level` its depth. We don't know (and must not assume)
+        // the hidden ROOT node's id, so we never look at parent_id — sorting by
+        // `lft` and indenting by `level` (relative to the shallowest category in
+        // the list) reproduces the tree regardless of what the root id is.
+        const ordered = categories.slice().sort((a, b) => (Number(a.lft) || 0) - (Number(b.lft) || 0));
+        const minLevel = Math.min(...ordered.map(c => Number(c.level) || 0));
+        ordered.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat.id;
+            const depth = (Number(cat.level) || 0) - minLevel;
+            opt.textContent = ' '.repeat(depth * 4) + cat.title;
+            if (cat.id == selectedCatid) opt.selected = true;
+            sel.appendChild(opt);
+        });
     } else {
         categories.forEach(cat => {
             const opt = document.createElement('option');
@@ -1207,21 +1221,6 @@ function buildCategorySelect(categories, selectedCatid) {
         });
     }
     return sel;
-}
-
-function appendCategoryOptions(sel, categories, parentId, selectedCatid) {
-    categories
-        .filter(c => (c.parent_id || 0) == parentId || (parentId === 0 && !c.parent_id))
-        .sort((a, b) => (a.lft || 0) - (b.lft || 0))
-        .forEach(cat => {
-            const opt = document.createElement('option');
-            opt.value = cat.id;
-            const depth = cat.level || 1;
-            opt.textContent = ' '.repeat((depth - 1) * 4) + cat.title;
-            if (cat.id == selectedCatid) opt.selected = true;
-            sel.appendChild(opt);
-            appendCategoryOptions(sel, categories, cat.id, selectedCatid);
-        });
 }
 
 function buildAccessSelect(levels, selectedAccess) {
