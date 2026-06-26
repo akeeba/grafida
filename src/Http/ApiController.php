@@ -64,6 +64,7 @@ final class ApiController
         'GRAFIDA_MSG_DRAFT_DELETED', 'GRAFIDA_MSG_DELETE_SITE_CONFIRM',
         'GRAFIDA_LBL_ABOUT', 'GRAFIDA_BTN_ABOUT', 'GRAFIDA_LBL_VERSION', 'GRAFIDA_LBL_LICENSE',
         'GRAFIDA_ABOUT_VIEW_LICENSE', 'GRAFIDA_BTN_CLOSE',
+        'GRAFIDA_LBL_SITE', 'GRAFIDA_MSG_CHANGE_SITE_TITLE', 'GRAFIDA_MSG_CHANGE_SITE_CONFIRM',
     ];
 
     public function __construct(
@@ -148,6 +149,9 @@ final class ApiController
         }
         if ($method === 'GET' && preg_match('#^/api/sites/(\d+)/articles$#', $path, $m) === 1) {
             return $this->remoteArticles((int) $m[1]);
+        }
+        if ($method === 'GET' && preg_match('#^/api/sites/(\d+)/articles/(\d+)$#', $path, $m) === 1) {
+            return $this->remoteArticle((int) $m[1], (int) $m[2]);
         }
         if ($method === 'GET' && preg_match('#^/api/sites/(\d+)/drafts$#', $path, $m) === 1) {
             return $this->listDrafts((int) $m[1]);
@@ -303,6 +307,128 @@ final class ApiController
         return Json::ok($articles);
     }
 
+    /**
+     * Fetches a single remote article and returns it shaped as an unsaved draft
+     * (id: null) ready for the editor — see {@see self::remoteArticleToDraft()}.
+     */
+    private function remoteArticle(int $siteId, int $articleId): ResponseInterface
+    {
+        $site  = $this->requireSite($siteId);
+        $token = $this->sites->tokenFor($site);
+
+        if ($token === null || $site->apiBase === null) {
+            return Json::error('The site is not connected.', 409);
+        }
+
+        $article = $this->apiClient->getArticle($site->apiBase, $token, $articleId);
+
+        return Json::ok($this->remoteArticleToDraft($siteId, $articleId, $article, $site));
+    }
+
+    /**
+     * Maps a Joomla article resource into an unsaved draft payload. The intro and
+     * full text are rejoined around a read-more marker so the introtext/fulltext
+     * split round-trips on publish; tag IDs are resolved to titles (best effort)
+     * via the reference cache so editing then publishing does not drop them.
+     *
+     * @param array<string, mixed> $article
+     *
+     * @return array<string, mixed>
+     */
+    private function remoteArticleToDraft(int $siteId, int $articleId, array $article, Site $site): array
+    {
+        $intro = $this->str($article, 'introtext');
+        $full  = $this->str($article, 'fulltext');
+        $html  = $full === '' ? $intro : $intro . "\n<hr class=\"readmore\">\n" . $full;
+
+        $language = $this->str($article, 'language', '*');
+
+        return [
+            'id'       => null,
+            'siteId'   => $siteId,
+            'remoteId' => $articleId,
+            'title'    => $this->str($article, 'title'),
+            'alias'    => $this->str($article, 'alias'),
+            'catid'    => isset($article['catid']) && is_numeric($article['catid']) ? (int) $article['catid'] : null,
+            'access'   => isset($article['access']) && is_numeric($article['access']) ? (int) $article['access'] : 1,
+            'language' => $language !== '' ? $language : '*',
+            'state'    => isset($article['state']) && is_numeric($article['state']) ? (int) $article['state'] : 1,
+            'html'     => $html,
+            'fields'   => [],
+            'tags'     => $this->remoteTagTitles($article, $site),
+            'images'   => $this->remoteImages($article),
+            'metadesc' => $this->str($article, 'metadesc'),
+            'metakey'  => $this->str($article, 'metakey'),
+        ];
+    }
+
+    /**
+     * Resolves a remote article's tags (IDs or tag objects) to titles, which is
+     * how a draft stores them. Tags the local reference cache does not know are
+     * skipped rather than guessed.
+     *
+     * @param array<string, mixed> $article
+     *
+     * @return list<string>
+     */
+    private function remoteTagTitles(array $article, Site $site): array
+    {
+        $tags = $article['tags'] ?? null;
+
+        if (!is_array($tags) || $tags === []) {
+            return [];
+        }
+
+        $titleById = [];
+        foreach ($this->references->tags($site) as $tag) {
+            $id    = $tag['id'] ?? null;
+            $title = $tag['title'] ?? null;
+            if ((is_int($id) || is_string($id)) && is_string($title)) {
+                $titleById[(int) $id] = $title;
+            }
+        }
+
+        $out = [];
+        foreach ($tags as $tag) {
+            $id = is_array($tag) ? ($tag['id'] ?? null) : $tag;
+            if (is_numeric($id) && isset($titleById[(int) $id])) {
+                $out[] = $titleById[(int) $id];
+            }
+        }
+
+        return array_values(array_unique($out));
+    }
+
+    /**
+     * Normalises a remote article's `images` attribute (a JSON string or object)
+     * to a plain array the draft can store and republish verbatim.
+     *
+     * @param array<string, mixed> $article
+     *
+     * @return array<string, mixed>
+     */
+    private function remoteImages(array $article): array
+    {
+        $images = $article['images'] ?? null;
+
+        if (is_string($images) && $images !== '') {
+            $decoded = json_decode($images, true);
+            $images  = is_array($decoded) ? $decoded : null;
+        }
+
+        if (!is_array($images)) {
+            return [];
+        }
+
+        // JSON object keys are strings; rebuild to satisfy the declared shape.
+        $out = [];
+        foreach ($images as $k => $v) {
+            $out[(string) $k] = $v;
+        }
+
+        return $out;
+    }
+
     private function listDrafts(int $siteId): ResponseInterface
     {
         return Json::ok(array_map(
@@ -328,7 +454,9 @@ final class ApiController
                 return Json::error('Draft not found', 404);
             }
 
-            $siteId = $existing->siteId;
+            // A draft may be re-pointed at another site (which unlinks it from any
+            // remote article); honour the client's siteId, falling back to its own.
+            $siteId = $this->int($body, 'siteId', $existing->siteId);
         }
 
         $remoteIdVal = $body['remoteId'] ?? null;

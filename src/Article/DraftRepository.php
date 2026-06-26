@@ -34,6 +34,17 @@ final class DraftRepository
         return array_values(array_map(static fn (array $r): Draft => Draft::fromRow($r), $rows));
     }
 
+    /** Finds the draft (if any) that mirrors a given remote article on a site. */
+    public function findByRemote(int $siteId, int $remoteId): ?Draft
+    {
+        $stmt = $this->pdo->prepare('SELECT * FROM drafts WHERE site_id = ? AND remote_id = ? LIMIT 1');
+        $stmt->execute([$siteId, $remoteId]);
+        /** @var array{id?: int|string|null, site_id: int|string, remote_id: int|string|null, title: string, alias: string, catid: int|string|null, access: int|string, language: string, state: int|string, html: string, fields_json: string, tags_json: string, images_json: string, metadesc?: string, metakey?: string}|false $row */
+        $row = $stmt->fetch();
+
+        return $row !== false ? Draft::fromRow($row) : null;
+    }
+
     public function find(int $id): ?Draft
     {
         $stmt = $this->pdo->prepare('SELECT * FROM drafts WHERE id = ?');
@@ -68,16 +79,14 @@ final class DraftRepository
         }
 
         $stmt = $this->pdo->prepare(
-            'UPDATE drafts SET remote_id = :remote_id, title = :title, alias = :alias, catid = :catid, '
-            . 'access = :access, language = :language, state = :state, html = :html, fields_json = :fields, '
-            . 'tags_json = :tags, images_json = :images, metadesc = :metadesc, metakey = :metakey, '
-            . 'updated_at = :now WHERE id = :id'
+            'UPDATE drafts SET site_id = :site_id, remote_id = :remote_id, title = :title, alias = :alias, '
+            . 'catid = :catid, access = :access, language = :language, state = :state, html = :html, '
+            . 'fields_json = :fields, tags_json = :tags, images_json = :images, metadesc = :metadesc, '
+            . 'metakey = :metakey, updated_at = :now WHERE id = :id'
         );
-        // The UPDATE does not touch site_id, so drop it: native SQLite prepares
-        // (emulation off) reject a bound parameter the statement does not name.
-        $params = $this->bind($draft);
-        unset($params[':site_id']);
-        $stmt->execute($params + [':now' => gmdate('Y-m-d H:i:s'), ':id' => $draft->id]);
+        // site_id is updatable: a draft can be re-pointed at another site (which
+        // also unlinks it from any remote article — see ApiController::saveDraft).
+        $stmt->execute($this->bind($draft) + [':now' => gmdate('Y-m-d H:i:s'), ':id' => $draft->id]);
     }
 
     public function setRemoteId(int $id, int $remoteId): void

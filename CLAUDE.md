@@ -29,7 +29,13 @@ whole back-end is testable without opening a window (see `tests/Feature/ApiRouti
   when a site is connected/updated, and opening the editor falls back to cache per-list (only the
   manual refresh button surfaces fetch errors).
 - `src/Field/FieldSupport.php` — supported field-type subset + required-unsupported guard.
-- `src/Article/` — `Draft` entity + repository (local drafts).
+- `src/Article/` — `Draft` entity + repository (local drafts). A draft remembers the
+  `site_id` + `remote_id` it mirrors; `findByRemote()` locates an existing draft for a
+  remote article and `update()` can re-point a draft at another site (which unlinks it).
+  Editing a remote article fetches its full content via `GET /api/sites/{id}/articles/{articleId}`
+  (intro+full text rejoined around the read-more marker, tag IDs resolved to titles) and
+  opens it as an **unsaved** draft — drafts (new or imported) are only written to the DB on
+  the first Save, so an unchanged remote article leaves no local draft.
 - `src/Media/` — offline image blobs (`media_blobs`).
 - `src/Html/` — `ContentSplitter` (read-more split), `CssRebaser`, `InlineMedia`, `HtmlDocument`.
 - `src/Publish/PublishService.php` — the publish pipeline (media upload, tags, fields, split, POST/PATCH).

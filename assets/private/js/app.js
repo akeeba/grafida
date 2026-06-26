@@ -29,13 +29,21 @@ const State = {
     app: {},
     sites: [],
     currentSiteId: null,
+    // The draft currently open in the editor. Held in memory and only written to
+    // the database on the first Save — a new or remote-imported article leaves no
+    // trace until the user explicitly saves it. `id` is null while unsaved.
+    currentDraft: null,
     currentDraftId: null,
-    // True when the open draft was auto-created on entering the editor and has not
-    // been explicitly saved yet — such a draft is removed if the user backs out.
-    draftIsNew: false,
     // JSON snapshot of the editor form taken when the draft opened / was last saved,
     // used to detect unsaved changes.
     editorBaseline: null,
+    // Forces the "dirty" state regardless of the form snapshot — set when the user
+    // re-points the draft at another site, a change the snapshot cannot capture.
+    editorForceDirty: false,
+    // The site the open draft was last persisted to; the articles list returns
+    // here on leave so a draft moved (and saved) to another site stays visible,
+    // while an unsaved, then discarded, move does not move the list.
+    editorSavedSiteId: null,
     drafts: [],
     remoteArticles: [],
     references: null,
@@ -198,6 +206,7 @@ const api = {
     refreshReferences: (siteId) => apiFetch('POST', `/api/sites/${siteId}/references/refresh`),
     getEditorCss: (siteId) => apiFetch('GET', `/api/sites/${siteId}/editor-css`),
     getRemoteArticles: (siteId) => apiFetch('GET', `/api/sites/${siteId}/articles`),
+    getRemoteArticle: (siteId, articleId) => apiFetch('GET', `/api/sites/${siteId}/articles/${articleId}`),
     getDrafts: (siteId) => apiFetch('GET', `/api/sites/${siteId}/drafts`),
     createDraft: (siteId, body) => apiFetch('POST', `/api/sites/${siteId}/drafts`, body),
     getDraft: (id) => apiFetch('GET', `/api/drafts/${id}`),
@@ -412,6 +421,21 @@ function renderSiteSelector() {
     updateNavState();
 }
 
+/**
+ * Programmatically switch the active site (mirrors the nav drop-down change):
+ * updates state, the drop-down value and the cached reference data.
+ */
+function selectSite(siteId) {
+    if (!siteId || !State.sites.find(s => s.id === siteId)) return;
+    State.currentSiteId = siteId;
+    rememberLastSite(siteId);
+    State.references = null;
+    State.editorCss = null;
+    const sel = document.getElementById('site-select');
+    if (sel) sel.value = String(siteId);
+    updateNewArticleButton();
+}
+
 function updateNavState() {
     const hasSites = State.sites.length > 0;
     const articlesLink = document.querySelector('nav#main-nav a[data-screen="articles"]');
@@ -463,7 +487,8 @@ async function reloadSiteMetadata(siteId, button) {
     if (button) button.disabled = true;
     try {
         const refs = await api.refreshReferences(siteId);
-        if (siteId === State.currentSiteId) State.references = refs;
+        const editorSiteId = State.currentDraft ? State.currentDraft.siteId : null;
+        if (siteId === State.currentSiteId || siteId === editorSiteId) State.references = refs;
         showToast(t('GRAFIDA_MSG_REFS_REFRESHED'), 'success');
         return true;
     } catch (err) {
@@ -751,15 +776,20 @@ function renderArticlesList() {
         container.appendChild(section);
     }
 
-    if (State.remoteArticles.length > 0) {
+    // A remote article that already has a local draft is shown only as that draft
+    // (clicking it would reuse the draft anyway), so it is filtered out here.
+    const linkedRemoteIds = new Set(State.drafts.map(d => d.remoteId).filter(id => id != null));
+    const remoteArticles = State.remoteArticles.filter(a => !linkedRemoteIds.has(a.id));
+
+    if (remoteArticles.length > 0) {
         const section = el('div', 'article-list-section');
         const heading = el('h3', null, 'Remote Articles');
         section.appendChild(heading);
-        State.remoteArticles.forEach(article => section.appendChild(buildArticleItem(article, 'remote')));
+        remoteArticles.forEach(article => section.appendChild(buildArticleItem(article, 'remote')));
         container.appendChild(section);
     }
 
-    if (!State.drafts.length && !State.remoteArticles.length) {
+    if (!State.drafts.length && !remoteArticles.length) {
         container.appendChild(el('div', 'empty-state', el('p', null, 'No articles found.')));
     }
 }
@@ -818,50 +848,38 @@ async function confirmDeleteDraft(draft) {
 }
 
 async function openEditorFor(article, type) {
-    let draft = null;
-
-    // An existing local draft is already persisted; a remote import auto-creates a
-    // fresh local draft that should be discarded if the user backs out unchanged.
-    State.draftIsNew = type !== 'draft';
-
+    // An existing local draft opens directly.
     if (type === 'draft') {
-        draft = article;
-    } else {
-        draft = {
-            siteId: State.currentSiteId,
-            remoteId: article.id,
-            title: article.title || '',
-            alias: article.alias || '',
-            catid: article.catid || null,
-            access: article.access || 1,
-            language: article.language || '*',
-            state: article.state ?? 1,
-            html: article.introtext || article.body || '',
-            fields: {},
-            tags: [],
-            images: {},
-            metadesc: article.metadesc || '',
-            metakey: article.metakey || '',
-        };
-        try {
-            const saved = await api.createDraft(State.currentSiteId, draft);
-            draft = saved;
-            State.drafts.push(draft);
-        } catch (err) {
-            showToast(err.message, 'error');
-            return;
-        }
+        await openDraftInEditor(article);
+        return;
     }
 
-    State.currentDraftId = draft.id;
-    await openEditorScreen(draft);
+    // A remote article that already has a local draft (same site + remote id)
+    // must reuse it rather than spawn a second draft.
+    const existing = State.drafts.find(d => d.remoteId != null && d.remoteId === article.id);
+    if (existing) {
+        await openDraftInEditor(existing);
+        return;
+    }
+
+    // Otherwise fetch the full article (the list only carries a teaser) and open
+    // it as an unsaved draft — nothing is written to the database until Save.
+    let draft;
+    try {
+        draft = await api.getRemoteArticle(State.currentSiteId, article.id);
+    } catch (err) {
+        showToast(err.message, 'error');
+        return;
+    }
+    await openDraftInEditor(draft);
 }
 
 async function openNewArticle() {
     if (!State.currentSiteId) return;
-    State.draftIsNew = true;
-    const draft = {
+    await openDraftInEditor({
+        id: null,
         siteId: State.currentSiteId,
+        remoteId: null,
         title: '',
         alias: '',
         catid: null,
@@ -874,14 +892,16 @@ async function openNewArticle() {
         images: {},
         metadesc: '',
         metakey: '',
-    };
-    try {
-        const saved = await api.createDraft(State.currentSiteId, draft);
-        State.currentDraftId = saved.id;
-        await openEditorScreen(saved);
-    } catch (err) {
-        showToast(err.message, 'error');
-    }
+    });
+}
+
+/** Opens a draft object (persisted or unsaved) in the editor. */
+async function openDraftInEditor(draft) {
+    State.currentDraft = draft;
+    State.currentDraftId = draft.id ?? null;
+    State.editorForceDirty = false;
+    State.editorSavedSiteId = draft.siteId ?? State.currentSiteId;
+    await openEditorScreen(draft);
 }
 
 // ============================================================
@@ -896,11 +916,11 @@ async function openEditorScreen(draft) {
     const promises = [];
 
     if (needRefs) {
-        promises.push(api.getReferences(State.currentSiteId).then(r => { State.references = r; }));
+        promises.push(api.getReferences(draft.siteId).then(r => { State.references = r; }));
     }
     if (needCss) {
         promises.push(
-            api.getEditorCss(State.currentSiteId)
+            api.getEditorCss(draft.siteId)
                 .then(r => { State.editorCss = r.css; })
                 .catch(() => { State.editorCss = null; })
         );
@@ -929,6 +949,10 @@ function renderEditorSidebar(draft) {
     // Title in main area
     const titleInput = document.getElementById('editor-title-input');
     if (titleInput) titleInput.value = draft.title || '';
+
+    // Site this draft belongs to. Re-pointing it at another site unlinks it from
+    // any remote article (the user is warned first) — see changeEditorSite().
+    sidebar.appendChild(formGroup(t('GRAFIDA_LBL_SITE'), buildSiteSelect(draft.siteId)));
 
     // Status (Joomla published state). The Publish button is a sync/push; this
     // controls the state the article is given on the site, independent of pushing.
@@ -991,10 +1015,79 @@ function renderEditorSidebar(draft) {
     const reloadBtn = iconBtn('arrows-rotate', t('GRAFIDA_BTN_RELOAD_METADATA'), 'btn', 'btn-sm', 'btn-secondary');
     reloadBtn.addEventListener('click', async () => {
         const current = collectDraftFormData();
-        const ok = await reloadSiteMetadata(State.currentSiteId, reloadBtn);
-        if (ok) renderEditorSidebar(current);
+        const ok = await reloadSiteMetadata(draft.siteId, reloadBtn);
+        if (ok) renderEditorSidebar({ ...draft, ...current });
     });
     sidebar.appendChild(el('div', 'sidebar-reload', reloadBtn));
+}
+
+// Site picker for the open draft. Changing it moves the draft to another site;
+// if the draft mirrors a remote article the user is warned that this unlinks it.
+function buildSiteSelect(selectedSiteId) {
+    const sel = document.createElement('select');
+    sel.id = 'editor-site';
+    sel.className = 'form-control';
+
+    State.sites.forEach(site => {
+        const opt = document.createElement('option');
+        opt.value = String(site.id);
+        opt.textContent = site.title;
+        if (site.id === selectedSiteId) opt.selected = true;
+        sel.appendChild(opt);
+    });
+
+    sel.disabled = State.sites.length <= 1;
+    sel.addEventListener('change', () => changeEditorSite(parseInt(sel.value, 10)));
+    return sel;
+}
+
+async function changeEditorSite(newSiteId) {
+    const draft = State.currentDraft;
+    if (!draft || !newSiteId || newSiteId === draft.siteId) return;
+
+    // Moving a draft that mirrors a remote article turns it into a new article;
+    // make the user confirm, and revert the dropdown if they decline.
+    if (draft.remoteId != null) {
+        const confirmed = await confirmYesNo(
+            t('GRAFIDA_MSG_CHANGE_SITE_TITLE'),
+            [el('p', null, t('GRAFIDA_MSG_CHANGE_SITE_CONFIRM'))]
+        );
+        if (!confirmed) {
+            const siteSel = document.getElementById('editor-site');
+            if (siteSel) siteSel.value = String(draft.siteId);
+            return;
+        }
+        draft.remoteId = null;
+    }
+
+    // Capture the user's edits, then re-point the draft. Category, access,
+    // language and custom fields are site-specific, so they reset to defaults.
+    Object.assign(draft, collectDraftFormData());
+    draft.siteId = newSiteId;
+    draft.catid = null;
+    draft.access = 1;
+    draft.language = '*';
+    draft.fields = {};
+
+    // A site move is not reflected in the form snapshot, so flag it dirty.
+    State.editorForceDirty = true;
+
+    // Reload the new site's reference data and editor CSS, then rebuild.
+    State.references = null;
+    State.editorCss = null;
+    try {
+        State.references = await api.getReferences(newSiteId);
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+    try {
+        State.editorCss = (await api.getEditorCss(newSiteId)).css;
+    } catch {
+        State.editorCss = null;
+    }
+
+    renderEditorSidebar(draft);
+    await initTinyMCE(draft);
 }
 
 // Joomla article states: 1 published, 0 unpublished, 2 archived, -2 trashed.
@@ -1320,7 +1413,8 @@ async function initTinyMCE(draft) {
         } catch {}
     }
 
-    const site = State.sites.find(s => s.id === State.currentSiteId);
+    const editorSiteId = State.currentDraft ? State.currentDraft.siteId : State.currentSiteId;
+    const site = State.sites.find(s => s.id === editorSiteId);
     const baseUrl = site ? (site.baseUrl || '').replace(/\/?$/, '/') : '';
 
     await tinymce.init({
@@ -1393,7 +1487,7 @@ async function initTinyMCE(draft) {
             const mime = blobInfo.blob().type || 'image/png';
             const dataBase64 = blobInfo.base64();
             try {
-                const result = await api.uploadMedia(State.currentSiteId, {
+                const result = await api.uploadMedia(editorSiteId, {
                     filename, mime, dataBase64, draftId: State.currentDraftId,
                 });
                 return result.dataUri;
@@ -1415,7 +1509,7 @@ async function initTinyMCE(draft) {
                     const dataBase64 = dataUrl.split(',')[1];
                     const mime = file.type || 'image/png';
                     try {
-                        const result = await api.uploadMedia(State.currentSiteId, {
+                        const result = await api.uploadMedia(editorSiteId, {
                             filename: file.name, mime, dataBase64,
                             draftId: State.currentDraftId,
                         });
@@ -1485,22 +1579,44 @@ function collectDraftFormData() {
 
 /** True when the editor form differs from the last saved/loaded snapshot. */
 function isEditorDirty() {
+    if (State.editorForceDirty) return true;
     if (State.editorBaseline === null) return false;
     return JSON.stringify(collectDraftFormData()) !== State.editorBaseline;
 }
 
+/**
+ * Build the full save payload: the editable form plus the working draft's
+ * site/remote link and the fields not exposed in the form (alias, images).
+ */
+function buildDraftSaveBody() {
+    const draft = State.currentDraft || {};
+    return {
+        ...collectDraftFormData(),
+        siteId: draft.siteId,
+        remoteId: draft.remoteId ?? null,
+        alias: draft.alias || '',
+        images: draft.images || {},
+    };
+}
+
 async function saveDraft() {
-    if (!State.currentDraftId) return;
+    if (!State.currentDraft) return;
     if (!State.tinyMCEEditor) return;
 
-    const body = collectDraftFormData();
+    const body = buildDraftSaveBody();
 
     try {
-        const saved = await api.saveDraft(State.currentDraftId, body);
-        // The draft is now persisted with the user's content; reset the change
-        // tracking so it is no longer treated as a throwaway new draft.
-        State.draftIsNew = false;
-        State.editorBaseline = JSON.stringify(body);
+        // First save of a new or remote-imported article inserts the row; later
+        // saves update it. This is why nothing is persisted until the user saves.
+        const saved = State.currentDraftId == null
+            ? await api.createDraft(body.siteId, body)
+            : await api.saveDraft(State.currentDraftId, body);
+
+        State.currentDraft = saved;
+        State.currentDraftId = saved.id;
+        State.editorForceDirty = false;
+        State.editorSavedSiteId = saved.siteId;
+        State.editorBaseline = JSON.stringify(collectDraftFormData());
         showToast(t('GRAFIDA_MSG_SAVED'), 'success');
         return saved;
     } catch (err) {
@@ -1515,30 +1631,32 @@ async function saveDraft() {
 
 /** Tear down the editor state and return to the articles list. */
 function leaveEditor() {
+    // A draft may have been re-pointed at (and saved to) another site while
+    // editing; surface that site in the list so the saved draft stays visible.
+    const savedSiteId = State.editorSavedSiteId;
+    if (savedSiteId && savedSiteId !== State.currentSiteId) {
+        selectSite(savedSiteId);
+    }
+
+    State.currentDraft = null;
     State.currentDraftId = null;
-    State.draftIsNew = false;
     State.editorBaseline = null;
+    State.editorForceDirty = false;
+    State.editorSavedSiteId = null;
     showScreen('articles');
     loadArticlesScreen();
 }
 
-/** Discard the open draft from the database when it is a throwaway new draft. */
-async function discardNewDraftIfNeeded() {
-    if (State.draftIsNew && State.currentDraftId) {
-        try { await api.deleteDraft(State.currentDraftId); } catch {}
-    }
-}
-
 /**
- * Handle the editor Back button: silently drop an untouched new draft, or prompt
- * to save / keep editing / discard when there are unsaved changes.
+ * Handle the editor Back button: leave straight away when nothing changed (an
+ * untouched new or remote draft was never persisted), or prompt to save / keep
+ * editing / discard when there are unsaved changes.
  */
 async function handleEditorBack() {
     if (isEditorDirty()) {
         showUnsavedChangesDialog();
         return;
     }
-    await discardNewDraftIfNeeded();
     leaveEditor();
 }
 
@@ -1560,9 +1678,8 @@ function showUnsavedChangesDialog() {
     keepBtn.addEventListener('click', closeModal);
 
     const discardBtn = iconBtn('trash', t('GRAFIDA_BTN_DISCARD_CHANGES'), 'btn', 'btn-danger');
-    discardBtn.addEventListener('click', async () => {
+    discardBtn.addEventListener('click', () => {
         closeModal();
-        await discardNewDraftIfNeeded();
         leaveEditor();
     });
 
@@ -1575,10 +1692,17 @@ function showUnsavedChangesDialog() {
 // --------------------------------------------------------
 
 async function publishDraft() {
-    try { await saveDraft(); } catch { return; }
+    let saved;
+    try { saved = await saveDraft(); } catch { return; }
+    if (!saved || State.currentDraftId == null) return;
 
     try {
-        await api.publishDraft(State.currentDraftId);
+        const result = await api.publishDraft(State.currentDraftId);
+        // Publishing a new article assigns it a remote ID; keep the open draft in
+        // sync so a subsequent publish updates that article instead of recreating.
+        if (result && result.remoteId && State.currentDraft) {
+            State.currentDraft.remoteId = result.remoteId;
+        }
         showToast(t('GRAFIDA_MSG_PUBLISH_OK'), 'success');
     } catch (err) {
         if (err.code === 'publish_blocked') {
