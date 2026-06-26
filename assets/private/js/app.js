@@ -2888,10 +2888,22 @@ async function bootstrap() {
     applyTheme();
     applyStrings();
     renderSidebarFooter();
+    // Capture the remembered site *before* renderSiteSelector() persists a fallback.
+    const remembered = recallLastSite();
+
     renderSiteSelector();
     renderSitesScreen();
     renderSettingsScreen();
-    showScreen('sites');
+
+    // Default to the Articles page when we have a site and a remembered last active one.
+    const hasRememberedSite = State.sites.length > 0
+        && remembered && State.sites.some(s => s.id === remembered);
+    if (hasRememberedSite) {
+        showScreen('articles');
+        loadArticlesScreen();
+    } else {
+        showScreen('sites');
+    }
 }
 
 // ============================================================
