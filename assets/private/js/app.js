@@ -452,6 +452,28 @@ function renderSitesScreen() {
     });
 }
 
+/**
+ * Re-fetch reference metadata (categories, tags, access levels, languages,
+ * custom fields) from the site, bypassing the local cache. Updates
+ * State.references when the reloaded site is the one currently open in the
+ * editor. The optional button is disabled while the request is in flight.
+ */
+async function reloadSiteMetadata(siteId, button) {
+    if (!siteId) return false;
+    if (button) button.disabled = true;
+    try {
+        const refs = await api.refreshReferences(siteId);
+        if (siteId === State.currentSiteId) State.references = refs;
+        showToast(t('GRAFIDA_MSG_REFS_REFRESHED'), 'success');
+        return true;
+    } catch (err) {
+        showToast(err.message, 'error');
+        return false;
+    } finally {
+        if (button) button.disabled = false;
+    }
+}
+
 function buildSiteItem(site) {
     const info = el('div', 'site-item-info',
         el('div', 'site-item-title', site.title || ''),
@@ -464,7 +486,10 @@ function buildSiteItem(site) {
     const btnDel = iconBtn('trash', t('GRAFIDA_BTN_DELETE'), 'btn', 'btn-sm', 'btn-danger');
     btnDel.addEventListener('click', () => confirmDeleteSite(site.id));
 
-    const actions = el('div', 'site-item-actions', btnEdit, btnDel);
+    const btnReload = iconBtn('arrows-rotate', t('GRAFIDA_BTN_RELOAD_METADATA'), 'btn', 'btn-sm', 'btn-secondary');
+    btnReload.addEventListener('click', () => reloadSiteMetadata(site.id, btnReload));
+
+    const actions = el('div', 'site-item-actions', btnReload, btnEdit, btnDel);
     return el('div', 'site-item', info, actions);
 }
 
@@ -959,6 +984,17 @@ function renderEditorSidebar(draft) {
     metakeyEl.className = 'form-control';
     metakeyEl.value = draft.metakey || '';
     sidebar.appendChild(formGroup('Meta keywords', metakeyEl));
+
+    // Reload the site's reference metadata (categories, tags, access levels,
+    // languages, custom fields). Re-renders the sidebar afterwards, preserving
+    // the current unsaved selections.
+    const reloadBtn = iconBtn('arrows-rotate', t('GRAFIDA_BTN_RELOAD_METADATA'), 'btn', 'btn-sm', 'btn-secondary');
+    reloadBtn.addEventListener('click', async () => {
+        const current = collectDraftFormData();
+        const ok = await reloadSiteMetadata(State.currentSiteId, reloadBtn);
+        if (ok) renderEditorSidebar(current);
+    });
+    sidebar.appendChild(el('div', 'sidebar-reload', reloadBtn));
 }
 
 // Joomla article states: 1 published, 0 unpublished, 2 archived, -2 trashed.
@@ -1838,23 +1874,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const btnImportMd = document.getElementById('btn-import-md');
     if (btnImportMd) btnImportMd.addEventListener('click', importMarkdown);
-
-    const btnRefreshRefs = document.getElementById('btn-refresh-refs');
-    if (btnRefreshRefs) {
-        btnRefreshRefs.addEventListener('click', async () => {
-            if (!State.currentSiteId) return;
-            try {
-                State.references = await api.refreshReferences(State.currentSiteId);
-                showToast('References refreshed.', 'success');
-                if (State.currentDraftId) {
-                    const draft = await api.getDraft(State.currentDraftId).catch(() => null);
-                    if (draft) renderEditorSidebar(draft);
-                }
-            } catch (err) {
-                showToast(err.message, 'error');
-            }
-        });
-    }
 
     const btnBack = document.getElementById('btn-back-to-articles');
     if (btnBack) {
