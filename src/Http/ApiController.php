@@ -369,10 +369,11 @@ final class ApiController
 
     /**
      * Maps a Joomla article resource into an unsaved draft payload. The body is
-     * Joomla's combined `text` attribute (the API does not expose the read-more
-     * marker, so the intro/full split is not preserved); the category and tags
-     * come from JSON:API relationships, tag IDs being resolved to titles (best
-     * effort) via the reference cache so editing then publishing does not drop them.
+     * recovered as editor HTML by {@see remoteArticleBody()} (discrete
+     * introtext/fulltext when the API exposes them, otherwise heuristically split
+     * from the combined `text` attribute); the category and tags come from JSON:API
+     * relationships, tag IDs being resolved to titles (best effort) via the
+     * reference cache so editing then publishing does not drop them.
      *
      * @param array<string, mixed> $article
      *
@@ -380,10 +381,7 @@ final class ApiController
      */
     private function remoteArticleToDraft(int $siteId, int $articleId, array $article, Site $site): array
     {
-        // Joomla's article API returns the body as a single `text` attribute
-        // (introtext and fulltext joined with a space; the read-more marker is
-        // not preserved by the API, so the intro/full split cannot be restored).
-        $html = $this->str($article, 'text');
+        $html = $this->remoteArticleBody($article);
 
         $language = $this->str($article, 'language', '*');
 
@@ -406,6 +404,41 @@ final class ApiController
             'metadesc' => $this->str($article, 'metadesc'),
             'metakey'  => $this->str($article, 'metakey'),
         ];
+    }
+
+    /**
+     * Recovers an article's editor HTML from a Joomla article resource, restoring
+     * the intro/full-text split as a read-more marker (`<hr class="readmore">`,
+     * matching the editor and {@see \Grafida\Html\ContentSplitter}) so it survives
+     * the round-trip back to publishing.
+     *
+     * Joomla's article API currently only returns the combined `text` attribute. A
+     * pending Joomla PR would expose discrete `introtext` / `fulltext` attributes;
+     * we prefer those if present so we pick up the improvement automatically. Until
+     * then we fall back to a heuristic: Joomla joins the two parts with
+     * "\r\n \r\n" (CRLF, space, CRLF) in the combined text, which is a reliable
+     * separator in most articles. (The API does not preserve the read-more marker,
+     * so an article whose body genuinely lacks that sequence is treated as
+     * intro-only — the worst case is a missing split, never lost content.)
+     *
+     * @param array<string, mixed> $article
+     */
+    private function remoteArticleBody(array $article): string
+    {
+        if (array_key_exists('introtext', $article) || array_key_exists('fulltext', $article)) {
+            $intro = $this->str($article, 'introtext');
+            $full  = $this->str($article, 'fulltext');
+        } else {
+            $parts = explode("\r\n \r\n", $this->str($article, 'text'), 2);
+            $intro = $parts[0];
+            $full  = $parts[1] ?? '';
+        }
+
+        if (trim($full) === '') {
+            return trim($intro);
+        }
+
+        return trim($intro) . "\n<hr class=\"readmore\">\n" . trim($full);
     }
 
     /**

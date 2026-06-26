@@ -52,9 +52,13 @@ whole back-end is testable without opening a window (see `tests/Feature/ApiRouti
   `site_id` + `remote_id` it mirrors; `findByRemote()` locates an existing draft for a
   remote article and `update()` can re-point a draft at another site (which unlinks it).
   Editing a remote article fetches its full content via `GET /api/sites/{id}/articles/{articleId}`
-  (body taken from Joomla's combined `text` attribute — the API does not expose the read-more
-  marker, so the intro/full split is not preserved; category and tags come from the JSON:API
-  `relationships` block, which `ApiClient::flatten()` preserves, tag IDs resolved to titles) and
+  (body recovered by `ApiController::remoteArticleBody()`: it prefers discrete `introtext` /
+  `fulltext` attributes if the API ever exposes them — a Joomla PR proposes this — otherwise it
+  falls back to the combined `text` attribute and heuristically splits intro/full on the
+  `"\r\n \r\n"` separator Joomla inserts between them; the recovered split is re-emitted as the
+  editor's `<hr class="readmore">` marker so it survives the round-trip to publishing; category
+  and tags come from the JSON:API `relationships` block, which `ApiClient::flatten()` preserves,
+  tag IDs resolved to titles) and
   opens it as an **unsaved** draft — drafts (new or imported) are only written to the DB on
   the first Save, so an unchanged remote article leaves no local draft.
 - `src/Media/` — offline image blobs (`media_blobs`). `ApiClient::listMedia()` browses the
