@@ -32,3 +32,8 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | delete draft | Διαγραφή προχείρου | Action to permanently remove a local draft. |
 | back | Πίσω | Button to leave the editor and return to the article list. |
 | refresh | Ανανέωση | Button to reload reference data (categories, tags, etc.). |
+| local storage | τοπικός χώρος αποθήκευσης | The app's local SQLite data on the computer (sites, drafts, tokens, cache). |
+| database | βάση δεδομένων | The local SQLite database. |
+| folder | φάκελος | A file-system directory; "containing folder" = the folder holding the database file. |
+| reset | επαναφορά | Reset local storage to a clean, just-installed state (deletes all data). Noun form «Επαναφορά». |
+| location | τοποθεσία | Path/location of a file, e.g. «Τοποθεσία βάσης δεδομένων». |

@@ -133,6 +133,19 @@
                     <select id="settings-language-select" class="form-control"></select>
                 </div>
             </div>
+            <div class="card settings-card">
+                <p class="card-title" data-i18n="GRAFIDA_LBL_STORAGE">Local storage</p>
+                <div class="form-group">
+                    <label data-i18n="GRAFIDA_LBL_DB_LOCATION">Database location</label>
+                    <code id="settings-db-path" class="db-path"></code>
+                </div>
+                <div class="settings-actions" id="settings-storage-actions"></div>
+            </div>
+            <div class="card settings-card settings-danger">
+                <p class="card-title" data-i18n="GRAFIDA_LBL_RESET_STORAGE">Reset local storage</p>
+                <p class="text-muted" id="settings-reset-desc" data-i18n="GRAFIDA_MSG_RESET_STORAGE_DESC"></p>
+                <div class="settings-actions" id="settings-reset-actions"></div>
+            </div>
         </section>
 
     </div><!-- /#content -->

@@ -85,4 +85,30 @@ final class ApiRoutingTest extends TestCase
         self::assertSame(200, $status);
         self::assertSame('fr-FR', $json['data']['language']);
     }
+
+    public function testStorageInfoReportsDatabasePath(): void
+    {
+        [$status, $json] = $this->call($this->kernel(), 'GET', '/api/settings/storage');
+
+        self::assertSame(200, $status);
+        self::assertTrue($json['ok']);
+        self::assertStringEndsWith('grafida.sqlite', $json['data']['path']);
+        self::assertArrayHasKey('directory', $json['data']);
+    }
+
+    public function testResetStorageWipesData(): void
+    {
+        $kernel = $this->kernel();
+
+        // Seed a draft directly so the reset has something to remove.
+        [, $created] = $this->call($kernel, 'POST', '/api/sites/1/drafts', json_encode(['title' => 'Doomed']));
+        self::assertTrue($created['ok']);
+
+        [$status, $json] = $this->call($kernel, 'POST', '/api/settings/storage/reset');
+        self::assertSame(200, $status);
+        self::assertTrue($json['ok']);
+
+        [, $drafts] = $this->call($kernel, 'GET', '/api/sites/1/drafts');
+        self::assertSame([], $drafts['data']);
+    }
 }

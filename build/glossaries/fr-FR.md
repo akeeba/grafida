@@ -32,3 +32,8 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | delete draft | Supprimer le brouillon | Action de supprimer définitivement un brouillon local. |
 | back | Retour | Bouton pour quitter l'éditeur et revenir à la liste des articles. |
 | refresh | Actualiser | Bouton pour recharger les données de référence (catégories, étiquettes, etc.). |
+| local storage | stockage local | Les données SQLite locales de l'application sur l'ordinateur (sites, brouillons, jetons, cache). |
+| database | base de données | La base de données SQLite locale. |
+| folder | dossier | Répertoire du système de fichiers ; « dossier contenant » = le dossier qui contient le fichier de la base de données. |
+| reset | Réinitialiser | Remettre le stockage local à l'état d'une nouvelle installation (supprime toutes les données). Préféré à « Remettre à zéro ». |
+| location | emplacement | Chemin/emplacement d'un fichier, ex. « Emplacement de la base de données ». |

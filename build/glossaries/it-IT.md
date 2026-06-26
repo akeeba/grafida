@@ -32,3 +32,8 @@ I nomi propri non si traducono: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | delete draft | Elimina bozza | Azione per rimuovere definitivamente una bozza locale. |
 | back | Indietro | Pulsante per uscire dall'editor e tornare all'elenco degli articoli. |
 | refresh | Aggiorna | Pulsante per ricaricare i dati di riferimento (categorie, tag, ecc.). |
+| local storage | archivio locale | I dati SQLite locali dell'app sul computer (siti, bozze, token, cache). |
+| database | database | Il database SQLite locale. Mantenuto in inglese: termine standard. |
+| folder | cartella | Directory del file system; «cartella contenitore» = la cartella che contiene il file del database. |
+| reset | Reimposta | Riportare l'archivio locale allo stato di installazione iniziale (elimina tutti i dati). Etichetta pulsante; imperativo. |
+| location | posizione | Percorso/posizione di un file, es. «Posizione del database». |

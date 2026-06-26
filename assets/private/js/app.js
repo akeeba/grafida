@@ -206,6 +206,9 @@ const api = {
     uploadMedia: (siteId, body) => apiFetch('POST', `/api/sites/${siteId}/media`, body),
     convertMarkdown: (markdown) => apiFetch('POST', '/api/markdown', { markdown }),
     setLanguage: (tag) => apiFetch('POST', '/api/settings/language', { tag }),
+    getStorageInfo: () => apiFetch('GET', '/api/settings/storage'),
+    openStorageFolder: () => apiFetch('POST', '/api/settings/storage/open'),
+    resetStorage: () => apiFetch('POST', '/api/settings/storage/reset'),
 };
 
 // ============================================================
@@ -1623,6 +1626,63 @@ function renderSettingsScreen() {
         if (State.languageOverride === tag) opt.selected = true;
         sel.appendChild(opt);
     });
+
+    renderStorageSettings();
+}
+
+/**
+ * Builds the local-storage card actions (open folder / reset) and fetches the
+ * SQLite database path to display. Rebuilt on every settings render so button
+ * labels track the current interface language.
+ */
+function renderStorageSettings() {
+    const openBox = document.getElementById('settings-storage-actions');
+    if (openBox) {
+        clearNode(openBox);
+        const openBtn = iconBtn('folder-open', t('GRAFIDA_BTN_OPEN_FOLDER'), 'btn', 'btn-secondary');
+        openBtn.addEventListener('click', openStorageFolder);
+        openBox.appendChild(openBtn);
+    }
+
+    const resetBox = document.getElementById('settings-reset-actions');
+    if (resetBox) {
+        clearNode(resetBox);
+        const resetBtn = iconBtn('trash', t('GRAFIDA_BTN_RESET_STORAGE'), 'btn', 'btn-danger');
+        resetBtn.addEventListener('click', resetStorage);
+        resetBox.appendChild(resetBtn);
+    }
+
+    const pathEl = document.getElementById('settings-db-path');
+    if (pathEl) {
+        api.getStorageInfo()
+            .then(info => { pathEl.textContent = info.path; })
+            .catch(() => { pathEl.textContent = '—'; });
+    }
+}
+
+async function openStorageFolder() {
+    try {
+        await api.openStorageFolder();
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+async function resetStorage() {
+    const ok = await confirmYesNo(
+        t('GRAFIDA_LBL_RESET_STORAGE'),
+        [el('p', null, t('GRAFIDA_MSG_RESET_STORAGE_CONFIRM'))]
+    );
+    if (!ok) return;
+
+    try {
+        await api.resetStorage();
+        showToast(t('GRAFIDA_MSG_RESET_STORAGE_DONE'), 'success');
+        await bootstrap();
+        showScreen('settings');
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
 }
 
 async function applyLanguageChange(tag) {

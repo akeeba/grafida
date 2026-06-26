@@ -931,6 +931,28 @@ input[type="color"].form-control {
     max-width: 480px;
 }
 
+#settings-screen .settings-card .db-path {
+    display: block;
+    word-break: break-all;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-bg);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    user-select: text;
+}
+
+#settings-screen .settings-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+#settings-screen .settings-danger {
+    border-color: var(--color-danger);
+}
+
 /* ------------------------------------------------------------------ */
 /*  Misc utilities                                                     */
 /* ------------------------------------------------------------------ */

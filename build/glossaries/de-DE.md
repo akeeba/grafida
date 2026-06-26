@@ -38,3 +38,8 @@ Eigennamen (Grafida, Joomla!, API, Markdown, HTML, TinyMCE) werden nicht überse
 | delete draft | Entwurf löschen | Aktion zum endgültigen Entfernen eines lokalen Entwurfs. |
 | back | Zurück | Schaltfläche, um den Editor zu verlassen und zur Artikelliste zurückzukehren. |
 | refresh | Aktualisieren | Schaltfläche zum erneuten Laden der Referenzdaten (Kategorien, Tags usw.). |
+| local storage | Lokaler Speicher | Die lokalen SQLite-Daten der App auf dem Computer (Websites, Entwürfe, Token, Cache). |
+| database | Datenbank | Die lokale SQLite-Datenbank. |
+| folder | Ordner | Verzeichnis im Dateisystem; „enthaltender Ordner" = der Ordner, der die Datenbankdatei enthält. |
+| reset | Zurücksetzen | Lokalen Speicher auf den frisch installierten Zustand zurücksetzen (alle Daten löschen). |
+| location | Speicherort | Pfad/Ort einer Datei, z. B. „Speicherort der Datenbank". |

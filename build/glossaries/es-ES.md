@@ -32,3 +32,8 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | delete draft | Eliminar borrador | Acción para eliminar definitivamente un borrador local. |
 | back | Atrás | Botón para salir del editor y volver a la lista de artículos. |
 | refresh | Actualizar | Botón para recargar los datos de referencia (categorías, etiquetas, etc.). |
+| local storage | almacenamiento local | Los datos SQLite locales de la app en el equipo (sitios, borradores, tokens, caché). |
+| database | base de datos | La base de datos SQLite local. |
+| folder | carpeta | Directorio del sistema de archivos; «carpeta contenedora» = la carpeta que contiene el archivo de la base de datos. |
+| reset | Restablecer | Devolver el almacenamiento local al estado recién instalado (elimina todos los datos). Preferido sobre «Reiniciar» o «Resetear». |
+| location | ubicación | Ruta/ubicación de un archivo, p. ej. «Ubicación de la base de datos». |

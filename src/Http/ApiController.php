@@ -28,6 +28,7 @@ use Grafida\Reference\ReferenceService;
 use Grafida\Site\SecureStoreUnavailableException;
 use Grafida\Site\Site;
 use Grafida\Site\SiteService;
+use Grafida\Storage\StorageService;
 
 /**
  * Routes and handles the application's internal JSON API (the front-end calls
@@ -48,7 +49,11 @@ final class ApiController
         'GRAFIDA_LBL_TAGS', 'GRAFIDA_LBL_ACCESS', 'GRAFIDA_LBL_LANGUAGE', 'GRAFIDA_LBL_STATUS',
         'GRAFIDA_LBL_SETTINGS', 'GRAFIDA_OPT_PUBLISHED', 'GRAFIDA_OPT_UNPUBLISHED',
         'GRAFIDA_OPT_ARCHIVED', 'GRAFIDA_OPT_TRASHED',
-        'GRAFIDA_LBL_UI_LANGUAGE', 'GRAFIDA_OPT_AUTO', 'GRAFIDA_MSG_CONNECTION_OK',
+        'GRAFIDA_LBL_UI_LANGUAGE', 'GRAFIDA_OPT_AUTO',
+        'GRAFIDA_LBL_STORAGE', 'GRAFIDA_LBL_DB_LOCATION', 'GRAFIDA_BTN_OPEN_FOLDER',
+        'GRAFIDA_LBL_RESET_STORAGE', 'GRAFIDA_MSG_RESET_STORAGE_DESC', 'GRAFIDA_BTN_RESET_STORAGE',
+        'GRAFIDA_MSG_RESET_STORAGE_CONFIRM', 'GRAFIDA_MSG_RESET_STORAGE_DONE',
+        'GRAFIDA_MSG_CONNECTION_OK',
         'GRAFIDA_MSG_CONNECTION_FAIL', 'GRAFIDA_MSG_INSECURE_WARNING', 'GRAFIDA_MSG_PUBLISH_OK',
         'GRAFIDA_MSG_PUBLISH_BLOCKED', 'GRAFIDA_MSG_NO_SITES', 'GRAFIDA_MSG_SAVED',
         'GRAFIDA_MSG_UNSAVED_TITLE', 'GRAFIDA_MSG_UNSAVED_CHANGES',
@@ -67,6 +72,7 @@ final class ApiController
         private readonly LanguageService $language,
         private readonly FieldSupport $fields,
         private readonly ApiClient $apiClient,
+        private readonly StorageService $storage,
     ) {}
 
     public function dispatch(RequestInterface $request): ResponseInterface
@@ -101,6 +107,9 @@ final class ApiController
             $method === 'POST' && $path === '/api/sites'           => $this->createSite($body),
             $method === 'POST' && $path === '/api/markdown'        => $this->convertMarkdown($body),
             $method === 'POST' && $path === '/api/settings/language' => $this->setLanguage($body),
+            $method === 'GET'  && $path === '/api/settings/storage'  => $this->storageInfo(),
+            $method === 'POST' && $path === '/api/settings/storage/open'  => $this->openStorageFolder(),
+            $method === 'POST' && $path === '/api/settings/storage/reset' => $this->resetStorage(),
 
             default => $this->parameterised($method, $path, $body),
         };
@@ -410,6 +419,25 @@ final class ApiController
             'language' => $this->language->currentTag(),
             'strings'  => $this->language->strings(self::UI_KEYS),
         ]);
+    }
+
+    private function storageInfo(): ResponseInterface
+    {
+        return Json::ok($this->storage->info());
+    }
+
+    private function openStorageFolder(): ResponseInterface
+    {
+        $this->storage->openContainingFolder();
+
+        return Json::ok();
+    }
+
+    private function resetStorage(): ResponseInterface
+    {
+        $this->storage->reset();
+
+        return Json::ok();
     }
 
     // ------------------------------------------------------------------

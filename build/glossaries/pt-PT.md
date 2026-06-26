@@ -32,3 +32,8 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | delete draft | Eliminar rascunho | Ação para remover definitivamente um rascunho local. |
 | back | Voltar | Botão para sair do editor e voltar à lista de artigos. |
 | refresh | Atualizar | Botão para recarregar os dados de referência (categorias, etiquetas, etc.). |
+| local storage | armazenamento local | Os dados SQLite locais da aplicação no computador (sites, rascunhos, tokens, cache). |
+| database | base de dados | A base de dados SQLite local. Não «banco de dados» (português do Brasil). |
+| folder | pasta | Diretório do sistema de ficheiros; «pasta que o contém» = a pasta que contém o ficheiro da base de dados. |
+| reset | Repor | Repor o armazenamento local no estado acabado de instalar (elimina todos os dados). Preferido em pt-PT sobre «Redefinir» ou «Reiniciar». |
+| location | localização | Caminho/localização de um ficheiro, ex.: «Localização da base de dados». |

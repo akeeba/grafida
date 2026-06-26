@@ -34,6 +34,9 @@ whole back-end is testable without opening a window (see `tests/Feature/ApiRouti
 - `src/Html/` — `ContentSplitter` (read-more split), `CssRebaser`, `InlineMedia`, `HtmlDocument`.
 - `src/Publish/PublishService.php` — the publish pipeline (media upload, tags, fields, split, POST/PATCH).
 - `src/Markdown/`, `src/I18n/`, `src/Storage/` — Markdown import, language service, SQLite + migrations.
+  `StorageService` reports the DB file path, opens its folder in the OS file browser
+  (`open`/`explorer`/`xdg-open`), and resets local storage (deletes tokens + wipes all
+  tables, keeping `schema_migrations`). Exposed under `/api/settings/storage[/open|/reset]`.
 - `assets/private/` — SPA (`view/index.html`, `css/`, `js/`, vendored `js/tinymce/`).
   UI icons use the vendored **FontAwesome 7 Free** solid font (`css/fontawesome.min.css`
   + `css/solid.min.css` + `webfonts/fa-solid-900.woff2`) — never images/emoji. Action

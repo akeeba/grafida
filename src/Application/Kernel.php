@@ -31,6 +31,7 @@ use Grafida\Site\SiteRepository;
 use Grafida\Site\SiteService;
 use Grafida\Storage\Database;
 use Grafida\Storage\SettingsRepository;
+use Grafida\Storage\StorageService;
 use Grafida\Support\Resources;
 use PDO;
 
@@ -65,6 +66,7 @@ final class Kernel
         $media       = new MediaRepository($pdo);
         $publish     = new PublishService($siteService, $apiClient, $references, $drafts, $media);
         $language    = new LanguageService($settings, $basePath);
+        $storage     = new StorageService($pdo, $siteService);
 
         $this->api = new ApiController(
             sites: $siteService,
@@ -77,6 +79,7 @@ final class Kernel
             language: $language,
             fields: new FieldSupport(),
             apiClient: $apiClient,
+            storage: $storage,
         );
     }
 
