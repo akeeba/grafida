@@ -90,7 +90,14 @@ whole back-end is testable without opening a window (see `tests/Feature/ApiRouti
   UI icons use the vendored **FontAwesome 7 Free** solid font (`css/fontawesome.min.css`
   + `css/solid.min.css` + `webfonts/fa-solid-900.woff2`) — never images/emoji. Action
   buttons carry a leading `<i class="fa-solid fa-…" aria-hidden="true">` before the label;
-  in `app.js` use the `icon()` / `iconBtn()` helpers.
+  in `app.js` use the `icon()` / `iconBtn()` helpers. Source-code editing uses vendored
+  **CodeMirror 5** (`js/codemirror/`: `lib/` + `mode/{xml,javascript,css,htmlmixed}` +
+  `addon/edit/{matchbrackets,closetag}` + the `material-darker` dark theme) instead of
+  TinyMCE's stock `code` plugin: that plugin is dropped from the `plugins` list, and a
+  custom `sourcecode` toolbar button + Tools-menu item (registered in the editor `setup`)
+  opens `openSourceCodeEditor()` — a `showModal()` dialog hosting a CodeMirror `htmlmixed`
+  editor (light `default` / dark `material-darker` theme, matched to `State.resolvedTheme`).
+  Save writes the source back via `editor.setContent(…, {source_view: true})` in one undo step.
 - `language/<tag>/<tag>.com_grafida.ini` + `language/grafida.xml` — translations + manifest.
 - `storage/migrations/*.sql` — schema. `.plans/` — implementation step notes (gitignored).
 - `build/glossaries/` — per-language translation glossaries.

@@ -1503,15 +1503,22 @@ async function initTinyMCE(draft) {
         // so it survives save/getContent and reaches PublishService.
         extended_valid_elements: 'img[src|alt|title|class|style|width|height|loading|data-grafida-media-id]',
         menubar: 'file edit view insert format tools table',
+        // The built-in "code" plugin opens raw HTML in a plain textarea; we
+        // replace it with our own CodeMirror-backed "sourcecode" item (registered
+        // in setup) for syntax highlighting, so the plugin is intentionally absent.
         plugins: [
             'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
-            'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+            'anchor', 'searchreplace', 'visualblocks', 'fullscreen',
             'insertdatetime', 'media', 'table', 'help', 'wordcount',
         ],
+        // Tools menu: our "sourcecode" item replaces the dropped "code" item.
+        menu: {
+            tools: { title: 'Tools', items: 'sourcecode wordcount' },
+        },
         toolbar: 'undo redo | blocks | bold italic underline strikethrough | ' +
                  'alignleft aligncenter alignright alignjustify | ' +
                  'bullist numlist outdent indent | removeformat | ' +
-                 'readmore | link image | code',
+                 'readmore | link image | sourcecode',
         // Wrap the toolbar onto multiple rows so no button (notably "readmore")
         // is ever hidden inside the overflow menu on a narrow window.
         toolbar_mode: 'wrap',
@@ -1552,6 +1559,20 @@ async function initTinyMCE(draft) {
                     }
                     editor.insertContent('<hr class="readmore">');
                 },
+            });
+
+            // Source-code editing: a CodeMirror modal with HTML syntax
+            // highlighting, replacing the stock "code" plugin's plain textarea.
+            // Exposed both on the toolbar and in the Tools menu.
+            editor.ui.registry.addButton('sourcecode', {
+                icon: 'sourcecode',
+                tooltip: t('GRAFIDA_LBL_SOURCE_CODE'),
+                onAction: () => openSourceCodeEditor(editor),
+            });
+            editor.ui.registry.addMenuItem('sourcecode', {
+                icon: 'sourcecode',
+                text: t('GRAFIDA_LBL_SOURCE_CODE'),
+                onAction: () => openSourceCodeEditor(editor),
             });
 
             editor.on('init', () => {
@@ -1860,6 +1881,45 @@ async function browseImageMedia(kind, siteId) {
     const file = await openMediaBrowser(siteId);
     const url = file && typeof file.url === 'string' ? file.url : '';
     if (url) setImageValue(kind, relativeImagePath(url, siteId), siteId);
+}
+
+/**
+ * Open the article HTML in a CodeMirror source-code editor (a modal), replacing
+ * TinyMCE's stock "code" plugin so raw HTML gets syntax highlighting, line
+ * numbers and bracket/tag matching. On Save the edited source is written back
+ * into TinyMCE as a single undo step; Cancel (or the backdrop / Escape) discards.
+ */
+function openSourceCodeEditor(editor) {
+    const host = el('div', 'cm-source-host');
+
+    const cancelBtn = iconBtn('xmark', t('GRAFIDA_BTN_CANCEL'), 'btn', 'btn-secondary');
+    const saveBtn = iconBtn('check', t('GRAFIDA_BTN_SAVE'), 'btn', 'btn-primary');
+    cancelBtn.addEventListener('click', closeModal);
+    saveBtn.addEventListener('click', () => {
+        editor.focus();
+        editor.undoManager.transact(() => {
+            editor.setContent(cm.getValue(), { source_view: true });
+        });
+        editor.selection.setCursorLocation();
+        editor.nodeChanged();
+        closeModal();
+    });
+
+    showModal(t('GRAFIDA_LBL_SOURCE_CODE'), host, [cancelBtn, saveBtn]);
+
+    const cm = CodeMirror(host, {
+        value: editor.getContent({ source_view: true }),
+        mode: 'htmlmixed',
+        theme: State.resolvedTheme === 'dark' ? 'material-darker' : 'default',
+        lineNumbers: true,
+        lineWrapping: true,
+        autoCloseTags: true,
+        matchBrackets: true,
+        indentUnit: 2,
+        tabSize: 2,
+    });
+    // CodeMirror mis-measures while the modal is laid out; refresh once visible.
+    setTimeout(() => { cm.refresh(); cm.focus(); }, 0);
 }
 
 /**

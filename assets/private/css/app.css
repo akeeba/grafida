@@ -1082,6 +1082,24 @@ input[type="color"].form-control {
     width: 760px;
 }
 
+/* Source-code (CodeMirror) editor: a wide modal whose editor fills the space. */
+.modal:has(.cm-source-host) {
+    width: 900px;
+}
+
+.cm-source-host {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.cm-source-host .CodeMirror {
+    height: 65vh;
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
 .media-browser {
     display: flex;
     flex-direction: column;
