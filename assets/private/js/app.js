@@ -2491,6 +2491,7 @@ async function publishDraft() {
             State.currentDraft.remoteId = result.remoteId;
         }
         showToast(t('GRAFIDA_MSG_PUBLISH_OK'), 'success');
+        showPostPublishDialog();
     } catch (err) {
         if (err.code === 'publish_blocked') {
             const bodyNodes = [];
@@ -2526,6 +2527,39 @@ async function publishDraft() {
             showToast(err.message, 'error');
         }
     }
+}
+
+/**
+ * After a successful publish, ask what to do with the local draft. Deleting it
+ * (the default action) removes the draft and returns to the articles list — the
+ * published article remains available in the remote list. Keeping it leaves the
+ * editor open so the draft can be edited and re-published later.
+ */
+function showPostPublishDialog() {
+    if (State.currentDraftId == null) return;
+    const draftId = State.currentDraftId;
+
+    const msgP = el('p', null, t('GRAFIDA_MSG_POST_PUBLISH_PROMPT'));
+
+    const deleteBtn = iconBtn('trash', t('GRAFIDA_BTN_DELETE_DRAFT'), 'btn', 'btn-danger');
+    deleteBtn.addEventListener('click', async () => {
+        try {
+            await api.deleteDraft(draftId);
+        } catch (err) {
+            showToast(err.message, 'error');
+            return; // Deletion failed — keep the editor open so nothing is lost.
+        }
+        State.drafts = State.drafts.filter(d => d.id !== draftId);
+        closeModal();
+        showToast(t('GRAFIDA_MSG_DRAFT_DELETED'), 'success');
+        leaveEditor();
+    });
+
+    const keepBtn = iconBtn('floppy-disk', t('GRAFIDA_BTN_KEEP_DRAFT'), 'btn', 'btn-info');
+    keepBtn.addEventListener('click', closeModal);
+
+    showModal(t('GRAFIDA_MSG_POST_PUBLISH_TITLE'), [msgP], [deleteBtn, keepBtn]);
+    deleteBtn.focus();
 }
 
 // --------------------------------------------------------

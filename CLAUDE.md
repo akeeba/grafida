@@ -84,7 +84,10 @@ whole back-end is testable without opening a window (see `tests/Feature/ApiRouti
   via `GET /api/media/{id}` (to preview a not-yet-published intro/full-text image).
 - `src/Html/` — `ContentSplitter` (read-more split), `CssRebaser`, `InlineMedia`, `HtmlDocument`.
 - `src/Publish/PublishService.php` — the publish pipeline (media upload, tags, fields, split, POST/PATCH).
-  A draft's `images` object holds Joomla's eight `image_intro*` / `image_fulltext*` subfields; the
+  After a successful publish the SPA (`showPostPublishDialog()`) asks what to do with the local
+  draft: **Delete Draft** (the default/focused action — removes the draft and returns to the list,
+  the published article remaining in the remote list) or **Keep Draft** (leaves the editor open to
+  edit and re-publish). A draft's `images` object holds Joomla's eight `image_intro*` / `image_fulltext*` subfields; the
   intro/full-text image picked from a local file is stored as a `grafida-media://N` sentinel that
   `resolveImages()` uploads (via the shared offline-blob upload) and swaps for a public URL on publish.
   The SPA's editor "Images" section lets you pick a local file, browse the site's media, or paste a URL,
