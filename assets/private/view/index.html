@@ -135,6 +135,35 @@
                     <div id="editor-sidebar-inner"></div>
                 </aside>
 
+                <!-- AI assistant panel (toggled by the TinyMCE toolbar buttons) -->
+                <aside id="ai-panel" class="hidden" aria-label="AI Assistant">
+
+                    <!-- Step 8: AI Chats banner — hidden until Step 8 populates it -->
+                    <div id="ai-chats-section" class="hidden">
+                        <div class="ai-panel-section-title" data-i18n="GRAFIDA_LBL_AI_CHATS">AI Chats</div>
+                        <div id="ai-chats-list"></div>
+                    </div>
+
+                    <!-- Scrollable conversation area -->
+                    <div id="ai-conversation"></div>
+
+                    <!-- Input row: textarea + Send / Stop buttons -->
+                    <div id="ai-input-row">
+                        <textarea id="ai-input" class="form-control" rows="3"></textarea>
+                        <div id="ai-input-actions">
+                            <button id="ai-btn-stop" type="button" class="btn btn-secondary btn-sm hidden">
+                                <i class="fa-solid fa-stop" aria-hidden="true"></i>
+                                <span data-i18n="GRAFIDA_BTN_STOP">Stop</span>
+                            </button>
+                            <button id="ai-btn-send" type="button" class="btn btn-primary btn-sm">
+                                <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+                                <span data-i18n="GRAFIDA_BTN_SEND">Send</span>
+                            </button>
+                        </div>
+                    </div>
+
+                </aside>
+
             </div>
         </section>
 
@@ -215,5 +244,6 @@
 <script src="/js/codemirror/addon/edit/closetag.min.js"></script>
 <script src="/js/ai/providers.js"></script>
 <script src="/js/app.js"></script>
+<script src="/js/ai/panel.js"></script>
 </body>
 </html>

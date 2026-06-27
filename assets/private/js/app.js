@@ -1591,6 +1591,11 @@ async function openEditorScreen(draft) {
 
     // Snapshot the freshly-loaded form so we can detect unsaved changes later.
     State.editorBaseline = JSON.stringify(collectDraftFormData());
+
+    // Notify the AI panel that the editor has (re)initialised. The panel resets
+    // its conversation state and hides itself so each article starts with a
+    // clean slate. panel.js may not be loaded in tests, so guard the call.
+    if (typeof GrafidaAIPanel !== 'undefined') GrafidaAIPanel.onEditorOpen();
 }
 
 function renderEditorSidebar(draft) {
@@ -2166,7 +2171,7 @@ async function initTinyMCE(draft) {
         toolbar: 'undo redo | blocks styleselect | bold italic underline strikethrough | ' +
                  'alignleft aligncenter alignright alignjustify | ' +
                  'bullist numlist outdent indent | removeformat | ' +
-                 'readmore | link image | sourcecode',
+                 'readmore | link image | sourcecode | aiassistant aitools',
         // Wrap the toolbar onto multiple rows so no button (notably "readmore")
         // is ever hidden inside the overflow menu on a narrow window.
         toolbar_mode: 'wrap',
@@ -2317,6 +2322,64 @@ async function initTinyMCE(draft) {
                 position: 'node',
                 scope: 'node',
                 items: 'image imageclass | alignleft aligncenter alignright',
+            });
+
+            // ------------------------------------------------------------------
+            //  AI toolbar buttons
+            //
+            //  'aiassistant' — toggles the #ai-panel (empty new chat).
+            //  'aitools'     — a drop-down menu listing each enabled tool;
+            //                  clicking an item opens the panel and immediately
+            //                  runs that tool against the current document.
+            //
+            //  The menu button approach (addMenuButton) is used for per-tool
+            //  entries because the number of configured tools is unbounded and
+            //  each tool would otherwise add its own toolbar button, overflowing
+            //  the toolbar. A single 'aitools' menu keeps the toolbar tidy.
+            // ------------------------------------------------------------------
+
+            // Custom sparkle icon for the AI assistant button.
+            editor.ui.registry.addIcon('aiassistant',
+                '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">' +
+                // Large 4-pointed star
+                '<path d="M12 2 L14 10 L22 12 L14 14 L12 22 L10 14 L2 12 L10 10 Z"/>' +
+                // Small upper-right sparkle
+                '<path d="M19 2 L19.8 4.5 L22 5.5 L19.8 6.5 L19 9 L18.2 6.5 L16 5.5 L18.2 4.5 Z"/>' +
+                '</svg>'
+            );
+
+            editor.ui.registry.addButton('aiassistant', {
+                icon: 'aiassistant',
+                tooltip: t('GRAFIDA_BTN_AI_ASSISTANT'),
+                onAction: () => {
+                    if (typeof GrafidaAIPanel !== 'undefined') GrafidaAIPanel.toggle();
+                },
+            });
+
+            // Per-tool menu button. The fetch callback runs at menu-open time so
+            // it always reflects the current State.aiTools list.
+            editor.ui.registry.addMenuButton('aitools', {
+                text: t('GRAFIDA_BTN_AI_TOOLS'),
+                tooltip: t('GRAFIDA_BTN_AI_TOOLS'),
+                fetch: (done) => {
+                    if (!State.aiTools.length) {
+                        done([{
+                            type: 'menuitem',
+                            text: t('GRAFIDA_MSG_NO_AI_TOOLS'),
+                            enabled: false,
+                        }]);
+                        return;
+                    }
+                    done(State.aiTools.map(tool => ({
+                        type: 'menuitem',
+                        text: tool.title,
+                        onAction: () => {
+                            if (typeof GrafidaAIPanel !== 'undefined') {
+                                GrafidaAIPanel.openWithTool(tool);
+                            }
+                        },
+                    })));
+                },
             });
 
             // Keyboard shortcuts for the Format ▸ Formats entries that lack one:
