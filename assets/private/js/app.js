@@ -2174,6 +2174,18 @@ async function initTinyMCE(draft) {
                 items: 'image imageclass | alignleft aligncenter alignright',
             });
 
+            // Keyboard shortcuts for the Format ▸ Formats entries that lack one:
+            // inline Code, and the Pre / Blockquote blocks.
+            editor.addShortcut('ctrl+shift+c', 'Inline code format', () => {
+                editor.execCommand('mceToggleFormat', false, 'code');
+            });
+            editor.addShortcut('ctrl+shift+p', 'Preformatted block', () => {
+                editor.execCommand('mceToggleFormat', false, 'pre');
+            });
+            editor.addShortcut('ctrl+shift+q', 'Blockquote block', () => {
+                editor.execCommand('mceToggleFormat', false, 'blockquote');
+            });
+
             editor.on('init', () => {
                 editor.setContent(draft.html || '');
             });
