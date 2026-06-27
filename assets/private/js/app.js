@@ -96,6 +96,19 @@ const State = {
     // Display→source scale of the canvas in the open image editor, used to map a
     // crop selection (display pixels) back to source pixels.
     imgEditorScale: 1,
+    // AI: configured services (no keys), default service id, provider presets, and
+    // the enabled-only tool list sent in the bootstrap payload (used by Steps 6-7).
+    // secureStoreAi mirrors the AI keychain availability (separate from sites).
+    aiServices: [],
+    aiDefaultServiceId: null,
+    aiProviders: {},
+    aiTools: [],
+    secureStoreAi: true,
+    // Full tool list (all tools including disabled), system prompt and tone map —
+    // populated lazily when the Settings screen's AI Tools card is first loaded.
+    aiAllTools: [],
+    aiSystemPrompt: '',
+    aiTones: {},
 };
 
 // ============================================================
@@ -320,6 +333,24 @@ const api = {
     openStorageFolder: () => apiFetch('POST', '/api/settings/storage/open'),
     resetStorage: () => apiFetch('POST', '/api/settings/storage/reset'),
     openUrl: (url) => apiFetch('POST', '/api/open-url', { url }),
+    // AI Services
+    listAiServices: () => apiFetch('GET', '/api/ai/services'),
+    getAiService: (id) => apiFetch('GET', `/api/ai/services/${id}`),
+    createAiService: (body) => apiFetch('POST', '/api/ai/services', body),
+    updateAiService: (id, body) => apiFetch('PATCH', `/api/ai/services/${id}`, body),
+    deleteAiService: (id) => apiFetch('DELETE', `/api/ai/services/${id}`),
+    setAiServiceDefault: (id) => apiFetch('POST', `/api/ai/services/${id}/default`),
+    resolvedAiService: (id, toolKey) => {
+        const q = toolKey ? '?tool=' + encodeURIComponent(toolKey) : '';
+        return apiFetch('GET', `/api/ai/services/${id}/resolved${q}`);
+    },
+    // AI Tools
+    listAiTools: () => apiFetch('GET', '/api/ai/tools'),
+    setSystemPrompt: (body) => apiFetch('PUT', '/api/ai/system-prompt', body),
+    updateAiTool: (key, body) => apiFetch('PATCH', `/api/ai/tools/${key}`, body),
+    createAiTool: (body) => apiFetch('POST', '/api/ai/tools', body),
+    deleteAiTool: (key) => apiFetch('DELETE', `/api/ai/tools/${key}`),
+    aiProxy: (body) => apiFetch('POST', '/api/ai/proxy', body),
 };
 
 // ============================================================
@@ -3698,6 +3729,8 @@ function renderSettingsScreen() {
 
     renderDisplayModeSetting();
     renderStorageSettings();
+    renderAiServicesCard();
+    loadAiToolsData();
 }
 
 /** Populates the display-mode selector, reflecting the stored preference. */
@@ -3795,6 +3828,771 @@ function applyStrings() {
     });
     renderSiteSelector();
     renderSettingsScreen();
+}
+
+// ============================================================
+//  AI SETTINGS — Services card
+// ============================================================
+
+/** Rebuild the AI Services card from State.aiServices. */
+function renderAiServicesCard() {
+    const actionsEl = document.getElementById('settings-ai-services-actions');
+    if (actionsEl) {
+        clearNode(actionsEl);
+        const addBtn = iconBtn('plus', t('GRAFIDA_BTN_ADD_AI_SERVICE'), 'btn', 'btn-sm', 'btn-primary');
+        addBtn.addEventListener('click', openAddAiServiceModal);
+        actionsEl.appendChild(addBtn);
+    }
+
+    const list = document.getElementById('ai-services-list');
+    if (!list) return;
+    clearNode(list);
+
+    if (!State.aiServices.length) {
+        list.appendChild(el('p', 'text-muted', t('GRAFIDA_MSG_NO_AI_SERVICES')));
+        return;
+    }
+
+    State.aiServices.forEach(svc => list.appendChild(buildAiServiceItem(svc)));
+}
+
+function buildAiServiceItem(svc) {
+    const provPreset = State.aiProviders[svc.provider];
+    const provName = provPreset ? provPreset.name : (svc.provider || '—');
+
+    const nameLine = el('div', 'ai-service-name', txt(svc.name));
+    if (svc.isDefault) {
+        nameLine.appendChild(el('span', 'ai-badge badge-default', t('GRAFIDA_LBL_DEFAULT_AI_SERVICE')));
+    }
+
+    const meta = el('div', 'ai-service-meta', provName + ' · ' + (svc.model || '—'));
+    const info = el('div', 'ai-service-info', nameLine, meta);
+
+    const editBtn = iconBtn('pen', t('GRAFIDA_BTN_EDIT'), 'btn', 'btn-sm', 'btn-secondary');
+    editBtn.addEventListener('click', () => openEditAiServiceModal(svc.id));
+
+    const delBtn = iconBtn('trash', t('GRAFIDA_BTN_DELETE'), 'btn', 'btn-sm', 'btn-danger');
+    delBtn.addEventListener('click', () => confirmDeleteAiService(svc.id));
+
+    const actions = el('div', 'ai-service-actions', editBtn, delBtn);
+
+    if (!svc.isDefault) {
+        const defBtn = iconBtn('star', t('GRAFIDA_BTN_SET_DEFAULT'), 'btn', 'btn-sm', 'btn-secondary');
+        defBtn.addEventListener('click', () => doSetAiServiceDefault(svc.id));
+        actions.insertBefore(defBtn, editBtn);
+    }
+
+    return el('div', 'ai-service-item', info, actions);
+}
+
+/**
+ * Build the body nodes for the add/edit AI service modal.
+ * @param {object|null} svc — existing service (edit) or null (add)
+ */
+function buildAiServiceFormBody(svc) {
+    // Name
+    const nameIn = document.createElement('input');
+    nameIn.id = 'modal-ai-svc-name';
+    nameIn.type = 'text';
+    nameIn.className = 'form-control';
+    nameIn.autocomplete = 'off';
+    if (svc) nameIn.value = svc.name || '';
+
+    // Provider
+    const provSel = document.createElement('select');
+    provSel.id = 'modal-ai-svc-provider';
+    provSel.className = 'form-control';
+    const provBlank = document.createElement('option');
+    provBlank.value = '';
+    provBlank.textContent = '— ' + t('GRAFIDA_LBL_AI_PROVIDER') + ' —';
+    provSel.appendChild(provBlank);
+    Object.entries(State.aiProviders).forEach(([k, p]) => {
+        const opt = document.createElement('option');
+        opt.value = k;
+        opt.textContent = p.name;
+        if (svc && svc.provider === k) opt.selected = true;
+        provSel.appendChild(opt);
+    });
+
+    // Endpoint
+    const endpIn = document.createElement('input');
+    endpIn.id = 'modal-ai-svc-endpoint';
+    endpIn.type = 'text';
+    endpIn.className = 'form-control';
+    endpIn.autocomplete = 'off';
+    endpIn.placeholder = 'https://api.example.com';
+    if (svc) endpIn.value = svc.endpoint || '';
+
+    // Pre-fill endpoint from provider preset when the endpoint field is blank.
+    provSel.addEventListener('change', () => {
+        const preset = State.aiProviders[provSel.value];
+        if (preset && endpIn.value.trim() === '') endpIn.value = preset.endpoint || '';
+    });
+
+    // API key (write-only; password field with keep-existing placeholder in edit mode)
+    const keyIn = document.createElement('input');
+    keyIn.id = 'modal-ai-svc-key';
+    keyIn.type = 'password';
+    keyIn.className = 'form-control';
+    keyIn.autocomplete = 'new-password';
+    if (svc) keyIn.placeholder = t('GRAFIDA_MSG_AI_KEY_PLACEHOLDER');
+
+    // Model: text input (always editable) + "Fetch models" button in edit mode only.
+    const modelIn = document.createElement('input');
+    modelIn.id = 'modal-ai-svc-model';
+    modelIn.type = 'text';
+    modelIn.className = 'form-control';
+    modelIn.autocomplete = 'off';
+    if (svc) modelIn.value = svc.model || '';
+
+    const modelGroup = document.createElement('div');
+    modelGroup.className = 'form-group';
+    const modelLabel = document.createElement('label');
+    modelLabel.textContent = t('GRAFIDA_LBL_AI_MODEL');
+    modelGroup.appendChild(modelLabel);
+
+    if (svc) {
+        // Edit mode: wrap input + fetch button in a row.
+        const fetchBtn = iconBtn('rotate', t('GRAFIDA_BTN_FETCH_MODELS'), 'btn', 'btn-secondary', 'btn-sm');
+        fetchBtn.id = 'btn-ai-fetch-models';
+        fetchBtn.addEventListener('click', () => fetchAndShowModels(svc.id));
+        const modelRow = el('div', 'ai-model-row', modelIn, fetchBtn);
+        modelGroup.appendChild(modelRow);
+    } else {
+        modelGroup.appendChild(modelIn);
+    }
+
+    // Insecure-store warning (shown when the OS keychain is unavailable)
+    const insecureWarn = !State.secureStoreAi
+        ? el('p', 'alert alert-warning', icon('triangle-exclamation'), txt(' ' + t('GRAFIDA_MSG_AI_INSECURE_WARNING')))
+        : null;
+
+    // Params
+    const existParams = (svc && svc.params) ? svc.params : {};
+
+    const tempIn = document.createElement('input');
+    tempIn.id = 'modal-ai-param-temp';
+    tempIn.type = 'number';
+    tempIn.className = 'form-control';
+    tempIn.step = '0.1'; tempIn.min = '0'; tempIn.max = '2';
+    tempIn.placeholder = t('GRAFIDA_OPT_AUTO');
+    if (existParams.temperature !== undefined) tempIn.value = String(existParams.temperature);
+
+    const topPIn = document.createElement('input');
+    topPIn.id = 'modal-ai-param-topp';
+    topPIn.type = 'number';
+    topPIn.className = 'form-control';
+    topPIn.step = '0.05'; topPIn.min = '0'; topPIn.max = '1';
+    topPIn.placeholder = t('GRAFIDA_OPT_AUTO');
+    if (existParams.top_p !== undefined) topPIn.value = String(existParams.top_p);
+
+    const maxTokIn = document.createElement('input');
+    maxTokIn.id = 'modal-ai-param-maxtok';
+    maxTokIn.type = 'number';
+    maxTokIn.className = 'form-control';
+    maxTokIn.step = '1'; maxTokIn.min = '1';
+    maxTokIn.placeholder = t('GRAFIDA_OPT_AUTO');
+    if (existParams.max_completion_tokens !== undefined) maxTokIn.value = String(existParams.max_completion_tokens);
+
+    const streamSel = document.createElement('select');
+    streamSel.id = 'modal-ai-param-stream';
+    streamSel.className = 'form-control';
+    [['', t('GRAFIDA_OPT_AUTO')], ['1', t('GRAFIDA_BTN_YES')], ['0', t('GRAFIDA_BTN_NO')]].forEach(([v, l]) => {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = l;
+        streamSel.appendChild(o);
+    });
+    if (existParams.stream !== undefined) streamSel.value = existParams.stream ? '1' : '0';
+
+    const nodes = [
+        formGroup(t('GRAFIDA_LBL_AI_NAME'), nameIn),
+        formGroup(t('GRAFIDA_LBL_AI_PROVIDER'), provSel),
+        formGroup(t('GRAFIDA_LBL_AI_ENDPOINT'), endpIn),
+        formGroup(t('GRAFIDA_LBL_AI_KEY'), keyIn),
+        modelGroup,
+    ];
+
+    if (insecureWarn) nodes.push(insecureWarn);
+
+    nodes.push(
+        el('p', 'card-title', t('GRAFIDA_LBL_AI_PARAMS')),
+        formGroup(t('GRAFIDA_LBL_AI_TEMPERATURE'), tempIn),
+        formGroup(t('GRAFIDA_LBL_AI_TOP_P'), topPIn),
+        formGroup(t('GRAFIDA_LBL_AI_MAX_TOKENS'), maxTokIn),
+        formGroup(t('GRAFIDA_LBL_AI_STREAM'), streamSel),
+    );
+
+    return nodes;
+}
+
+function buildAiServiceFormFooter(saveHandler) {
+    const cancelBtn = iconBtn('xmark', t('GRAFIDA_BTN_CANCEL'), 'btn', 'btn-secondary');
+    cancelBtn.addEventListener('click', closeModal);
+    const saveBtn = iconBtn('floppy-disk', t('GRAFIDA_BTN_SAVE'), 'btn', 'btn-primary');
+    saveBtn.addEventListener('click', saveHandler);
+    return [cancelBtn, saveBtn];
+}
+
+function openAddAiServiceModal() {
+    const body = buildAiServiceFormBody(null);
+    const footer = buildAiServiceFormFooter(() => saveAiServiceHandler(null));
+    showModal(t('GRAFIDA_BTN_ADD_AI_SERVICE'), body, footer);
+}
+
+function openEditAiServiceModal(id) {
+    const svc = State.aiServices.find(s => s.id === id);
+    if (!svc) return;
+    const body = buildAiServiceFormBody(svc);
+    const footer = buildAiServiceFormFooter(() => saveAiServiceHandler(id));
+    showModal(t('GRAFIDA_BTN_EDIT'), body, footer);
+}
+
+async function saveAiServiceHandler(id) {
+    const nameEl = document.getElementById('modal-ai-svc-name');
+    const provEl = document.getElementById('modal-ai-svc-provider');
+    const endpEl = document.getElementById('modal-ai-svc-endpoint');
+    const keyEl = document.getElementById('modal-ai-svc-key');
+    const modelEl = document.getElementById('modal-ai-svc-model');
+    const tempEl = document.getElementById('modal-ai-param-temp');
+    const topPEl = document.getElementById('modal-ai-param-topp');
+    const maxTokEl = document.getElementById('modal-ai-param-maxtok');
+    const streamEl = document.getElementById('modal-ai-param-stream');
+
+    const name = nameEl ? nameEl.value.trim() : '';
+    if (!name) {
+        showToast(t('GRAFIDA_LBL_AI_NAME') + ' is required.', 'error');
+        return;
+    }
+
+    const params = {};
+    if (tempEl && tempEl.value !== '') params.temperature = parseFloat(tempEl.value);
+    if (topPEl && topPEl.value !== '') params.top_p = parseFloat(topPEl.value);
+    if (maxTokEl && maxTokEl.value !== '') params.max_completion_tokens = parseInt(maxTokEl.value, 10);
+    if (streamEl && streamEl.value !== '') params.stream = streamEl.value === '1';
+
+    const body = {
+        name,
+        provider: provEl ? provEl.value : '',
+        endpoint: endpEl ? endpEl.value.trim() : '',
+        model: modelEl ? (modelEl.value || '').trim() : '',
+        params,
+    };
+    const key = keyEl ? keyEl.value.trim() : '';
+    if (key) body.key = key;
+
+    try {
+        if (id === null) {
+            await createAiServiceWithInsecureFallback(body);
+        } else {
+            body.allowInsecure = false;
+            await api.updateAiService(id, body);
+        }
+        closeModal();
+        const svcs = await api.listAiServices();
+        State.aiServices = svcs;
+        renderAiServicesCard();
+        showToast(t('GRAFIDA_MSG_AI_SERVICE_SAVED'), 'success');
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+async function createAiServiceWithInsecureFallback(body) {
+    body.allowInsecure = false;
+    try {
+        await api.createAiService(body);
+    } catch (err) {
+        if (err.code === 'secure_store_unavailable') {
+            const ok = await confirmYesNo(
+                t('GRAFIDA_LBL_AI_SERVICES'),
+                [el('p', null, t('GRAFIDA_MSG_AI_INSECURE_WARNING'))]
+            );
+            if (!ok) return; // User cancelled; do not close the app for AI services.
+            body.allowInsecure = true;
+            await api.createAiService(body);
+        } else {
+            throw err;
+        }
+    }
+}
+
+async function confirmDeleteAiService(id) {
+    const svc = State.aiServices.find(s => s.id === id);
+    if (!svc) return;
+    const nameStrong = el('strong', null, svc.name || '');
+    const msgP = el('p', null, ...formatNodes(t('GRAFIDA_MSG_DELETE_AI_SERVICE_CONFIRM'), nameStrong));
+    const ok = await confirmYesNo(t('GRAFIDA_BTN_DELETE'), [msgP]);
+    if (!ok) return;
+    try {
+        await api.deleteAiService(id);
+        const svcs = await api.listAiServices();
+        State.aiServices = svcs;
+        renderAiServicesCard();
+        showToast(t('GRAFIDA_MSG_AI_SERVICE_DELETED'), 'success');
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+async function doSetAiServiceDefault(id) {
+    try {
+        await api.setAiServiceDefault(id);
+        const svcs = await api.listAiServices();
+        State.aiServices = svcs;
+        State.aiDefaultServiceId = id;
+        renderAiServicesCard();
+        showToast(t('GRAFIDA_MSG_AI_DEFAULT_SET'), 'success');
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+/**
+ * Fetch the model list for an existing service via the proxy and replace the
+ * model text input with a populated select element.
+ */
+async function fetchAndShowModels(serviceId) {
+    if (!serviceId) return;
+    const fetchBtn = document.getElementById('btn-ai-fetch-models');
+    if (fetchBtn) fetchBtn.disabled = true;
+
+    try {
+        const svc = State.aiServices.find(s => s.id === serviceId);
+        if (!svc) return;
+
+        const preset = State.aiProviders[svc.provider];
+        const modelsPath = preset ? preset.models_path : null;
+        if (!modelsPath) {
+            showToast(t('GRAFIDA_MSG_AI_MODELS_FAIL'), 'warning');
+            return;
+        }
+
+        // Resolve the service config (including the stored API key).
+        const resolved = await api.resolvedAiService(serviceId, '');
+        const modelsUrl = resolved.endpoint.replace(/\/+$/, '') + modelsPath;
+        const authVal = resolved.authHeader === 'Authorization'
+            ? 'Bearer ' + resolved.apiKey
+            : resolved.apiKey;
+
+        const proxyRes = await api.aiProxy({
+            serviceId,
+            url: modelsUrl,
+            method: 'GET',
+            headers: { [resolved.authHeader]: authVal },
+            body: '',
+        });
+
+        // OpenAI-style response: { data: [{id, ...}, ...] }; some providers use { models: [...] }.
+        const rawList = proxyRes.data || proxyRes.models || [];
+        const models = rawList
+            .map(m => (typeof m === 'string' ? m : (m.id || '')))
+            .filter(Boolean)
+            .sort();
+
+        if (!models.length) {
+            showToast(t('GRAFIDA_MSG_AI_MODELS_FAIL'), 'warning');
+            return;
+        }
+
+        const modelEl = document.getElementById('modal-ai-svc-model');
+        if (!modelEl) return;
+        const current = modelEl.value || '';
+
+        const modelSel = document.createElement('select');
+        modelSel.id = 'modal-ai-svc-model';
+        modelSel.className = 'form-control';
+
+        // Prepend the current value if it is not in the fetched list.
+        if (current && !models.includes(current)) {
+            const opt = document.createElement('option');
+            opt.value = current; opt.textContent = current; opt.selected = true;
+            modelSel.appendChild(opt);
+        }
+
+        models.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m; opt.textContent = m;
+            if (m === current) opt.selected = true;
+            modelSel.appendChild(opt);
+        });
+
+        modelEl.replaceWith(modelSel);
+    } catch (err) {
+        showToast(t('GRAFIDA_MSG_AI_MODELS_FAIL') + ' — ' + err.message, 'error');
+    } finally {
+        if (fetchBtn) fetchBtn.disabled = false;
+    }
+}
+
+// ============================================================
+//  AI SETTINGS — Tools card
+// ============================================================
+
+/**
+ * Fetch the full tool list (all tools including disabled), system prompt and
+ * tone map from the API, update State, then render the tools card.
+ */
+async function loadAiToolsData() {
+    const list = document.getElementById('ai-tools-list');
+    if (list) {
+        clearNode(list);
+        list.appendChild(el('p', 'text-muted', t('GRAFIDA_MSG_LOADING')));
+    }
+
+    try {
+        const data = await api.listAiTools();
+        State.aiAllTools = data.tools || [];
+        State.aiSystemPrompt = data.systemPrompt || '';
+        State.aiTones = data.tones || {};
+    } catch (err) {
+        if (list) {
+            clearNode(list);
+            list.appendChild(el('p', 'text-muted', err.message));
+        }
+        return;
+    }
+
+    buildSystemPromptSection();
+    renderAiToolsList();
+}
+
+/** Rebuild the system-prompt sub-section from State.aiSystemPrompt. */
+function buildSystemPromptSection() {
+    const section = document.getElementById('ai-system-prompt-section');
+    if (!section) return;
+    clearNode(section);
+
+    const ta = document.createElement('textarea');
+    ta.id = 'ai-system-prompt-textarea';
+    ta.className = 'form-control';
+    ta.rows = 5;
+    ta.value = State.aiSystemPrompt || '';
+
+    const saveBtn = iconBtn('floppy-disk', t('GRAFIDA_BTN_SAVE'), 'btn', 'btn-primary', 'btn-sm');
+    saveBtn.addEventListener('click', saveSystemPrompt);
+
+    const restoreBtn = iconBtn('rotate-left', t('GRAFIDA_BTN_RESTORE_DEFAULT'), 'btn', 'btn-secondary', 'btn-sm');
+    restoreBtn.addEventListener('click', restoreSystemPromptDefault);
+
+    section.appendChild(formGroup(t('GRAFIDA_LBL_AI_SYSTEM_PROMPT'), ta));
+    section.appendChild(el('div', 'ai-system-prompt-actions', saveBtn, restoreBtn));
+}
+
+async function saveSystemPrompt() {
+    const ta = document.getElementById('ai-system-prompt-textarea');
+    if (!ta) return;
+    try {
+        const result = await api.setSystemPrompt({ prompt: ta.value });
+        State.aiSystemPrompt = result.systemPrompt || '';
+        showToast(t('GRAFIDA_MSG_AI_SYSTEM_PROMPT_SAVED'), 'success');
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+async function restoreSystemPromptDefault() {
+    try {
+        const result = await api.setSystemPrompt({ prompt: '' });
+        State.aiSystemPrompt = result.systemPrompt || '';
+        const ta = document.getElementById('ai-system-prompt-textarea');
+        if (ta) ta.value = State.aiSystemPrompt;
+        showToast(t('GRAFIDA_MSG_AI_SYSTEM_PROMPT_SAVED'), 'success');
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+/** Render the list of all tools (including disabled) from State.aiAllTools. */
+function renderAiToolsList() {
+    const list = document.getElementById('ai-tools-list');
+    if (!list) return;
+    clearNode(list);
+
+    const header = el('div', 'ai-tools-header');
+    const addBtn = iconBtn('plus', t('GRAFIDA_BTN_ADD_AI_TOOL'), 'btn', 'btn-sm', 'btn-primary');
+    addBtn.addEventListener('click', openAddAiToolModal);
+    header.appendChild(addBtn);
+    list.appendChild(header);
+
+    if (!State.aiAllTools.length) {
+        list.appendChild(el('p', 'text-muted', t('GRAFIDA_MSG_NO_AI_TOOLS')));
+        return;
+    }
+
+    State.aiAllTools.forEach(tool => list.appendChild(buildAiToolItem(tool)));
+}
+
+function buildAiToolItem(tool) {
+    // Icon + title
+    const titleEl = el('div', 'ai-tool-title');
+    if (tool.icon) {
+        const ico = el('i', 'fa-solid fa-' + tool.icon);
+        ico.setAttribute('aria-hidden', 'true');
+        titleEl.appendChild(ico);
+        titleEl.appendChild(txt(' '));
+    }
+    titleEl.appendChild(txt(tool.title || tool.toolKey));
+    if (tool.isCustom) {
+        titleEl.appendChild(el('span', 'ai-badge badge-remote', t('GRAFIDA_LBL_AI_CUSTOM_TOOL')));
+    }
+
+    // Meta: tone and/or service name
+    const metaParts = [];
+    if (tool.tone) metaParts.push(tool.tone);
+    if (tool.serviceId) {
+        const svc = State.aiServices.find(s => s.id === tool.serviceId);
+        if (svc) metaParts.push(svc.name);
+    }
+    const metaEl = el('div', 'ai-tool-meta', metaParts.join(' · ') || '—');
+    const info = el('div', 'ai-tool-info', titleEl, metaEl);
+
+    // Enable/disable toggle
+    const toggleBtn = iconBtn(
+        tool.enabled ? 'toggle-on' : 'toggle-off',
+        tool.enabled ? t('GRAFIDA_OPT_PUBLISHED') : t('GRAFIDA_OPT_UNPUBLISHED'),
+        'btn', 'btn-sm', tool.enabled ? 'btn-info' : 'btn-secondary'
+    );
+    toggleBtn.addEventListener('click', () => toggleAiTool(tool));
+
+    const editBtn = iconBtn('pen', t('GRAFIDA_BTN_EDIT'), 'btn', 'btn-sm', 'btn-secondary');
+    editBtn.addEventListener('click', () => openAiToolModal(tool));
+
+    const actions = el('div', 'ai-tool-actions', toggleBtn, editBtn);
+
+    // Show delete for custom tools or built-in tools that have a DB override.
+    if (tool.isCustom || tool.id !== null) {
+        const delBtn = iconBtn('trash', t('GRAFIDA_BTN_DELETE'), 'btn', 'btn-sm', 'btn-danger');
+        delBtn.addEventListener('click', () => confirmDeleteAiTool(tool));
+        actions.appendChild(delBtn);
+    }
+
+    const item = el('div', 'ai-tool-item', info, actions);
+    if (!tool.enabled) item.classList.add('ai-tool-disabled');
+    return item;
+}
+
+async function toggleAiTool(tool) {
+    try {
+        await api.updateAiTool(tool.toolKey, { enabled: !tool.enabled });
+        const data = await api.listAiTools();
+        State.aiAllTools = data.tools || [];
+        renderAiToolsList();
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+/** Build the add/edit tool modal body. Pass null for tool to create a new custom tool. */
+function buildAiToolFormBody(tool) {
+    const nodes = [];
+
+    // Key field — only for new custom tools.
+    if (!tool) {
+        const keyIn = document.createElement('input');
+        keyIn.id = 'modal-ai-tool-key';
+        keyIn.type = 'text';
+        keyIn.className = 'form-control';
+        keyIn.autocomplete = 'off';
+        keyIn.placeholder = 'my_tool_key';
+        nodes.push(formGroup(t('GRAFIDA_LBL_AI_TOOL_KEY'), keyIn));
+    }
+
+    // Title
+    const titleIn = document.createElement('input');
+    titleIn.id = 'modal-ai-tool-title';
+    titleIn.type = 'text';
+    titleIn.className = 'form-control';
+    titleIn.autocomplete = 'off';
+    if (tool) titleIn.value = tool.title || tool.toolKey || '';
+
+    // Icon (FA solid icon name, without the "fa-" prefix)
+    const iconIn = document.createElement('input');
+    iconIn.id = 'modal-ai-tool-icon';
+    iconIn.type = 'text';
+    iconIn.className = 'form-control';
+    iconIn.autocomplete = 'off';
+    iconIn.placeholder = 'wand-magic-sparkles';
+    if (tool) iconIn.value = tool.icon || '';
+
+    // Prompt
+    const promptTa = document.createElement('textarea');
+    promptTa.id = 'modal-ai-tool-prompt';
+    promptTa.className = 'form-control';
+    promptTa.rows = 4;
+    if (tool) promptTa.value = tool.prompt || '';
+
+    // Tone dropdown
+    const toneSel = document.createElement('select');
+    toneSel.id = 'modal-ai-tool-tone';
+    toneSel.className = 'form-control';
+    const toneBlank = document.createElement('option');
+    toneBlank.value = '';
+    toneBlank.textContent = t('GRAFIDA_OPT_AI_TONE_DEFAULT');
+    toneSel.appendChild(toneBlank);
+    Object.entries(State.aiTones).forEach(([k, tone]) => {
+        const opt = document.createElement('option');
+        opt.value = k;
+        opt.textContent = tone.label || k;
+        if (tool && tool.tone === k) opt.selected = true;
+        toneSel.appendChild(opt);
+    });
+
+    // Override system prompt checkbox
+    const overrideChk = document.createElement('input');
+    overrideChk.id = 'modal-ai-tool-override-sys';
+    overrideChk.type = 'checkbox';
+    if (tool && tool.overrideSystem) overrideChk.checked = true;
+    const overrideLbl = el('label', 'toggle-row', overrideChk, txt(' ' + t('GRAFIDA_LBL_AI_OVERRIDE_SYSTEM')));
+    overrideLbl.htmlFor = 'modal-ai-tool-override-sys';
+
+    // Service override dropdown
+    const svcSel = document.createElement('select');
+    svcSel.id = 'modal-ai-tool-service';
+    svcSel.className = 'form-control';
+    const svcDefault = document.createElement('option');
+    svcDefault.value = '';
+    svcDefault.textContent = t('GRAFIDA_OPT_AI_DEFAULT_SERVICE');
+    svcSel.appendChild(svcDefault);
+    State.aiServices.forEach(svc => {
+        const opt = document.createElement('option');
+        opt.value = String(svc.id);
+        opt.textContent = svc.name;
+        if (tool && tool.serviceId === svc.id) opt.selected = true;
+        svcSel.appendChild(opt);
+    });
+
+    // Per-tool param overrides
+    const existParams = (tool && tool.params) ? tool.params : {};
+
+    const tempIn = document.createElement('input');
+    tempIn.id = 'modal-ai-tool-temp';
+    tempIn.type = 'number'; tempIn.className = 'form-control';
+    tempIn.step = '0.1'; tempIn.min = '0'; tempIn.max = '2';
+    tempIn.placeholder = t('GRAFIDA_OPT_AUTO');
+    if (existParams.temperature !== undefined) tempIn.value = String(existParams.temperature);
+
+    const topPIn = document.createElement('input');
+    topPIn.id = 'modal-ai-tool-topp';
+    topPIn.type = 'number'; topPIn.className = 'form-control';
+    topPIn.step = '0.05'; topPIn.min = '0'; topPIn.max = '1';
+    topPIn.placeholder = t('GRAFIDA_OPT_AUTO');
+    if (existParams.top_p !== undefined) topPIn.value = String(existParams.top_p);
+
+    const maxTokIn = document.createElement('input');
+    maxTokIn.id = 'modal-ai-tool-maxtok';
+    maxTokIn.type = 'number'; maxTokIn.className = 'form-control';
+    maxTokIn.step = '1'; maxTokIn.min = '1';
+    maxTokIn.placeholder = t('GRAFIDA_OPT_AUTO');
+    if (existParams.max_completion_tokens !== undefined) maxTokIn.value = String(existParams.max_completion_tokens);
+
+    nodes.push(
+        formGroup(t('GRAFIDA_LBL_TITLE'), titleIn),
+        formGroup(t('GRAFIDA_LBL_AI_TOOL_ICON'), iconIn),
+        formGroup(t('GRAFIDA_LBL_AI_TOOL_PROMPT'), promptTa),
+        formGroup(t('GRAFIDA_LBL_AI_TONE'), toneSel),
+        el('div', 'form-group', overrideLbl),
+        formGroup(t('GRAFIDA_LBL_AI_SERVICE_OVERRIDE'), svcSel),
+        el('p', 'card-title', t('GRAFIDA_LBL_AI_PARAMS')),
+        formGroup(t('GRAFIDA_LBL_AI_TEMPERATURE'), tempIn),
+        formGroup(t('GRAFIDA_LBL_AI_TOP_P'), topPIn),
+        formGroup(t('GRAFIDA_LBL_AI_MAX_TOKENS'), maxTokIn),
+    );
+
+    return nodes;
+}
+
+function buildAiToolFormFooter(saveHandler) {
+    const cancelBtn = iconBtn('xmark', t('GRAFIDA_BTN_CANCEL'), 'btn', 'btn-secondary');
+    cancelBtn.addEventListener('click', closeModal);
+    const saveBtn = iconBtn('floppy-disk', t('GRAFIDA_BTN_SAVE'), 'btn', 'btn-primary');
+    saveBtn.addEventListener('click', saveHandler);
+    return [cancelBtn, saveBtn];
+}
+
+function openAddAiToolModal() {
+    const body = buildAiToolFormBody(null);
+    const footer = buildAiToolFormFooter(() => saveAiToolHandler(null));
+    showModal(t('GRAFIDA_BTN_ADD_AI_TOOL'), body, footer);
+}
+
+function openAiToolModal(tool) {
+    const body = buildAiToolFormBody(tool);
+    const footer = buildAiToolFormFooter(() => saveAiToolHandler(tool));
+    showModal(t('GRAFIDA_BTN_EDIT'), body, footer);
+}
+
+async function saveAiToolHandler(tool) {
+    const titleEl = document.getElementById('modal-ai-tool-title');
+    const iconEl = document.getElementById('modal-ai-tool-icon');
+    const promptEl = document.getElementById('modal-ai-tool-prompt');
+    const toneEl = document.getElementById('modal-ai-tool-tone');
+    const overrideSysEl = document.getElementById('modal-ai-tool-override-sys');
+    const svcEl = document.getElementById('modal-ai-tool-service');
+    const tempEl = document.getElementById('modal-ai-tool-temp');
+    const topPEl = document.getElementById('modal-ai-tool-topp');
+    const maxTokEl = document.getElementById('modal-ai-tool-maxtok');
+
+    const params = {};
+    if (tempEl && tempEl.value !== '') params.temperature = parseFloat(tempEl.value);
+    if (topPEl && topPEl.value !== '') params.top_p = parseFloat(topPEl.value);
+    if (maxTokEl && maxTokEl.value !== '') params.max_completion_tokens = parseInt(maxTokEl.value, 10);
+
+    const serviceIdRaw = svcEl ? svcEl.value : '';
+    const serviceId = serviceIdRaw !== '' ? parseInt(serviceIdRaw, 10) : null;
+
+    const body = {
+        title: titleEl ? titleEl.value.trim() : '',
+        icon: iconEl ? iconEl.value.trim() : '',
+        prompt: promptEl ? promptEl.value : '',
+        tone: toneEl ? toneEl.value : '',
+        overrideSystem: overrideSysEl ? overrideSysEl.checked : false,
+        serviceId,
+        params,
+    };
+
+    try {
+        if (tool === null) {
+            // Creating a new custom tool.
+            const keyEl = document.getElementById('modal-ai-tool-key');
+            const toolKey = keyEl ? keyEl.value.trim() : '';
+            if (!toolKey) {
+                showToast(t('GRAFIDA_LBL_AI_TOOL_KEY') + ' is required.', 'error');
+                return;
+            }
+            body.toolKey = toolKey;
+            body.enabled = true;
+            await api.createAiTool(body);
+        } else {
+            await api.updateAiTool(tool.toolKey, body);
+        }
+        closeModal();
+        const data = await api.listAiTools();
+        State.aiAllTools = data.tools || [];
+        State.aiSystemPrompt = data.systemPrompt || '';
+        State.aiTones = data.tones || {};
+        renderAiToolsList();
+        showToast(t('GRAFIDA_MSG_AI_TOOL_SAVED'), 'success');
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+async function confirmDeleteAiTool(tool) {
+    const nameStrong = el('strong', null, tool.title || tool.toolKey || '');
+    const msgP = el('p', null, ...formatNodes(t('GRAFIDA_MSG_DELETE_AI_TOOL_CONFIRM'), nameStrong));
+    const ok = await confirmYesNo(t('GRAFIDA_BTN_DELETE'), [msgP]);
+    if (!ok) return;
+    try {
+        await api.deleteAiTool(tool.toolKey);
+        const data = await api.listAiTools();
+        State.aiAllTools = data.tools || [];
+        State.aiSystemPrompt = data.systemPrompt || '';
+        State.aiTones = data.tones || {};
+        renderAiToolsList();
+        showToast(t('GRAFIDA_MSG_AI_TOOL_DELETED'), 'success');
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
 }
 
 // ============================================================
@@ -3983,6 +4781,11 @@ async function bootstrap() {
         State.supportedFieldTypes = data.supportedFieldTypes || [];
         State.app = data.app || {};
         State.sites = data.sites || [];
+        State.aiServices = data.aiServices || [];
+        State.aiDefaultServiceId = data.aiDefaultServiceId ?? null;
+        State.aiProviders = data.aiProviders || {};
+        State.aiTools = data.aiTools || [];
+        State.secureStoreAi = data.secureStoreAi !== false;
     } catch (err) {
         console.error('Bootstrap failed:', err);
     }

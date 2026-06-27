@@ -1616,6 +1616,121 @@ input[type="color"].form-control {
     border-color: var(--color-danger);
 }
 
+/* Wide variant for AI settings cards */
+#settings-screen .settings-card-wide {
+    max-width: 720px;
+}
+
+/* Header row inside a card: title left, action button right */
+.settings-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.settings-card-head .card-title {
+    margin-bottom: 0;
+}
+
+/* AI service / tool list items */
+.ai-service-item,
+.ai-tool-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface-2);
+    margin-bottom: 8px;
+}
+
+.ai-service-info,
+.ai-tool-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.ai-service-name {
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.ai-tool-title {
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.ai-service-meta,
+.ai-tool-meta {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-top: 2px;
+}
+
+.ai-service-actions,
+.ai-tool-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.ai-tool-item.ai-tool-disabled {
+    opacity: 0.65;
+}
+
+/* Small badge used in the AI settings lists */
+.ai-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 999px;
+    flex-shrink: 0;
+}
+
+.badge-default {
+    background: rgba(249, 57, 4, 0.15);
+    color: var(--color-accent);
+    border: 1px solid rgba(249, 57, 4, 0.3);
+}
+
+/* Model field row: text input + fetch button side by side */
+.ai-model-row {
+    display: flex;
+    gap: 6px;
+    align-items: flex-end;
+}
+
+.ai-model-row input.form-control,
+.ai-model-row select.form-control {
+    flex: 1;
+    width: auto;
+}
+
+/* System prompt sub-section */
+.ai-system-prompt-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+/* Tools list header: add-button aligned right */
+.ai-tools-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Misc utilities                                                     */
 /* ------------------------------------------------------------------ */
