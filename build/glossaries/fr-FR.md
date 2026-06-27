@@ -66,3 +66,23 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | next | Suivant | Pagination button. |
 | pagination | pagination | « Page %s sur %s » page indicator. |
 | checked out | Verrouillé | Joomla article checked-out (locked-for-editing) state. |
+| Media Manager | Gestionnaire de médias | The site's Media Manager page/feature (nav label). Distinct from « Médias » used for the in-editor media browser/library. |
+| media | Médias | The media library/files; in-editor picker label and Media-page section heading. |
+| file | Fichier | A media file. |
+| preview | Aperçu | Media file/image preview pane. |
+| upload | Téléverser | Send a local file to the site's media (verb/button). Distinct from « Télécharger » (download). |
+| download | Télécharger | Fetch a media file to the local computer. |
+| open | Ouvrir | Open a media file/folder. |
+| new folder | Nouveau dossier | Create-folder action and label. |
+| rename | Renommer | Rename a media file or folder. |
+| edit image | Modifier l’image | Open the in-app image editor for a media image. |
+| image editor | Éditeur d’image | The crop/resize/rotate/flip image editor. |
+| rotate | Pivoter | Rotate an image (left/right = vers la gauche/droite). |
+| flip | Retourner | Flip an image (horizontally/vertically = horizontalement/verticalement). |
+| crop | Rogner | Crop an image. « rognage » = the crop (noun). |
+| resize | Redimensionner | Resize an image. |
+| width | Largeur | Image width. |
+| height | Hauteur | Image height. |
+| aspect ratio | Proportions | « Conserver les proportions » = lock aspect ratio. |
+| dimensions | Dimensions | Image width × height. |
+| overwrite | Remplacer | Overwrite an existing file. |

@@ -86,6 +86,16 @@ const State = {
     // it came from, so inline images get tagged with data-grafida-media-id and
     // are uploaded to the site on publish (see the editor's tagging handler).
     inlineMediaByUri: {},
+    // Media Manager screen state: the site whose adapters are loaded, the list of
+    // adapters (filesystems), the current adapter-qualified folder path, and the
+    // last-loaded folder entries. Reset when the active site changes.
+    mediaSiteId: null,
+    mediaAdapters: null,
+    mediaPath: '',
+    mediaEntries: [],
+    // Display→source scale of the canvas in the open image editor, used to map a
+    // crop selection (display pixels) back to source pixels.
+    imgEditorScale: 1,
 };
 
 // ============================================================
@@ -295,6 +305,13 @@ const api = {
     openFile: (filter) => apiFetch('POST', '/api/dialog/open-file', { filter }),
     browseMedia: (siteId, path = '') => apiFetch('GET', `/api/sites/${siteId}/media?path=${encodeURIComponent(path)}`),
     getMediaBlob: (id) => apiFetch('GET', `/api/media/${id}`),
+    getMediaAdapters: (siteId) => apiFetch('GET', `/api/sites/${siteId}/media/adapters`),
+    getMediaFile: (siteId, path) => apiFetch('GET', `/api/sites/${siteId}/media/file?path=${encodeURIComponent(path)}`),
+    uploadSiteMedia: (siteId, body) => apiFetch('POST', `/api/sites/${siteId}/media/files`, body),
+    createMediaFolder: (siteId, body) => apiFetch('POST', `/api/sites/${siteId}/media/folder`, body),
+    renameMedia: (siteId, body) => apiFetch('POST', `/api/sites/${siteId}/media/rename`, body),
+    updateMediaContent: (siteId, body) => apiFetch('POST', `/api/sites/${siteId}/media/content`, body),
+    deleteSiteMedia: (siteId, path) => apiFetch('DELETE', `/api/sites/${siteId}/media?path=${encodeURIComponent(path)}`),
     convertMarkdown: (markdown) => apiFetch('POST', '/api/markdown', { markdown }),
     setLanguage: (tag) => apiFetch('POST', '/api/settings/language', { tag }),
     setDisplayMode: (mode) => apiFetch('POST', '/api/settings/display-mode', { mode }),
@@ -2097,8 +2114,8 @@ async function initTinyMCE(draft) {
         // in setup) for syntax highlighting, so the plugin is intentionally absent.
         plugins: [
             'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
-            'anchor', 'searchreplace', 'visualblocks', 'fullscreen',
-            'insertdatetime', 'media', 'table', 'help', 'wordcount',
+            'anchor', 'searchreplace', 'visualblocks', 'fullscreen', 'accordion',
+            'insertdatetime', 'media', 'table', 'help', 'wordcount', 'quickbars'
         ],
         // Tools menu: our "sourcecode" item replaces the dropped "code" item.
         menu: {
@@ -2723,6 +2740,650 @@ function openMediaBrowser(siteId, opts = {}) {
     });
 }
 
+// ============================================================
+//  Media Manager screen
+// ============================================================
+
+/** Raster image extensions Grafida's in-app editor can open and re-save. */
+const EDITABLE_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
+
+/** The file-name extension of a media entry, lower-cased. */
+function mediaEntryExt(entry) {
+    const ext = String(entry.extension || '').toLowerCase();
+    if (ext) return ext;
+    const name = String(entry.name || '');
+    const dot = name.lastIndexOf('.');
+    return dot >= 0 ? name.slice(dot + 1).toLowerCase() : '';
+}
+
+/** Whether an entry is a raster image the in-app editor can edit. */
+function isEditableImage(entry) {
+    return EDITABLE_IMAGE_EXTENSIONS.includes(mediaEntryExt(entry));
+}
+
+/** Join an adapter folder path and a child name into a full media path. */
+function joinMediaPath(dir, name) {
+    if (!dir) return name;
+    return dir.replace(/\/+$/, '') + '/' + name;
+}
+
+/** A human-readable byte size (e.g. "1.4 MB"). */
+function formatBytes(bytes) {
+    const n = Number(bytes);
+    if (!isFinite(n) || n <= 0) return '';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let v = n, i = 0;
+    while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+    return (i === 0 ? v : v.toFixed(1)) + ' ' + units[i];
+}
+
+/**
+ * A small modal prompting for a single line of text. Resolves with the trimmed
+ * value, or null if cancelled (Escape / Cancel / backdrop).
+ */
+function promptText(title, label, initial = '') {
+    return new Promise(resolve => {
+        let settled = false;
+        const input = el('input', 'form-control');
+        input.type = 'text';
+        input.value = initial;
+        const body = el('div', 'form-group', el('label', null, label), input);
+
+        const finish = (val) => {
+            if (settled) return;
+            settled = true;
+            document.removeEventListener('keydown', onKey, true);
+            closeModal();
+            resolve(val);
+        };
+        const submit = () => finish(input.value.trim() || null);
+
+        function onKey(e) {
+            if (e.key === 'Enter') { e.preventDefault(); submit(); }
+            else if (e.key === 'Escape') { e.preventDefault(); finish(null); }
+        }
+
+        const okBtn = iconBtn('check', t('GRAFIDA_BTN_SAVE'), 'btn', 'btn-primary');
+        const cancelBtn = iconBtn('xmark', t('GRAFIDA_BTN_CANCEL'), 'btn', 'btn-secondary');
+        okBtn.addEventListener('click', submit);
+        cancelBtn.addEventListener('click', () => finish(null));
+
+        document.addEventListener('keydown', onKey, true);
+        showModal(title, body, [cancelBtn, okBtn]);
+        document.getElementById('modal-overlay').onclick = (e) => { if (e.target === e.currentTarget) finish(null); };
+        setTimeout(() => { input.focus(); input.select(); }, 0);
+    });
+}
+
+/** Entry point for the Media Manager screen (nav click / site change). */
+async function loadMediaScreen() {
+    const container = document.getElementById('media-container');
+    if (!container) return;
+    renderMediaHeaderActions();
+
+    if (!State.currentSiteId) {
+        clearNode(container);
+        container.appendChild(el('div', 'empty-state', el('p', null, t('GRAFIDA_MSG_SELECT_SITE'))));
+        return;
+    }
+
+    // (Re)load the site's adapters when the active site changed. The first adapter
+    // is the default filesystem; its `path` (e.g. "local-images:/") is the root.
+    if (State.mediaSiteId !== State.currentSiteId || !State.mediaAdapters) {
+        const siteId = State.currentSiteId;
+        State.mediaSiteId = siteId;
+        State.mediaAdapters = null;
+        clearNode(container);
+        container.appendChild(el('div', 'loading-row', el('div', 'spinner'), txt(' ' + t('GRAFIDA_MSG_LOADING'))));
+        let adapters;
+        try {
+            const data = await api.getMediaAdapters(siteId);
+            adapters = Array.isArray(data.adapters) ? data.adapters : [];
+        } catch (err) {
+            if (State.currentSiteId !== siteId) return;
+            clearNode(container);
+            container.appendChild(el('div', 'alert alert-error', String(err.message)));
+            return;
+        }
+        if (State.currentSiteId !== siteId) return;
+        State.mediaAdapters = adapters;
+        const first = adapters[0];
+        State.mediaPath = first && typeof first.path === 'string' ? first.path : '';
+    }
+
+    clearNode(container);
+    const toolbar = el('div', 'media-mgr-toolbar');
+    toolbar.id = 'media-mgr-toolbar';
+    container.appendChild(toolbar);
+    const grid = el('div', 'media-mgr-grid');
+    grid.id = 'media-mgr-grid';
+    container.appendChild(grid);
+
+    await reloadMediaManager(State.mediaPath);
+}
+
+/** Builds the screen-header Upload / New Folder actions (rebuilt per language). */
+function renderMediaHeaderActions() {
+    const box = document.getElementById('media-header-actions');
+    if (!box) return;
+    clearNode(box);
+    if (!State.currentSiteId) return;
+
+    const uploadBtn = iconBtn('upload', t('GRAFIDA_BTN_UPLOAD'), 'btn', 'btn-primary', 'btn-sm');
+    uploadBtn.addEventListener('click', mediaManagerUpload);
+    const folderBtn = iconBtn('folder-plus', t('GRAFIDA_BTN_NEW_FOLDER'), 'btn', 'btn-secondary', 'btn-sm');
+    folderBtn.addEventListener('click', mediaManagerNewFolder);
+    const refreshBtn = iconBtn('rotate', t('GRAFIDA_BTN_REFRESH'), 'btn', 'btn-secondary', 'btn-sm');
+    refreshBtn.addEventListener('click', () => reloadMediaManager(State.mediaPath));
+
+    box.appendChild(uploadBtn);
+    box.appendChild(folderBtn);
+    box.appendChild(refreshBtn);
+}
+
+/** Loads and renders the contents of a media folder. */
+async function reloadMediaManager(path) {
+    State.mediaPath = path;
+    const grid = document.getElementById('media-mgr-grid');
+    const toolbar = document.getElementById('media-mgr-toolbar');
+    if (!grid || !toolbar) return;
+
+    renderMediaToolbar(toolbar, path);
+    clearNode(grid);
+    grid.appendChild(el('div', 'loading-row', el('div', 'spinner'), txt(' ' + t('GRAFIDA_MSG_LOADING'))));
+
+    const siteId = State.currentSiteId;
+    let data;
+    try {
+        data = await api.browseMedia(siteId, path);
+    } catch (err) {
+        if (State.currentSiteId !== siteId || State.mediaPath !== path) return;
+        clearNode(grid);
+        grid.appendChild(el('div', 'alert alert-error', String(err.message)));
+        return;
+    }
+    if (State.currentSiteId !== siteId || State.mediaPath !== path) return;
+
+    State.mediaEntries = Array.isArray(data.entries) ? data.entries : [];
+    renderMediaGrid(grid, State.mediaEntries);
+}
+
+/** Renders the breadcrumb / navigation toolbar for the current folder. */
+function renderMediaToolbar(toolbar, path) {
+    clearNode(toolbar);
+    const crumbs = el('div', 'media-mgr-crumbs');
+
+    // An adapter-qualified path looks like "adapter:/a/b". Split off the adapter
+    // root so it can be a clickable crumb, then each sub-folder segment.
+    const sepIdx = path.indexOf(':/');
+    const adapter = sepIdx >= 0 ? path.slice(0, sepIdx) : '';
+    const adapterRoot = adapter ? adapter + ':/' : '';
+    const rest = sepIdx >= 0 ? path.slice(sepIdx + 2) : path;
+
+    const addCrumb = (label, target, isCurrent) => {
+        if (isCurrent) {
+            crumbs.appendChild(el('span', 'media-mgr-crumb current', label));
+        } else {
+            const b = el('button', 'media-mgr-crumb', label);
+            b.type = 'button';
+            b.addEventListener('click', () => reloadMediaManager(target));
+            crumbs.appendChild(b);
+        }
+        crumbs.appendChild(el('span', 'media-mgr-crumb-sep', '/'));
+    };
+
+    const segments = rest.split('/').filter(Boolean);
+    addCrumb(adapter || '/', adapterRoot, segments.length === 0);
+    let acc = adapterRoot;
+    segments.forEach((seg, i) => {
+        acc = joinMediaPath(acc, seg);
+        addCrumb(seg, acc, i === segments.length - 1);
+    });
+
+    toolbar.appendChild(crumbs);
+
+    // Adapter switcher (only when the site exposes more than one filesystem).
+    const adapters = State.mediaAdapters || [];
+    if (adapters.length > 1) {
+        const sel = el('select', 'form-control media-mgr-adapter');
+        adapters.forEach(a => {
+            const opt = document.createElement('option');
+            opt.value = String(a.path || '');
+            opt.textContent = String(a.name || a.path || '');
+            if (String(a.path || '') === adapterRoot) opt.selected = true;
+            sel.appendChild(opt);
+        });
+        sel.addEventListener('change', () => reloadMediaManager(sel.value));
+        toolbar.appendChild(sel);
+    }
+}
+
+/** Renders the folder/file grid. */
+function renderMediaGrid(grid, entries) {
+    clearNode(grid);
+    const dirs = entries.filter(en => en.type === 'dir');
+    const files = entries.filter(en => en.type === 'file');
+
+    if (dirs.length === 0 && files.length === 0) {
+        grid.appendChild(el('div', 'media-mgr-empty', t('GRAFIDA_MSG_MEDIA_EMPTY')));
+        return;
+    }
+
+    dirs.forEach(d => grid.appendChild(buildMediaCard(d, true)));
+    files.forEach(f => grid.appendChild(buildMediaCard(f, false)));
+}
+
+/** A small icon-only action button used on a media card. */
+function mediaActionBtn(iconName, title, handler) {
+    const b = el('button', 'media-mgr-action', icon(iconName));
+    b.type = 'button';
+    b.title = title;
+    b.setAttribute('aria-label', title);
+    b.addEventListener('click', (e) => { e.stopPropagation(); handler(); });
+    return b;
+}
+
+/** Builds a card for one folder or file. */
+function buildMediaCard(entry, isDir) {
+    const card = el('div', 'media-mgr-item' + (isDir ? ' media-mgr-item-dir' : ''));
+
+    const thumb = el('div', 'media-mgr-thumb');
+    if (isDir) {
+        thumb.appendChild(icon('folder'));
+    } else if (isImageEntry(entry) && typeof entry.url === 'string') {
+        const im = document.createElement('img');
+        im.src = entry.url;
+        im.alt = '';
+        im.loading = 'lazy';
+        thumb.appendChild(im);
+    } else {
+        thumb.appendChild(icon('file'));
+    }
+    card.appendChild(thumb);
+
+    card.appendChild(el('div', 'media-mgr-name', entry.name || ''));
+    const metaText = isDir ? '' : [mediaEntryExt(entry).toUpperCase(), formatBytes(entry.size)].filter(Boolean).join(' · ');
+    card.appendChild(el('div', 'media-mgr-meta', metaText || ' '));
+
+    const actions = el('div', 'media-mgr-actions');
+    if (!isDir && isEditableImage(entry)) {
+        actions.appendChild(mediaActionBtn('crop-simple', t('GRAFIDA_BTN_EDIT_IMAGE'), () => openImageEditor(entry)));
+    }
+    actions.appendChild(mediaActionBtn('pen', t('GRAFIDA_BTN_RENAME'), () => mediaManagerRename(entry)));
+    actions.appendChild(mediaActionBtn('trash', t('GRAFIDA_BTN_DELETE'), () => mediaManagerDelete(entry, isDir)));
+    card.appendChild(actions);
+
+    if (isDir) {
+        card.classList.add('clickable');
+        card.addEventListener('click', () => reloadMediaManager(typeof entry.path === 'string' ? entry.path : ''));
+    } else if (isImageEntry(entry) && typeof entry.url === 'string') {
+        card.classList.add('clickable');
+        card.addEventListener('click', () => openMediaPreview(entry));
+    }
+
+    return card;
+}
+
+/** A simple full-size image preview modal. */
+function openMediaPreview(entry) {
+    const img = document.createElement('img');
+    img.src = entry.url;
+    img.alt = entry.name || '';
+    img.className = 'media-mgr-preview-img';
+    const body = el('div', 'media-mgr-preview', img);
+    const closeBtn = iconBtn('xmark', t('GRAFIDA_BTN_CLOSE'), 'btn', 'btn-secondary');
+    closeBtn.addEventListener('click', closeModal);
+    showModal(entry.name || t('GRAFIDA_LBL_MEDIA_PREVIEW'), body, [closeBtn]);
+}
+
+/** Picks a local file via the native dialog and uploads it to the current folder. */
+async function mediaManagerUpload() {
+    const siteId = State.currentSiteId;
+    if (!siteId) return;
+    let picked;
+    try {
+        picked = await api.openFile('any');
+    } catch (err) {
+        showToast(err.message, 'error');
+        return;
+    }
+    if (!picked || picked.cancelled) return;
+    await doMediaUpload(joinMediaPath(State.mediaPath, picked.name), picked, false);
+}
+
+async function doMediaUpload(path, picked, override) {
+    const siteId = State.currentSiteId;
+    try {
+        await api.uploadSiteMedia(siteId, {
+            path, mime: picked.mime || 'application/octet-stream',
+            dataBase64: picked.dataBase64, override,
+        });
+        showToast(t('GRAFIDA_MSG_MEDIA_UPLOADED'), 'success');
+        reloadMediaManager(State.mediaPath);
+    } catch (err) {
+        // Offer to overwrite when the destination already exists.
+        if (!override && /exist/i.test(String(err.message))) {
+            const ok = await confirmYesNo(
+                t('GRAFIDA_MSG_MEDIA_OVERWRITE_TITLE'),
+                el('p', null, ...formatNodes(t('GRAFIDA_MSG_MEDIA_OVERWRITE_CONFIRM'), picked.name)),
+            );
+            if (ok) await doMediaUpload(path, picked, true);
+            return;
+        }
+        showToast(err.message, 'error');
+    }
+}
+
+/** Prompts for a name and creates a sub-folder in the current folder. */
+async function mediaManagerNewFolder() {
+    const siteId = State.currentSiteId;
+    if (!siteId) return;
+    const name = await promptText(t('GRAFIDA_LBL_NEW_FOLDER'), t('GRAFIDA_LBL_FOLDER_NAME'), '');
+    if (!name) return;
+    try {
+        await api.createMediaFolder(siteId, { path: joinMediaPath(State.mediaPath, name) });
+        showToast(t('GRAFIDA_MSG_MEDIA_FOLDER_CREATED'), 'success');
+        reloadMediaManager(State.mediaPath);
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+/** Prompts for a new name and renames a file/folder in place. */
+async function mediaManagerRename(entry) {
+    const siteId = State.currentSiteId;
+    if (!siteId) return;
+    const name = await promptText(t('GRAFIDA_LBL_RENAME'), t('GRAFIDA_LBL_NEW_NAME'), entry.name || '');
+    if (!name || name === entry.name) return;
+    try {
+        await api.renameMedia(siteId, { oldPath: entry.path, newName: name });
+        showToast(t('GRAFIDA_MSG_MEDIA_RENAMED'), 'success');
+        reloadMediaManager(State.mediaPath);
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+/** Confirms and deletes a file/folder. */
+async function mediaManagerDelete(entry, isDir) {
+    const siteId = State.currentSiteId;
+    if (!siteId) return;
+    const msgKey = isDir ? 'GRAFIDA_MSG_DELETE_FOLDER_CONFIRM' : 'GRAFIDA_MSG_DELETE_MEDIA_CONFIRM';
+    const ok = await confirmYesNo(
+        t('GRAFIDA_MSG_DELETE_MEDIA_TITLE'),
+        el('p', null, ...formatNodes(t(msgKey), entry.name || '')),
+    );
+    if (!ok) return;
+    try {
+        await api.deleteSiteMedia(siteId, entry.path);
+        showToast(t('GRAFIDA_MSG_MEDIA_DELETED'), 'success');
+        reloadMediaManager(State.mediaPath);
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+// --------------------------------------------------------
+//  Image editor (crop / resize / rotate / flip)
+// --------------------------------------------------------
+
+/** Opens the in-app image editor for an editable raster image entry. */
+async function openImageEditor(entry) {
+    const siteId = State.currentSiteId;
+    let dataUri;
+    try {
+        // Load the bytes through the backend (a same-origin data: URI) so drawing
+        // onto a canvas does not taint it — a cross-origin <img> would block save.
+        const res = await api.getMediaFile(siteId, entry.path);
+        dataUri = res.dataUri;
+    } catch (err) {
+        showToast(err.message, 'error');
+        return;
+    }
+    const img = new Image();
+    img.onload = () => buildImageEditor(entry, img);
+    img.onerror = () => showToast(t('GRAFIDA_MSG_MEDIA_EDIT_LOAD_FAIL'), 'error');
+    img.src = dataUri;
+}
+
+function buildImageEditor(entry, img) {
+    // `work` is an offscreen canvas holding the current edited bitmap.
+    let work = document.createElement('canvas');
+    work.width = img.naturalWidth;
+    work.height = img.naturalHeight;
+    work.getContext('2d').drawImage(img, 0, 0);
+
+    const canvas = el('canvas', 'img-editor-canvas');
+    const selBox = el('div', 'img-editor-selection hidden');
+    const stage = el('div', 'img-editor-stage', canvas, selBox);
+
+    const dims = el('div', 'img-editor-dims');
+    const wIn = el('input', 'form-control img-editor-num');
+    wIn.type = 'number'; wIn.min = '1';
+    const hIn = el('input', 'form-control img-editor-num');
+    hIn.type = 'number'; hIn.min = '1';
+    const lock = document.createElement('input');
+    lock.type = 'checkbox'; lock.checked = true;
+
+    let cropping = false;
+    // Current crop selection in *display* pixels, or null.
+    let sel = null;
+
+    function clearSelection() {
+        sel = null;
+        selBox.classList.add('hidden');
+    }
+
+    function render() {
+        const maxW = 620, maxH = 420;
+        const scale = Math.min(1, maxW / work.width, maxH / work.height);
+        State.imgEditorScale = scale;
+
+        canvas.width = work.width;
+        canvas.height = work.height;
+        canvas.getContext('2d').drawImage(work, 0, 0);
+        const dispW = Math.round(work.width * scale);
+        const dispH = Math.round(work.height * scale);
+        canvas.style.width = dispW + 'px';
+        canvas.style.height = dispH + 'px';
+        stage.style.width = dispW + 'px';
+        stage.style.height = dispH + 'px';
+
+        dims.textContent = work.width + ' × ' + work.height;
+        wIn.value = String(work.width);
+        hIn.value = String(work.height);
+        clearSelection();
+    }
+
+    // ---- Crop selection (mouse drag over the canvas) ----
+    let dragStart = null;
+    function pointInStage(e) {
+        const r = stage.getBoundingClientRect();
+        return {
+            x: Math.max(0, Math.min(r.width, e.clientX - r.left)),
+            y: Math.max(0, Math.min(r.height, e.clientY - r.top)),
+        };
+    }
+    function drawSel() {
+        if (!sel) { selBox.classList.add('hidden'); return; }
+        selBox.classList.remove('hidden');
+        selBox.style.left = sel.x + 'px';
+        selBox.style.top = sel.y + 'px';
+        selBox.style.width = sel.w + 'px';
+        selBox.style.height = sel.h + 'px';
+    }
+    stage.addEventListener('mousedown', (e) => {
+        if (!cropping) return;
+        e.preventDefault();
+        dragStart = pointInStage(e);
+        sel = { x: dragStart.x, y: dragStart.y, w: 0, h: 0 };
+        drawSel();
+    });
+    window.addEventListener('mousemove', onStageDrag);
+    function onStageDrag(e) {
+        // Self-clean if the modal was closed by another path (e.g. Escape).
+        if (!stage.isConnected) { window.removeEventListener('mousemove', onStageDrag); return; }
+        if (!cropping || !dragStart) return;
+        const p = pointInStage(e);
+        sel = {
+            x: Math.min(dragStart.x, p.x),
+            y: Math.min(dragStart.y, p.y),
+            w: Math.abs(p.x - dragStart.x),
+            h: Math.abs(p.y - dragStart.y),
+        };
+        drawSel();
+    }
+    function onStageDragEnd() {
+        if (!stage.isConnected) { window.removeEventListener('mouseup', onStageDragEnd); return; }
+        dragStart = null;
+    }
+    window.addEventListener('mouseup', onStageDragEnd);
+
+    // ---- Operations ----
+    function rotate(deg) {
+        const c = document.createElement('canvas');
+        if (deg === 90 || deg === 270) { c.width = work.height; c.height = work.width; }
+        else { c.width = work.width; c.height = work.height; }
+        const ctx = c.getContext('2d');
+        ctx.translate(c.width / 2, c.height / 2);
+        ctx.rotate(deg * Math.PI / 180);
+        ctx.drawImage(work, -work.width / 2, -work.height / 2);
+        work = c;
+        render();
+    }
+    function flip(horizontal) {
+        const c = document.createElement('canvas');
+        c.width = work.width; c.height = work.height;
+        const ctx = c.getContext('2d');
+        if (horizontal) { ctx.translate(c.width, 0); ctx.scale(-1, 1); }
+        else { ctx.translate(0, c.height); ctx.scale(1, -1); }
+        ctx.drawImage(work, 0, 0);
+        work = c;
+        render();
+    }
+    function applyResize() {
+        const w = parseInt(wIn.value, 10);
+        const h = parseInt(hIn.value, 10);
+        if (!(w > 0 && h > 0) || (w === work.width && h === work.height)) return;
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(work, 0, 0, w, h);
+        work = c;
+        render();
+    }
+    function applyCrop() {
+        if (!sel || sel.w < 2 || sel.h < 2) return;
+        const scale = State.imgEditorScale || 1;
+        const x = Math.round(sel.x / scale);
+        const y = Math.round(sel.y / scale);
+        const w = Math.round(sel.w / scale);
+        const h = Math.round(sel.h / scale);
+        if (w <= 0 || h <= 0) return;
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(work, x, y, w, h, 0, 0, w, h);
+        work = c;
+        cropping = false;
+        stage.classList.remove('cropping');
+        cropBtn.classList.remove('active');
+        render();
+    }
+
+    // ---- Resize aspect lock ----
+    wIn.addEventListener('input', () => {
+        if (!lock.checked) return;
+        const w = parseInt(wIn.value, 10);
+        if (w > 0) hIn.value = String(Math.max(1, Math.round(w * work.height / work.width)));
+    });
+    hIn.addEventListener('input', () => {
+        if (!lock.checked) return;
+        const h = parseInt(hIn.value, 10);
+        if (h > 0) wIn.value = String(Math.max(1, Math.round(h * work.width / work.height)));
+    });
+
+    // ---- Toolbar ----
+    const mkTool = (iconName, label, handler) => {
+        const b = iconBtn(iconName, label, 'btn', 'btn-secondary', 'btn-sm');
+        b.addEventListener('click', handler);
+        return b;
+    };
+    const cropBtn = mkTool('crop-simple', t('GRAFIDA_BTN_CROP'), () => {
+        cropping = !cropping;
+        stage.classList.toggle('cropping', cropping);
+        cropBtn.classList.toggle('active', cropping);
+        if (!cropping) clearSelection();
+    });
+    const applyCropBtn = mkTool('check', t('GRAFIDA_BTN_APPLY_CROP'), applyCrop);
+
+    const transformRow = el('div', 'img-editor-row',
+        mkTool('rotate-left', t('GRAFIDA_BTN_ROTATE_LEFT'), () => rotate(270)),
+        mkTool('rotate-right', t('GRAFIDA_BTN_ROTATE_RIGHT'), () => rotate(90)),
+        mkTool('arrows-left-right', t('GRAFIDA_BTN_FLIP_H'), () => flip(true)),
+        mkTool('arrows-up-down', t('GRAFIDA_BTN_FLIP_V'), () => flip(false)),
+        cropBtn, applyCropBtn,
+    );
+
+    const resizeBtn = mkTool('expand', t('GRAFIDA_BTN_RESIZE'), applyResize);
+    const lockLabel = el('label', 'img-editor-lock', lock, txt(' ' + t('GRAFIDA_LBL_LOCK_ASPECT')));
+    const resizeRow = el('div', 'img-editor-row',
+        el('span', 'img-editor-field', el('label', null, t('GRAFIDA_LBL_WIDTH')), wIn),
+        el('span', 'img-editor-field', el('label', null, t('GRAFIDA_LBL_HEIGHT')), hIn),
+        lockLabel, resizeBtn,
+    );
+
+    const hint = el('div', 'img-editor-hint', t('GRAFIDA_MSG_CROP_HINT'));
+    const controls = el('div', 'img-editor-controls', transformRow, resizeRow, el('div', 'img-editor-statusbar', dims, hint));
+    const body = el('div', 'img-editor', stage, controls);
+
+    // ---- Footer (Save / Cancel) ----
+    const cleanup = () => {
+        window.removeEventListener('mousemove', onStageDrag);
+        window.removeEventListener('mouseup', onStageDragEnd);
+    };
+    const cancelBtn = iconBtn('xmark', t('GRAFIDA_BTN_CANCEL'), 'btn', 'btn-secondary');
+    cancelBtn.addEventListener('click', () => { cleanup(); closeModal(); });
+    const saveBtn = iconBtn('floppy-disk', t('GRAFIDA_BTN_SAVE'), 'btn', 'btn-primary');
+    saveBtn.addEventListener('click', () => {
+        const ext = mediaEntryExt(entry);
+        const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+        saveBtn.disabled = true;
+        work.toBlob(async (blob) => {
+            if (!blob) { saveBtn.disabled = false; showToast(t('GRAFIDA_MSG_MEDIA_EDIT_LOAD_FAIL'), 'error'); return; }
+            const dataBase64 = await blobToBase64(blob);
+            try {
+                await api.updateMediaContent(State.currentSiteId, { path: entry.path, dataBase64 });
+                cleanup();
+                closeModal();
+                showToast(t('GRAFIDA_MSG_MEDIA_SAVED'), 'success');
+                reloadMediaManager(State.mediaPath);
+            } catch (err) {
+                saveBtn.disabled = false;
+                showToast(err.message, 'error');
+            }
+        }, mime, 0.92);
+    });
+
+    showModal(t('GRAFIDA_LBL_IMAGE_EDITOR'), body, [cancelBtn, saveBtn]);
+    document.getElementById('modal-overlay').onclick = (e) => {
+        if (e.target === e.currentTarget) { cleanup(); closeModal(); }
+    };
+    render();
+}
+
+/** Reads a Blob into a bare base64 string (no data: prefix). */
+function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = String(reader.result || '');
+            const comma = result.indexOf(',');
+            resolve(comma >= 0 ? result.slice(comma + 1) : result);
+        };
+        reader.onerror = () => reject(new Error('Could not read image data'));
+        reader.readAsDataURL(blob);
+    });
+}
+
 // --------------------------------------------------------
 //  Save draft
 // --------------------------------------------------------
@@ -3333,6 +3994,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const screen = link.dataset.screen;
             showScreen(screen);
             if (screen === 'articles') loadArticlesScreen();
+            if (screen === 'media') loadMediaScreen();
             if (screen === 'settings') renderSettingsScreen();
         });
     });
@@ -3347,7 +4009,10 @@ document.addEventListener('DOMContentLoaded', () => {
             State.editorCss = null;
             renderSidebarFavicon();
             updateNewArticleButton();
+            State.mediaAdapters = null;
+            State.mediaSiteId = null;
             if (State.activeScreen === 'articles') loadArticlesScreen();
+            if (State.activeScreen === 'media') loadMediaScreen();
         });
     }
 

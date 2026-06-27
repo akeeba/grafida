@@ -66,3 +66,20 @@ I nomi propri non si traducono: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | next | Successivo | Pulsante: pagina successiva. |
 | checked out | Bloccato | Articolo bloccato in modifica da un utente. |
 | author | Autore | Autore dell'articolo. |
+| Media Manager | Gestione media | Voce di menu / pagina per gestire i file multimediali del sito. Etichetta breve della libreria: «Media». |
+| folder | cartella | Directory nel Media Manager (e nel file system). Plurale: cartelle. |
+| file | file | File (invariato, maschile). |
+| upload | Carica | Etichetta pulsante; imperativo. In prosa: «caricare». |
+| download | Scarica | Etichetta pulsante; imperativo. |
+| rename | Rinomina | Etichetta pulsante; imperativo. Sostantivo/azione: «Rinomina». |
+| open | Apri | Etichetta pulsante; imperativo. |
+| preview | Anteprima | Anteprima di un file/immagine. |
+| crop | Ritaglia | Editor immagini; azione di ritaglio. Sostantivo: «ritaglio» («Applica ritaglio»). |
+| resize | Ridimensiona | Editor immagini; cambiare le dimensioni dell'immagine. |
+| rotate | Ruota | Editor immagini: «Ruota a sinistra/destra». |
+| flip | Capovolgi | Editor immagini: «Capovolgi orizzontalmente/verticalmente». |
+| aspect ratio | proporzioni | «Blocca proporzioni» (lock aspect ratio); il rapporto larghezza/altezza. |
+| width | Larghezza | Dimensione orizzontale. |
+| height | Altezza | Dimensione verticale. |
+| dimensions | Dimensioni | Larghezza × altezza di un'immagine. |
+| overwrite | Sovrascrivi | Sostituire un file esistente. In prosa: «sovrascrivere». |

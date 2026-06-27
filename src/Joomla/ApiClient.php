@@ -261,20 +261,115 @@ final class ApiClient
      *
      * @param string $path        Destination path under the adapter, e.g. "images/grafida/photo.jpg".
      * @param string $rawContents Raw (not base64) file contents.
+     * @param bool   $override    Overwrite an existing file at the same path.
      *
      * @return array<string, mixed> The created media resource (its `url` is the public URL).
      */
-    public function uploadMedia(string $base, string $token, string $path, string $rawContents): array
+    public function uploadMedia(string $base, string $token, string $path, string $rawContents, bool $override = false): array
     {
         // Media responses don't follow the same single-resource contract as
         // articles/tags across Joomla versions; skip the resource assertion and
         // rely on the `url` (with its own fallback in PublishService::uploadBlob).
         $response = $this->send($base, $token, 'POST', 'media/files', 'media', [
-            'path'    => $path,
-            'content' => base64_encode($rawContents),
+            'path'     => $path,
+            'content'  => base64_encode($rawContents),
+            'override' => $override,
         ], false);
 
         return $this->unwrapResource($response);
+    }
+
+    /**
+     * Creates a new folder in the Media Manager.
+     *
+     * A POST to `media/files` with a `path` but no `content` is treated by
+     * com_media as a folder-create (see its ApiModel::save()).
+     *
+     * @param string $path Adapter path of the new folder, e.g. "local-images:/grafida/new".
+     */
+    public function createMediaFolder(string $base, string $token, string $path): void
+    {
+        $this->send($base, $token, 'POST', 'media/files', 'media', ['path' => $path], false);
+    }
+
+    /**
+     * Renames or moves a Media Manager file/folder.
+     *
+     * com_media's edit task reads the *existing* path from the URL segment and the
+     * *new* path from the body; with no `content` it performs a move/rename. We pass
+     * `override:false` so a rename never silently clobbers an existing target.
+     */
+    public function renameMedia(string $base, string $token, string $oldPath, string $newPath): void
+    {
+        $encoded  = json_encode(['path' => $newPath, 'override' => false], \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE);
+        $document = $encoded !== false ? $encoded : '{}';
+
+        $response = $this->raw('PATCH', $this->mediaItemUrl($base, $oldPath), $token, $document);
+        $this->assertSuccess($response);
+    }
+
+    /**
+     * Overwrites the contents of an existing Media Manager file (used to save an
+     * edited image). Sending the same `path` plus `content` makes com_media run a
+     * no-op move (override:true) followed by an in-place content update.
+     *
+     * @param string $rawContents Raw (not base64) file contents.
+     */
+    public function updateMediaContent(string $base, string $token, string $path, string $rawContents): void
+    {
+        $encoded  = json_encode(
+            ['path' => $path, 'content' => base64_encode($rawContents), 'override' => true],
+            \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE,
+        );
+        $document = $encoded !== false ? $encoded : '{}';
+
+        $response = $this->raw('PATCH', $this->mediaItemUrl($base, $path), $token, $document);
+        $this->assertSuccess($response);
+    }
+
+    /** Deletes a Media Manager file or folder. */
+    public function deleteMedia(string $base, string $token, string $path): void
+    {
+        $response = $this->raw('DELETE', $this->mediaItemUrl($base, $path), $token);
+        $this->assertSuccess($response);
+    }
+
+    /**
+     * Fetches a single media file including its base64 `content`, so the SPA can
+     * load the bytes for in-app image editing without tainting a canvas with a
+     * cross-origin image.
+     *
+     * @return array<string, mixed> Flattened resource: `content` (base64), `mime_type`, `name`, …
+     */
+    public function getMediaFile(string $base, string $token, string $path): array
+    {
+        $response = $this->raw('GET', $this->mediaItemUrl($base, $path) . '?url=1&content=1', $token);
+        $this->assertSuccess($response);
+
+        return $this->unwrapResource($response);
+    }
+
+    /**
+     * Lists the configured Media Manager adapters (filesystems). The first is the
+     * default; each carries a `path` like "local-images:/" used to browse its root.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function listMediaAdapters(string $base, string $token): array
+    {
+        return $this->collection($base, $token, 'media/adapters');
+    }
+
+    /**
+     * Builds the URL for a single media item. The path goes into the route segment
+     * (`v1/media/files/:path`, whose route pattern is `.*`), so '/' and ':' must stay
+     * literal for the route to match; everything else is percent-encoded.
+     */
+    private function mediaItemUrl(string $base, string $path): string
+    {
+        $encoded = str_replace(['%2F', '%3A'], ['/', ':'], rawurlencode($path));
+
+        return $base . '/v1/media/files/' . $encoded;
     }
 
     /**

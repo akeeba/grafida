@@ -74,3 +74,22 @@ Eigennamen (Grafida, Joomla!, API, Markdown, HTML, TinyMCE) werden nicht überse
 | pagination | Seitennummerierung | Page navigation of the article list („Seite %s von %s"). |
 | previous (page) | Vorherige | Pagination back button (distinct from „Zurück" = back to list). |
 | next (page) | Nächste | Pagination forward button. |
+| Media Manager | Medienverwaltung | Top-level navigation to the site's media browser (GRAFIDA_NAV_MEDIA); the in-editor picker label stays „Medien" (GRAFIDA_LBL_MEDIA_BROWSER / GRAFIDA_LBL_MEDIA). |
+| file | Datei | A file in the media browser. |
+| preview | Vorschau | Media preview pane. |
+| upload | Hochladen | Imperativ als Schaltflächenbeschriftung; „Datei hochgeladen." = uploaded. |
+| new folder | Neuer Ordner | Create-folder action/label. |
+| folder name | Ordnername | Field label for a new folder. |
+| rename | Umbenennen | Imperativ als Schaltflächenbeschriftung. |
+| new name | Neuer Name | Field label when renaming. |
+| download | Herunterladen | Imperativ als Schaltflächenbeschriftung. |
+| open | Öffnen | Imperativ als Schaltflächenbeschriftung. |
+| edit image | Bild bearbeiten | Image editor action/title. |
+| rotate left/right | Nach links/rechts drehen | Image-editor rotation. |
+| flip horizontally/vertically | Horizontal/Vertikal spiegeln | Image-editor flip. |
+| crop | Zuschneiden | Image-editor crop; „Zuschnitt anwenden"/„Zuschnitt abbrechen". |
+| resize | Größe ändern | Image-editor resize action. |
+| width / height | Breite / Höhe | Image dimension fields. |
+| aspect ratio | Seitenverhältnis | „Seitenverhältnis sperren" = lock aspect ratio. |
+| dimensions | Abmessungen | Image dimensions group label. |
+| overwrite | Überschreiben | Overwrite an existing file. |

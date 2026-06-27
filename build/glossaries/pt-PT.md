@@ -67,3 +67,21 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | checked out | bloqueado para edição | Joomla! check-out lock on an article. «Não bloqueado» = not checked out. |
 | start publishing | início de publicação | Joomla! publish_up date. |
 | finish publishing | fim de publicação | Joomla! publish_down date. |
+| Media Manager | Gestor de multimédia | The site's media browser as a full page (nav item). The library/picker context stays «Multimédia». |
+| media | multimédia | Media files (images etc.). Feminine: «a multimédia». |
+| folder | pasta | Filesystem folder in the Media Manager. «Nova pasta» = New Folder. |
+| file | ficheiro | A media file. Not «arquivo» (Brazilian Portuguese). |
+| upload | Carregar | Button: send a local file to the site. «Ficheiro carregado» = File uploaded. |
+| download | Transferir | Button: fetch a file to the computer. Preferred in pt-PT over «Descarregar». |
+| open | Abrir | Button: open a folder/file. |
+| rename | Mudar o nome | Button/action: change a file or folder name. |
+| preview | Pré-visualização | Media preview pane. |
+| rotate | Rodar | «Rodar para a esquerda/direita» = rotate left/right. |
+| flip | Inverter | «Inverter na horizontal/vertical» = flip horizontally/vertically. |
+| crop | Recortar | Image crop tool. «Aplicar recorte» = apply crop; the noun is «recorte». |
+| resize | Redimensionar | Change image dimensions. |
+| width | Largura | Image width. |
+| height | Altura | Image height. |
+| aspect ratio | proporção | «Bloquear a proporção» = lock aspect ratio. |
+| dimensions | dimensões | Image width × height. |
+| overwrite | substituir | Replace an existing file. «Pretende substituí-lo?» = Overwrite it? |

@@ -93,6 +93,21 @@ final class ApiController
         'GRAFIDA_FILTER_FEATURED_NO', 'GRAFIDA_FILTER_CHECKEDOUT_ANY', 'GRAFIDA_FILTER_CHECKEDOUT_YES',
         'GRAFIDA_FILTER_CHECKEDOUT_NO', 'GRAFIDA_OPT_LANG_ALL', 'GRAFIDA_BTN_CLEAR_FILTERS',
         'GRAFIDA_BTN_PREV_PAGE', 'GRAFIDA_BTN_NEXT_PAGE', 'GRAFIDA_PAGINATION_INFO',
+        'GRAFIDA_NAV_MEDIA', 'GRAFIDA_BTN_UPLOAD', 'GRAFIDA_BTN_NEW_FOLDER', 'GRAFIDA_BTN_RENAME',
+        'GRAFIDA_BTN_EDIT_IMAGE', 'GRAFIDA_BTN_DOWNLOAD', 'GRAFIDA_BTN_OPEN',
+        'GRAFIDA_LBL_MEDIA', 'GRAFIDA_LBL_FOLDER', 'GRAFIDA_LBL_FILE',
+        'GRAFIDA_LBL_NEW_FOLDER', 'GRAFIDA_LBL_FOLDER_NAME', 'GRAFIDA_LBL_RENAME', 'GRAFIDA_LBL_NEW_NAME',
+        'GRAFIDA_MSG_MEDIA_UPLOADED', 'GRAFIDA_MSG_MEDIA_FOLDER_CREATED', 'GRAFIDA_MSG_MEDIA_RENAMED',
+        'GRAFIDA_MSG_MEDIA_DELETED', 'GRAFIDA_MSG_MEDIA_SAVED',
+        'GRAFIDA_MSG_DELETE_MEDIA_TITLE', 'GRAFIDA_MSG_DELETE_MEDIA_CONFIRM',
+        'GRAFIDA_MSG_DELETE_FOLDER_CONFIRM',
+        'GRAFIDA_MSG_MEDIA_OVERWRITE_TITLE', 'GRAFIDA_MSG_MEDIA_OVERWRITE_CONFIRM',
+        'GRAFIDA_MSG_MEDIA_EDIT_LOAD_FAIL', 'GRAFIDA_MSG_MEDIA_ONLINE_ONLY',
+        'GRAFIDA_LBL_IMAGE_EDITOR', 'GRAFIDA_BTN_ROTATE_LEFT', 'GRAFIDA_BTN_ROTATE_RIGHT',
+        'GRAFIDA_BTN_FLIP_H', 'GRAFIDA_BTN_FLIP_V', 'GRAFIDA_BTN_CROP', 'GRAFIDA_BTN_APPLY_CROP',
+        'GRAFIDA_BTN_CANCEL_CROP', 'GRAFIDA_BTN_RESIZE', 'GRAFIDA_BTN_RESET',
+        'GRAFIDA_LBL_WIDTH', 'GRAFIDA_LBL_HEIGHT', 'GRAFIDA_LBL_LOCK_ASPECT', 'GRAFIDA_LBL_DIMENSIONS',
+        'GRAFIDA_MSG_CROP_HINT', 'GRAFIDA_LBL_MEDIA_PREVIEW',
     ];
 
     public function __construct(
@@ -193,11 +208,33 @@ final class ApiController
         if ($method === 'POST' && preg_match('#^/api/sites/(\d+)/drafts$#', $path, $m) === 1) {
             return $this->saveDraft((int) $m[1], null, $body);
         }
-        if ($method === 'GET' && preg_match('#^/api/sites/(\d+)/media$#', $path, $m) === 1) {
-            return $this->browseMedia((int) $m[1], $request->url->query->get('path', '') ?? '');
+        if (preg_match('#^/api/sites/(\d+)/media$#', $path, $m) === 1) {
+            $id = (int) $m[1];
+
+            return match ($method) {
+                'GET'    => $this->browseMedia($id, $request->url->query->get('path', '') ?? ''),
+                'POST'   => $this->uploadOfflineMedia($id, $body),
+                'DELETE' => $this->deleteSiteMedia($id, $request->url->query->get('path', '') ?? ''),
+                default  => Json::error('Method not allowed', 405),
+            };
         }
-        if ($method === 'POST' && preg_match('#^/api/sites/(\d+)/media$#', $path, $m) === 1) {
-            return $this->uploadOfflineMedia((int) $m[1], $body);
+        if ($method === 'GET' && preg_match('#^/api/sites/(\d+)/media/adapters$#', $path, $m) === 1) {
+            return $this->mediaAdapters((int) $m[1]);
+        }
+        if ($method === 'GET' && preg_match('#^/api/sites/(\d+)/media/file$#', $path, $m) === 1) {
+            return $this->siteMediaFile((int) $m[1], $request->url->query->get('path', '') ?? '');
+        }
+        if ($method === 'POST' && preg_match('#^/api/sites/(\d+)/media/files$#', $path, $m) === 1) {
+            return $this->uploadSiteMedia((int) $m[1], $body);
+        }
+        if ($method === 'POST' && preg_match('#^/api/sites/(\d+)/media/folder$#', $path, $m) === 1) {
+            return $this->createSiteMediaFolder((int) $m[1], $body);
+        }
+        if ($method === 'POST' && preg_match('#^/api/sites/(\d+)/media/rename$#', $path, $m) === 1) {
+            return $this->renameSiteMedia((int) $m[1], $body);
+        }
+        if ($method === 'POST' && preg_match('#^/api/sites/(\d+)/media/content$#', $path, $m) === 1) {
+            return $this->updateSiteMediaContent((int) $m[1], $body);
         }
         if ($method === 'GET' && preg_match('#^/api/media/(\d+)$#', $path, $m) === 1) {
             return $this->mediaBlob((int) $m[1]);
@@ -857,16 +894,187 @@ final class ApiController
      */
     private function browseMedia(int $siteId, string $path): ResponseInterface
     {
-        $site  = $this->requireSite($siteId);
-        $token = $this->sites->tokenFor($site);
+        $conn = $this->connectedSite($siteId);
 
-        if ($token === null || $site->apiBase === null) {
+        if ($conn === null) {
             return Json::error('The site is not connected.', 409);
         }
 
-        $entries = $this->apiClient->listMedia($site->apiBase, $token, $path);
+        [, $token, $base] = $conn;
+        $entries = $this->apiClient->listMedia($base, $token, $path);
 
         return Json::ok(['path' => $path, 'entries' => $entries]);
+    }
+
+    /** Lists the site's Media Manager adapters (filesystems) for the Media Manager screen. */
+    private function mediaAdapters(int $siteId): ResponseInterface
+    {
+        $conn = $this->connectedSite($siteId);
+
+        if ($conn === null) {
+            return Json::error('The site is not connected.', 409);
+        }
+
+        [, $token, $base] = $conn;
+
+        return Json::ok(['adapters' => $this->apiClient->listMediaAdapters($base, $token)]);
+    }
+
+    /** Returns a media file's bytes as a data: URI so the SPA can load it for editing. */
+    private function siteMediaFile(int $siteId, string $path): ResponseInterface
+    {
+        $conn = $this->connectedSite($siteId);
+
+        if ($conn === null) {
+            return Json::error('The site is not connected.', 409);
+        }
+        if ($path === '') {
+            return Json::error('A media path is required.', 400);
+        }
+
+        [, $token, $base] = $conn;
+        $file    = $this->apiClient->getMediaFile($base, $token, $path);
+        $content = $this->str($file, 'content');
+        $mime    = $this->str($file, 'mime_type', 'application/octet-stream');
+
+        if ($content === '') {
+            return Json::error('The media file has no readable content.', 404);
+        }
+
+        return Json::ok([
+            'dataUri' => 'data:' . $mime . ';base64,' . $content,
+            'mime'    => $mime,
+            'name'    => $this->str($file, 'name'),
+        ]);
+    }
+
+    /**
+     * Uploads a file directly to the site's Media Manager (the online Media Manager
+     * screen, distinct from uploadOfflineMedia which stores an offline draft blob).
+     *
+     * @param array<string, mixed> $body
+     */
+    private function uploadSiteMedia(int $siteId, array $body): ResponseInterface
+    {
+        $conn = $this->connectedSite($siteId);
+
+        if ($conn === null) {
+            return Json::error('The site is not connected.', 409);
+        }
+
+        $path = $this->str($body, 'path');
+        $raw  = base64_decode($this->str($body, 'dataBase64'), true);
+
+        if ($path === '') {
+            return Json::error('A destination path is required.', 400);
+        }
+        if ($raw === false) {
+            return Json::error('Invalid file data', 400);
+        }
+
+        $overrideVal = $body['override'] ?? false;
+        [, $token, $base] = $conn;
+        $resource = $this->apiClient->uploadMedia($base, $token, $path, $raw, (bool) $overrideVal);
+
+        return Json::ok($resource, 201);
+    }
+
+    /** @param array<string, mixed> $body */
+    private function createSiteMediaFolder(int $siteId, array $body): ResponseInterface
+    {
+        $conn = $this->connectedSite($siteId);
+
+        if ($conn === null) {
+            return Json::error('The site is not connected.', 409);
+        }
+
+        $path = $this->str($body, 'path');
+
+        if ($path === '') {
+            return Json::error('A folder path is required.', 400);
+        }
+
+        [, $token, $base] = $conn;
+        $this->apiClient->createMediaFolder($base, $token, $path);
+
+        return Json::ok(null, 201);
+    }
+
+    /**
+     * Renames a Media Manager file/folder within its current directory. The new
+     * path is derived from the old path so the item stays in the same folder.
+     *
+     * @param array<string, mixed> $body
+     */
+    private function renameSiteMedia(int $siteId, array $body): ResponseInterface
+    {
+        $conn = $this->connectedSite($siteId);
+
+        if ($conn === null) {
+            return Json::error('The site is not connected.', 409);
+        }
+
+        $oldPath = $this->str($body, 'oldPath');
+        $newName = trim($this->str($body, 'newName'));
+
+        if ($oldPath === '' || $newName === '') {
+            return Json::error('The current path and a new name are required.', 400);
+        }
+        if (str_contains($newName, '/') || str_contains($newName, ':')) {
+            return Json::error('A name cannot contain "/" or ":".', 400);
+        }
+
+        $idx     = strrpos($oldPath, '/');
+        $dir     = $idx === false ? '' : substr($oldPath, 0, $idx);
+        $newPath = $dir . '/' . $newName;
+
+        [, $token, $base] = $conn;
+        $this->apiClient->renameMedia($base, $token, $oldPath, $newPath);
+
+        return Json::ok(['path' => $newPath]);
+    }
+
+    /** @param array<string, mixed> $body */
+    private function updateSiteMediaContent(int $siteId, array $body): ResponseInterface
+    {
+        $conn = $this->connectedSite($siteId);
+
+        if ($conn === null) {
+            return Json::error('The site is not connected.', 409);
+        }
+
+        $path = $this->str($body, 'path');
+        $raw  = base64_decode($this->str($body, 'dataBase64'), true);
+
+        if ($path === '') {
+            return Json::error('A media path is required.', 400);
+        }
+        if ($raw === false) {
+            return Json::error('Invalid image data', 400);
+        }
+
+        [, $token, $base] = $conn;
+        $this->apiClient->updateMediaContent($base, $token, $path, $raw);
+
+        return Json::ok(['path' => $path]);
+    }
+
+    /** Deletes a file/folder from the site's Media Manager. */
+    private function deleteSiteMedia(int $siteId, string $path): ResponseInterface
+    {
+        $conn = $this->connectedSite($siteId);
+
+        if ($conn === null) {
+            return Json::error('The site is not connected.', 409);
+        }
+        if ($path === '') {
+            return Json::error('A media path is required.', 400);
+        }
+
+        [, $token, $base] = $conn;
+        $this->apiClient->deleteMedia($base, $token, $path);
+
+        return Json::ok();
     }
 
     /** Returns the data: URI of a stored offline image blob (for editor previews). */
@@ -992,6 +1200,25 @@ final class ApiController
         }
 
         return $site;
+    }
+
+    /**
+     * Resolves a site together with the credentials needed to call its REST API.
+     * Returns null when the site exists but is not connected (no token / API base),
+     * so callers can answer with a 409 rather than a generic failure.
+     *
+     * @return array{0: Site, 1: string, 2: string}|null [site, token, apiBase]
+     */
+    private function connectedSite(int $siteId): ?array
+    {
+        $site  = $this->requireSite($siteId);
+        $token = $this->sites->tokenFor($site);
+
+        if ($token === null || $site->apiBase === null) {
+            return null;
+        }
+
+        return [$site, $token, $site->apiBase];
     }
 
     /**

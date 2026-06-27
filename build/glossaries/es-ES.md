@@ -65,3 +65,24 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | next | Siguiente | Pagination: next page. |
 | per page | Por página | Article-list page size selector. |
 | checked out | bloqueado | Joomla! article locked/checked-out by an editor. |
+| Media Manager | Gestor multimedia | The site's media files browser (nav item + page title). The shorter library label remains «Multimedia». |
+| media | Multimedia | Generic label for media content/files (`GRAFIDA_LBL_MEDIA`). |
+| file | Archivo | A media file. |
+| preview | Vista previa | Media file preview pane. |
+| upload | Subir | Button: upload a file to the site. Note «Subir» also = pagination/«Up» elsewhere; context differs. |
+| download | Descargar | Button: download a media file. |
+| open | Abrir | Button: open a folder/file. |
+| new folder | Nueva carpeta | Create-folder action and dialog title. |
+| folder name | Nombre de la carpeta | New-folder name field. |
+| rename | Cambiar nombre | Rename action/dialog. Preferred over «Renombrar». |
+| new name | Nombre nuevo | Rename target field. |
+| image editor / edit image | Editar imagen | In-app image editor (button, page title). |
+| rotate | Girar | Rotate left/right: «Girar a la izquierda/derecha». |
+| flip | Voltear | Flip horizontally/vertically: «Voltear horizontalmente/verticalmente». |
+| crop | Recortar | Crop tool; apply/cancel = «Aplicar/Cancelar recorte». |
+| resize | Redimensionar | Resize an image to new dimensions. |
+| width | Anchura | Image width. |
+| height | Altura | Image height. |
+| aspect ratio | proporción | «Bloquear proporción» = lock aspect ratio. |
+| dimensions | Dimensiones | Image pixel dimensions (width × height). |
+| overwrite | Sobrescribir | Replace an existing file with the same name. |

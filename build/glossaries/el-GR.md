@@ -70,3 +70,25 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | page (pagination) | Σελίδα | Pagination info «Σελίδα %s από %s». |
 | start publishing | Έναρξη δημοσίευσης | Joomla publish_up date. |
 | finish publishing | Λήξη δημοσίευσης | Joomla publish_down date. |
+| Media Manager | Διαχείριση πολυμέσων | The full media-management page (nav label). Distinct from «Βιβλιοθήκη πολυμέσων» = the in-editor media picker. |
+| media | πολυμέσα | Files (images etc.) managed in the Media Manager. |
+| file | αρχείο | A media file. |
+| folder | φάκελος | A media/file-system directory (consistent with existing folder term). |
+| preview | Προεπισκόπηση | Media file preview pane. |
+| upload | Μεταφόρτωση | Upload a file to the site's media. Noun form «Μεταφόρτωση». |
+| download | Λήψη | Download a media file. |
+| open | Άνοιγμα | Open a folder/file. |
+| rename | Μετονομασία | Rename a file or folder. |
+| new name | Νέο όνομα | Rename dialog field. |
+| new folder | Νέος φάκελος | Create a new folder. |
+| edit image | Επεξεργασία εικόνας | Open the in-app image editor. |
+| rotate | Περιστροφή | Image-editor action; left/right = αριστερά/δεξιά. |
+| flip | Αναστροφή | Image-editor action; horizontal = Οριζόντια, vertical = Κατακόρυφη. |
+| crop | Περικοπή | Image-editor crop tool. «Εφαρμογή/Ακύρωση περικοπής». |
+| resize | Αλλαγή μεγέθους | Image-editor resize. |
+| reset | Επαναφορά | Image-editor reset (consistent with storage reset term). |
+| width | Πλάτος | Image dimension. |
+| height | Ύψος | Image dimension. |
+| dimensions | Διαστάσεις | Image width × height. |
+| aspect ratio | αναλογία διαστάσεων | «Κλείδωμα αναλογίας διαστάσεων» = lock aspect ratio. |
+| overwrite | αντικατάσταση | Overwrite an existing file. |

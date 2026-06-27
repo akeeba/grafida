@@ -106,6 +106,25 @@ dialog makes the endpoint return 503).
   site's Media Manager (`GET /v1/media/files`); `ApiController` exposes it as
   `GET /api/sites/{id}/media?path=…` and serves an offline blob's data: URI back to the SPA
   via `GET /api/media/{id}` (to preview a not-yet-published intro/full-text image).
+  **Media Manager screen** — a full online manager for the site's Media Manager (a sidebar
+  item `data-screen="media"`; works only while the site is connected). The SPA
+  (`loadMediaScreen()` in `app.js`) seeds the root from `GET /api/sites/{id}/media/adapters`
+  (the first adapter is the default filesystem; its `path` like `local-images:/` is the root),
+  browses folders with the existing `browseMedia`, and renders a card grid (folders + **all**
+  files, not only images) with breadcrumb navigation and an adapter switcher when >1 filesystem
+  exists. Actions map onto com_media's REST CRUD (verified against 5.4 source — see Joomla API
+  facts): upload (`POST …/media/files` → `ApiClient::uploadMedia` with `override`), create folder
+  (`POST …/media/folder` → `createMediaFolder`, a POST with a path but no content), rename
+  (`POST …/media/rename` → `renameMedia`, a PATCH on the item URL whose body carries the new
+  path; the server derives the new path from the old so the item stays in its folder), delete
+  (`DELETE …/media?path=…` → `deleteMedia`), and an in-app **image editor** (crop/resize/rotate/
+  flip on a `<canvas>`, saved via `POST …/media/content` → `updateMediaContent`, a PATCH that
+  sends the same path + new base64 content). The editor loads the source bytes through the
+  backend (`GET …/media/file` → `getMediaFile`, returning a data: URI) so the canvas is **not**
+  tainted by a cross-origin `<img>` (which would block `toBlob`); it only opens raster types
+  (`png`/`jpg`/`jpeg`/`webp`). PATCH/DELETE put the adapter-qualified path in the **URL segment**
+  (`v1/media/files/:path`, route pattern `.*`), so `ApiClient::mediaItemUrl()` keeps `/` and `:`
+  literal and percent-encodes the rest.
 - `src/Html/` — `ContentSplitter` (read-more split), `CssRebaser`, `InlineMedia`, `HtmlDocument`.
 - `src/Publish/PublishService.php` — the publish pipeline (media upload, tags, fields, split, POST/PATCH).
   After a successful publish the SPA (`showPostPublishDialog()`) asks what to do with the local
