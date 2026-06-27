@@ -364,7 +364,13 @@ failing compile or a genuine packaging-tool error is fatal. Pieces:
   and an **AI tools** menu button runs any configured writing tool against the document; that menu also
   always ends with a separated **"Custom…"** item (`GrafidaAIPanel.openCustom()`) — present even when no
   tools are configured — that opens the panel with an empty chat for a free-form prompt, so the
-  ask-anything path is discoverable from the tools menu, not only via the AI Assistant toggle. The panel has
+  ask-anything path is discoverable from the tools menu, not only via the AI Assistant toggle.
+  **Both AI toolbar entries (`aitools aiassistant`) are only added to the editor toolbar when at least
+  one AI service is configured** (`hasAiService` in `initTinyMCE()` gates the `aiToolbarSegment`
+  appended to the `toolbar` string from `State.aiServices.length`): with no provider connection there
+  is nothing for them to talk to, so they would be a dead end. The buttons are still *registered* in
+  `setup` (harmless) — they are merely omitted from the toolbar layout. The gate is read at editor
+  init, so adding a first service then re-opening the editor makes them appear. The panel has
   a **header** (`#ai-panel-header`) with the title plus **New chat** (`#ai-btn-new`, offers to remember
   the current chat then resets) and **Close** (`#ai-btn-close`, runs the close/remember flow and hides)
   buttons — the TinyMCE toolbar toggle is no longer the only way to close it. Each reply

@@ -2136,6 +2136,12 @@ async function initTinyMCE(draft) {
         styleFormats['grafidaBlock_' + i] = { selector: BLOCK_FORMAT_SELECTOR, classes: cls };
     });
 
+    // The AI Tools / AI Assistant buttons are only offered once at least one AI
+    // service is configured: with no provider connection there is nothing for
+    // them to talk to, so showing them would be a dead end.
+    const hasAiService = State.aiServices.length > 0;
+    const aiToolbarSegment = hasAiService ? ' | aitools aiassistant' : '';
+
     await tinymce.init({
         formats: styleFormats,
         selector: '#tinymce-editor',
@@ -2178,7 +2184,7 @@ async function initTinyMCE(draft) {
         toolbar: 'undo redo | blocks styleselect | bold italic underline strikethrough | ' +
                  'alignleft aligncenter alignright alignjustify | ' +
                  'bullist numlist outdent indent | removeformat | ' +
-                 'readmore | link image | sourcecode | aitools aiassistant',
+                 'readmore | link image | sourcecode' + aiToolbarSegment,
         // Wrap the toolbar onto multiple rows so no button (notably "readmore")
         // is ever hidden inside the overflow menu on a narrow window.
         toolbar_mode: 'wrap',
