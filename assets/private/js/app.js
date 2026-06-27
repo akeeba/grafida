@@ -2178,7 +2178,7 @@ async function initTinyMCE(draft) {
         toolbar: 'undo redo | blocks styleselect | bold italic underline strikethrough | ' +
                  'alignleft aligncenter alignright alignjustify | ' +
                  'bullist numlist outdent indent | removeformat | ' +
-                 'readmore | link image | sourcecode | aiassistant aitools',
+                 'readmore | link image | sourcecode | aitools aiassistant',
         // Wrap the toolbar onto multiple rows so no button (notably "readmore")
         // is ever hidden inside the overflow menu on a narrow window.
         toolbar_mode: 'wrap',
