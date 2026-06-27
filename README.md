@@ -8,7 +8,7 @@ Connect to one or more Joomla 5.4+ sites, write articles in a rich editor, work 
 and publish when you are ready.
 
 It is built with [Boson](https://bosonphp.com) (PHP on the desktop) and runs natively on
-**macOS, Windows and Linux**.
+**macOS, Windows, and Linux**.
 
 ## Features
 
@@ -17,7 +17,7 @@ It is built with [Boson](https://bosonphp.com) (PHP on the desktop) and runs nat
   you explicitly opt in.
 - **Rich editing** — TinyMCE 7 with a custom *Read more* button that inserts the Joomla
   introtext/fulltext separator, styled with your site template's `editor.css`.
-- **Categories, tags and access levels** — picked from live, cached site data; new tags are
+- **Categories, tags, and access levels** — picked from live, cached site data; new tags are
   created automatically on publish.
 - **Custom fields** — edit the supported core field types; the app warns you when a required
   field uses a type only Joomla's backend can edit (and offers the article HTML to copy).
@@ -25,7 +25,7 @@ It is built with [Boson](https://bosonphp.com) (PHP on the desktop) and runs nat
   locally and uploaded automatically on publish.
 - **Markdown import** — convert a Markdown file to HTML in one click.
 - **Offline drafts** — everything is saved locally in SQLite; publishing is a deliberate action.
-- **Translated** — English (en-GB) plus Greek, French, German, Spanish, Italian and Portuguese,
+- **Translated** — English (en-GB) plus Greek, French, German, Spanish, Italian, and Portuguese,
   with automatic OS-language detection and a manual override.
 
 ## Requirements
@@ -40,8 +40,8 @@ It is built with [Boson](https://bosonphp.com) (PHP on the desktop) and runs nat
 1. Launch Grafida and open **Sites → Add site**.
 2. Enter a title, your site URL (bare, e.g. `https://example.com`), and an API token. Grafida
    appends the API path for you and tests the connection.
-3. Choose a site, then browse its articles or start a **New article**.
-4. Pick a category, access level and tags; write your content; insert a **Read more** break
+3. Choose a site, then browse its articles, or start a **New article**.
+4. Pick a category, access level, and tags; write your content; insert a **Read more** break
    where the introtext should end.
 5. Click **Publish** to send the article to your site, or just keep editing — drafts are saved
    locally and automatically.
@@ -127,6 +127,10 @@ composer linter:check    # PHPStan static analysis
 
 The back-end is a pure `Request → Response` function, so the unit and feature suites run
 without opening a window.
+
+## Statement on the use of AI
+
+We are using AI-powered agentic code assistants such as Claude Code, OpenAI Codex, Qwen Code, and JetBrains Junie to develop this software. Human developers do the engineering, have the final decision on the feature set and implementation path, and review the generated code.
 
 ## License
 
