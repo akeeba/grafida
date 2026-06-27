@@ -189,6 +189,22 @@ dialog makes the endpoint return 503).
   `StorageService` reports the DB file path, opens its folder in the OS file browser
   (`open`/`explorer`/`xdg-open`), and resets local storage (deletes tokens + wipes all
   tables, keeping `schema_migrations`). Exposed under `/api/settings/storage[/open|/reset]`.
+- `src/Ai/` — the **AI chat assistant** (chat with an LLM about the open article, the document
+  supplied as context; modelled on the Joomla AITiny plugin, **text only — no AI images**).
+  `AiServiceManager` is CRUD over configured **AI services** (`ai_services`), each a named
+  provider connection (provider + endpoint + model + params); the API key lives in the OS keychain
+  (reference `grafida.ai_service.{id}`, insecure-plaintext fallback like sites). **Multiple services
+  are supported**; one may be flagged default, else the **lowest id** wins (`default()`). `Defaults`
+  loads bundled `resources/{defaults.json,voices.json,providers.json}` (ported from AITiny: the base
+  **system prompt**, the writing **tools** generate/proofread/friendly/professional/concise, the
+  tone-of-voice library, and the **provider table** — OpenAI, Anthropic, Cohere, DeepSeek, Google,
+  Groq, Mistral, OpenRouter, Perplexity, Scaleway, GitHub, Custom — each with endpoint/auth/chat-path/
+  models-path/SSE-dialect). `effectiveTools()` overlays the code defaults with `ai_tools` DB overrides
+  + custom tools; **each tool may target its own service** (`service_id`). `AiChatRepository` persists
+  **saved chats** (`ai_chats` + `ai_chat_messages`) linked to a draft; deleting the draft cascades
+  them away. Transport is deliberately **inverted vs. AITiny — see the AI transport facts below**.
+  Endpoints: `/api/ai/services[...]` (+ `/default`, `/resolved`), `/api/ai/tools[...]`,
+  `/api/ai/system-prompt`, `/api/ai/proxy`, `/api/ai/chats[...]`, `/api/drafts/{id}/chats`.
 - `src/Support/` — `Resources`/`Paths` (filesystem locations), `App` (app identity/legal
   metadata: name, `VERSION`, copyright, licence + FSF URL, the verbatim Joomla! trademark
   disclaimer — sent to the SPA in the `bootstrap` payload's `app` key), and `UrlOpener`
@@ -305,6 +321,34 @@ failing compile or a genuine packaging-tool error is fatal. Pieces:
   Custom field values go under `com_fields`. Tags
   are an array of IDs. (`ApiClient::send()` posts the flat body; only responses are unwrapped.)
 - Media upload: `POST /v1/media/files` with `{path, content:<base64>}`; the response `url` is public.
+
+## Key AI assistant facts
+
+- **Transport is inverted vs. AITiny (JS-primary, not PHP-primary).** The `boson://` kernel cannot
+  stream — `Http\Json::response()` buffers the whole body and the SPA awaits `res.json()` whole — so
+  the **provider call runs in the SPA's JavaScript**, which streams the SSE response token-by-token.
+  `assets/private/js/ai/providers.js` (`window.GrafidaAI`) ports AITiny's provider request builders +
+  both SSE dialects (OpenAI `data:`/`[DONE]`; Anthropic `event:`/`content_block_delta`/`message_stop`).
+  `sendChat()` fetches `GET /api/ai/services/{id}/resolved` (endpoint + dialect + model + params **and
+  the API key**), then streams directly from the provider. **PHP stays the source of truth** for
+  services, prompts/tools and saved chats — only the HTTP call moved to JS.
+- **`POST /api/ai/proxy` is the non-streaming fallback.** When a provider's browser **CORS** blocks the
+  direct `fetch()` (caught as a `TypeError`) or streaming is off, `sendChat()` retries once through this
+  **dumb, host-allowlisted forwarder** (`AiProxy` validates the target host equals the configured
+  service endpoint host — no open relay — and never injects the key; the JS supplies headers).
+- **The API key is handed to local JS per call.** This is a deliberate desktop-only trade-off (JS and
+  PHP are equally-trusted local code; the SPA loads no remote content) and the price of streaming —
+  do not "fix" it by moving the call back to PHP (that kills streaming).
+- **UI:** a docked right-hand `#ai-panel` in the editor (`assets/private/js/ai/panel.js`) hosts the
+  streaming conversation; the **document (title + HTML) is embedded as context in the first message**
+  and follow-ups resend the whole history. A TinyMCE **AI Assistant** toolbar button toggles the panel
+  and an **AI tools** menu button runs any configured writing tool against the document. Each reply
+  offers Insert-into-editor / Copy. Closing a non-empty chat offers to **remember** it: an unsaved
+  draft is auto-saved first, a blank title is auto-generated via a short non-streaming completion, and
+  the transcript is saved. Saved chats appear in the panel's **AI Chats** banner (open/continue/rename/
+  delete). Conversation bubbles render model output as **text** (safe); only Insert routes HTML into
+  TinyMCE. The same `provider`/`tool` config is managed from two **Settings** cards (AI Services, AI
+  Tools).
 
 ## Conventions
 

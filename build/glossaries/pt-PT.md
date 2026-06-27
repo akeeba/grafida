@@ -85,3 +85,22 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | aspect ratio | proporção | «Bloquear a proporção» = lock aspect ratio. |
 | dimensions | dimensões | Image width × height. |
 | overwrite | substituir | Replace an existing file. «Pretende substituí-lo?» = Overwrite it? |
+| AI | IA | Artificial intelligence. Translated as «IA» in UI labels (Serviços de IA, Assistente de IA, Conversas de IA, Ferramentas de IA). Keep «API», «Top P», «Token(s)», «Streaming» as-is. |
+| AI service | serviço de IA | A configured LLM backend (e.g. OpenAI, Ollama). Plural: serviços de IA. |
+| AI assistant | assistente de IA | The chat panel powered by an AI service. |
+| AI chat | conversa de IA | A saved AI conversation. Plural: conversas de IA. |
+| AI tool | ferramenta de IA | A configured prompt shortcut shown in the AI panel. Plural: ferramentas de IA. |
+| provider | fornecedor | AI backend provider (e.g. OpenAI). Not «provedor» (Brazilian Portuguese). |
+| model | modelo | The AI language model (e.g. gpt-4o). |
+| temperature | temperatura | AI sampling temperature parameter. |
+| system prompt | prompt de sistema | The LLM system-level instruction. «Prompt» kept as loanword; not translated. |
+| tool prompt | prompt da ferramenta | The per-tool instruction injected as context. |
+| tone | tom | Writing tone setting for an AI tool. |
+| endpoint | endpoint | API endpoint URL. Technical loanword; not translated. |
+| streaming | Streaming | Token-by-token response streaming. Kept as-is (technical term). |
+| conversation (chat) | conversa | A saved AI chat thread. Plural: conversas. |
+| remember (save chat) | memorizar | Store a chat conversation for later retrieval. Distinct from «guardar» (save file). |
+| clipboard | área de transferência | System clipboard. «Copiar para a área de transferência». |
+| sort order | ordem de apresentação | A numeric field controlling the display sequence of AI tools. |
+| custom (tool) | personalizado | A user-created AI tool (as opposed to a built-in). |
+| override | substituir | Replace or supersede a default value (e.g. service override, override system prompt). |

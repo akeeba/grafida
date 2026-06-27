@@ -83,3 +83,30 @@ I nomi propri non si traducono: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | height | Altezza | Dimensione verticale. |
 | dimensions | Dimensioni | Larghezza × altezza di un'immagine. |
 | overwrite | Sovrascrivi | Sostituire un file esistente. In prosa: «sovrascrivere». |
+| AI (prefix/nav) | IA | «Intelligenza Artificiale». Usato come prefisso nei label: «Servizi IA», «Strumenti IA», «Assistente IA», «Conversazioni IA». Mantenuto «AI» solo se fa parte di un nome proprio. |
+| AI service | servizio IA | Un provider LLM configurato (endpoint + chiave + modello). Plurale: servizi IA. |
+| AI tool | strumento IA | Azione personalizzata basata su IA applicabile a un articolo. Plurale: strumenti IA. |
+| AI assistant | Assistente IA | Il pannello conversazionale in-editor. |
+| AI chats | Conversazioni IA | Conversazioni salvate con l'assistente IA. |
+| provider (AI) | Provider | Mantenuto in inglese; termine standard nell'ecosistema IA italiano. |
+| endpoint | Endpoint | Mantenuto in inglese; URL base del servizio IA. |
+| temperature | Temperatura | Parametro di campionamento LLM (0–2). |
+| Top P | Top P | Mantenuto invariato; parametro di campionamento nucleus. |
+| max tokens | Token massimi | Numero massimo di token in risposta. |
+| streaming | Streaming | Mantenuto in inglese; risposta IA in flusso continuo. |
+| system prompt | Prompt di sistema | Istruzione di sistema per l'IA. |
+| tool prompt | Prompt strumento | Prompt specifico per uno strumento IA. |
+| tone (AI) | tono | Registro stilistico della risposta IA (es. formale, informale). Etichetta: «Tono». |
+| service override | Servizio alternativo | Possibilità di usare un servizio IA diverso da quello predefinito per uno strumento specifico. Etichetta: «Servizio alternativo». |
+| override system prompt | Sostituisci il prompt di sistema | Checkbox/toggle per ignorare il prompt di sistema globale. |
+| custom (tool type) | Personalizzato | Tipo di strumento IA definito dall'utente. |
+| fetch models | Recupera modelli | Pulsante per ottenere l'elenco dei modelli dal servizio IA. |
+| restore default | Ripristina predefinito | Ripristinare il valore predefinito di un'impostazione. Etichetta pulsante; imperativo. |
+| send (chat) | Invia | Pulsante per inviare un messaggio nella chat IA. Etichetta pulsante; imperativo. |
+| stop (generation) | Interrompi | Pulsante per interrompere la generazione della risposta IA. |
+| insert into editor | Inserisci nell'editor | Inserire la risposta IA nel documento TinyMCE. |
+| copy (to clipboard) | Copia | Copiare negli appunti; feedback: «Copiato negli appunti.» |
+| remember (conversation) | Memorizza | Salvare una conversazione IA per riutilizzarla. Etichetta pulsante; imperativo. |
+| discard (conversation) | Scarta | Non salvare la conversazione corrente (contrapposto a «Memorizza»). Nota: distinto da «Ignora tutte le modifiche» (articolo). |
+| conversation (chat) | conversazione | Una sessione di chat con l'assistente IA. Plurale: conversazioni. |
+| conversation title | Titolo della conversazione | Nome dato a una conversazione salvata. |

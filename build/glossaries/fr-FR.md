@@ -86,3 +86,28 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | aspect ratio | Proportions | « Conserver les proportions » = lock aspect ratio. |
 | dimensions | Dimensions | Image width × height. |
 | overwrite | Remplacer | Overwrite an existing file. |
+| AI (noun/adjective) | IA | Intelligence artificielle ; used as a modifier: « service IA », « outils IA », « assistant IA », « conversations IA ». Keep « API », « Top P », « Tokens », « Streaming » in English. |
+| AI service | service IA | A configured AI back-end (provider + model + key). Plural : services IA. |
+| AI assistant | assistant IA | The in-editor AI chat panel. |
+| AI tools | outils IA | User-defined AI quick-action tools. |
+| AI chats / conversations | conversations IA | Saved AI chat sessions. Nav label « Conversations IA ». |
+| provider | fournisseur | AI API provider (e.g. OpenAI). |
+| endpoint | point de terminaison | API endpoint URL. Used in the AI service form. |
+| model (AI) | modèle | The AI model name/id (e.g. gpt-4o). |
+| API key | clé API | Authentication key for an AI service. |
+| temperature | température | AI sampling temperature parameter. |
+| Top P | Top P | AI nucleus-sampling parameter — keep as-is (technical). |
+| tokens | tokens | AI token count (Max tokens = « Tokens max ») — keep in English as conventional in French software UIs. |
+| streaming | streaming | AI streamed response — keep in English. |
+| system prompt | prompt système | The system-level instruction given to the AI. |
+| prompt (AI) | prompt | AI prompt (tool prompt, system prompt) — « prompt » is the accepted French term in AI contexts. |
+| tone | ton | Writing tone for an AI tool. |
+| tool key | identifiant de l'outil | The unique key/slug identifying an AI tool. |
+| custom (AI tool type) | personnalisé | A user-defined custom AI tool. |
+| service override | service de remplacement | Per-tool AI service override (use a specific service instead of the default). |
+| remember (conversation) | mémoriser | Save/persist an AI chat for later. Button: « Mémoriser ». |
+| discard (conversation) | ignorer | Dismiss an AI chat without saving. Button: « Ignorer ». |
+| clipboard | presse-papiers | System clipboard. « Copié dans le presse-papiers. » |
+| chat (noun) | conversation | An AI chat session. Kept as « conversation » throughout; avoid the Anglicism « chat ». |
+| conversation title | titre de la conversation | Title given to a saved AI conversation. |
+| fetch (models) | récupérer | Retrieve a list of available AI models from the provider. |

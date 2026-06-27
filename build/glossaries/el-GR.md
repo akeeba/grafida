@@ -92,3 +92,22 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | dimensions | Διαστάσεις | Image width × height. |
 | aspect ratio | αναλογία διαστάσεων | «Κλείδωμα αναλογίας διαστάσεων» = lock aspect ratio. |
 | overwrite | αντικατάσταση | Overwrite an existing file. |
+| AI (artificial intelligence) | ΤΝ (Τεχνητή Νοημοσύνη) | Short nav/button label: ΤΝ. Full label in prose: «Τεχνητή Νοημοσύνη». Compound terms follow ΤΝ suffix: «υπηρεσία ΤΝ», «εργαλείο ΤΝ», «βοηθός ΤΝ», «συνομιλίες ΤΝ». |
+| AI service | υπηρεσία ΤΝ | A configured AI backend (provider + model + key). Plural: υπηρεσίες ΤΝ. |
+| AI tool | εργαλείο ΤΝ | A named AI action with its own prompt. Plural: εργαλεία ΤΝ. |
+| AI assistant | βοηθός ΤΝ | The chat-panel assistant button label. |
+| provider | πάροχος | AI backend provider (e.g. OpenAI, Ollama). |
+| endpoint | τελικό σημείο | API endpoint URL for an AI service. |
+| model (AI) | μοντέλο | The AI model name/id (e.g. gpt-4o). Keep lowercase. |
+| API key | κλειδί API | Authentication key for an AI service. "API" kept in English. |
+| prompt (AI) | εντολή | The instruction sent to an AI model. System prompt = «εντολή συστήματος»; tool prompt = «εντολή εργαλείου». |
+| temperature | θερμοκρασία | AI sampling temperature parameter. |
+| Top P | Top P | AI nucleus-sampling parameter; kept verbatim (like «Top P» in most localised UIs). |
+| max tokens | μέγιστα tokens | Maximum output token count; «token» kept as English loanword per technical convention. |
+| streaming | ροή | Token-by-token streaming output mode. Form label: «Ροή». |
+| tone | τόνος | Writing tone for AI-generated text. |
+| conversation (AI chat) | συνομιλία | A saved AI chat session. Plural: συνομιλίες. |
+| clipboard | πρόχειρο | The OS clipboard (copy/paste buffer). |
+| icon | εικονίδιο | UI icon for an AI tool button. |
+| service override | παράκαμψη υπηρεσίας | Per-tool setting to use a non-default AI service. |
+| sort order (display) | σειρά εμφάνισης | The display/listing order of AI tools (distinct from article sort-by). |

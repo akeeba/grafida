@@ -93,3 +93,21 @@ Eigennamen (Grafida, Joomla!, API, Markdown, HTML, TinyMCE) werden nicht überse
 | aspect ratio | Seitenverhältnis | „Seitenverhältnis sperren" = lock aspect ratio. |
 | dimensions | Abmessungen | Image dimensions group label. |
 | overwrite | Überschreiben | Overwrite an existing file. |
+| AI service | KI-Dienst | Konfigurierter KI-Dienst (z. B. Anthropic, OpenAI); Plural: KI-Dienste. GRAFIDA_LBL_AI_SERVICES. |
+| AI tool | KI-Werkzeug | Benutzerdefiniertes Werkzeug mit eigenem Prompt; Plural: KI-Werkzeuge. GRAFIDA_LBL_AI_TOOLS. |
+| AI assistant | KI-Assistent | Die Assistenten-Schaltfläche im Editor. GRAFIDA_BTN_AI_ASSISTANT. |
+| AI chats (screen) | KI-Chats | Sammlung gespeicherter Unterhaltungen; der Screen-/Nav-Begriff. GRAFIDA_LBL_AI_CHATS. |
+| conversation (individual chat session) | Unterhaltung | Eine einzelne KI-Chat-Sitzung. Plural: Unterhaltungen. GRAFIDA_LBL_CHAT_TITLE etc. |
+| provider (AI) | Anbieter | KI-Anbieter; nicht „Provider". GRAFIDA_LBL_AI_PROVIDER. |
+| endpoint | Endpunkt | API-Endpunkt; GRAFIDA_LBL_AI_ENDPOINT. |
+| model (AI) | Modell | KI-Modell; GRAFIDA_LBL_AI_MODEL. |
+| system prompt | Systemprompt | Als Kompositum geschrieben (kein Leerzeichen). GRAFIDA_LBL_AI_SYSTEM_PROMPT. |
+| temperature (AI param) | Temperatur | Modellparameter; GRAFIDA_LBL_AI_TEMPERATURE. |
+| streaming | Streaming | Antwort-Streaming; als Anglizismus beibehalten. GRAFIDA_LBL_AI_STREAM. |
+| tone (writing) | Ton | Schreibton eines KI-Werkzeugs; GRAFIDA_LBL_AI_TONE. |
+| fetch (load from API) | abrufen | „Modelle abrufen" = fetch models. GRAFIDA_BTN_FETCH_MODELS. |
+| custom | Benutzerdefiniert | Benutzerdefiniertes Werkzeug. GRAFIDA_LBL_AI_CUSTOM_TOOL. |
+| remember (save conversation) | behalten | Im Sinne von „Unterhaltung für später speichern"; Schaltfläche „Behalten" (Gegenstück: „Verwerfen"). GRAFIDA_BTN_REMEMBER. |
+| icon (tool icon) | Symbol | Symbol eines KI-Werkzeugs. GRAFIDA_LBL_AI_TOOL_ICON. |
+| service override | Dienst-Override | Spezifischer KI-Dienst für ein Werkzeug, der den Standarddienst überschreibt; Anglizismus „Override" beibehalten. GRAFIDA_LBL_AI_SERVICE_OVERRIDE. |
+| sort order (tools) | Sortierreihenfolge | Anzeigereihenfolge von KI-Werkzeugen. GRAFIDA_LBL_AI_SORT_ORDER. |

@@ -86,3 +86,37 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | aspect ratio | proporción | «Bloquear proporción» = lock aspect ratio. |
 | dimensions | Dimensiones | Image pixel dimensions (width × height). |
 | overwrite | Sobrescribir | Replace an existing file with the same name. |
+| AI (nav / label) | IA | Inteligencia Artificial. Used in all compound labels: Servicios de IA, Asistente de IA, Herramientas de IA, Conversaciones de IA. |
+| AI service | Servicio de IA | A configured AI provider connection. Plural: Servicios de IA. |
+| AI assistant | Asistente de IA | The chat panel / assistant feature. |
+| AI tool | Herramienta de IA | A saved AI prompt/action. Plural: Herramientas de IA. |
+| AI chat / conversation | Conversación de IA | A saved chat session. Plural: Conversaciones de IA. («Conversación» preferred over «Chat».) |
+| provider | Proveedor | AI service provider (e.g. OpenAI, Anthropic). |
+| endpoint | Endpoint | API endpoint URL. Kept as-is (technical term). |
+| model (AI) | Modelo | An AI language model (e.g. GPT-4o, claude-3-5-sonnet). |
+| API key (AI) | Clave de API | Authentication key for an AI service. («Clave de API», not «token», to distinguish from the Joomla site token.) |
+| parameters | Parámetros | AI model parameters (temperature, Top P, etc.). |
+| prompt (system/tool) | prompt | AI system or tool prompt text. Kept as-is («prompt») — a technical term universally used in Spanish AI contexts. |
+| system prompt | Prompt del sistema | The top-level system instruction for the AI. |
+| tool prompt | Prompt de la herramienta | The AI prompt text specific to a tool. |
+| temperature | Temperatura | AI sampling temperature parameter. |
+| Top P | Top P | AI nucleus-sampling parameter. Kept as-is. |
+| max tokens | Tokens máximos | Maximum token limit for an AI response. |
+| streaming | Streaming | Streaming response mode. Kept as-is. |
+| default (adj/option) | Predeterminado | Default setting or option. («Predeterminado», not «Por defecto».) |
+| set as default | Establecer como predeterminado | Action to mark an AI service as the default. |
+| restore default | Restaurar predeterminado | Reset a setting to its factory default. |
+| fetch models | Obtener modelos | Retrieve the model list from an AI provider. |
+| service override | Servicio alternativo | Per-tool override of the default AI service. |
+| custom (tool) | Personalizado | A user-defined/custom AI tool. |
+| tone | Tono | Writing tone setting for an AI tool. |
+| sort order | Orden de presentación | Display order for AI tools in the menu. |
+| send (message) | Enviar | Send a chat message to the AI. |
+| stop (AI generation) | Detener | Abort an in-progress AI response. |
+| insert into editor | Insertar en el editor | Copy the AI response into the TinyMCE editor. |
+| copy | Copiar | Copy text to the clipboard. |
+| clipboard | portapapeles | System clipboard. |
+| remember (conversation) | Guardar | Button: save/remember a chat conversation. Uses «Guardar» (same label as BTN_SAVE) to emphasise the save action; context makes the target clear. |
+| discard (conversation) | Descartar | Dismiss/discard the conversation without saving. (Reuses the existing «Descartar» gloss.) |
+| conversation title | Título de la conversación | Name given to a saved AI conversation. |
+| rename conversation | Cambiar nombre de la conversación | Action to rename a saved chat session. |
