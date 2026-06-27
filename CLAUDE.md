@@ -187,6 +187,15 @@ dialog makes the endpoint return 503).
   opens `openSourceCodeEditor()` — a `showModal()` dialog hosting a CodeMirror `htmlmixed`
   editor (light `default` / dark `material-darker` theme, matched to `State.resolvedTheme`).
   Save writes the source back via `editor.setContent(…, {source_view: true})` in one undo step.
+  The toolbar also carries a **"Styles" drop-down** (`styleselect`, a custom `addMenuButton`
+  registered in `setup`) that applies a CSS class to the selection the way Joomla's editor does.
+  Its class list is `editorStyleClasses()` — class names `parseEditorCssClasses()` discovers in the
+  site's cached `editor.css` **plus** a small built-in `EDITOR_CLASS_DEFAULTS` fallback set (deduped,
+  alphabetical). Application is automatic: a non-collapsed text selection is wrapped in a
+  `<span class="…">` (an `inline` format), a mere cursor sets the class on the enclosing block (a
+  `selector` format over common block/img/anchor tags — it never changes the tag). Each class is
+  pre-registered as a `grafidaInline_N` / `grafidaBlock_N` format pair in the init `formats` option;
+  menu items are toggles whose active state mirrors `editor.formatter.match()`.
   The active site is remembered client-side in `localStorage` (`grafida.lastSiteId`, via
   `rememberLastSite()` / `recallLastSite()`); it is not persisted server-side. On startup
   `bootstrap()` opens the **Articles** page (instead of **Sites**) when at least one site is

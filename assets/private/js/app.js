@@ -1998,6 +1998,38 @@ function buildFieldInput(field, currentValue) {
 //  TinyMCE init
 // --------------------------------------------------------
 
+// A small built-in fallback set of broadly-useful CSS classes, shown in the
+// editor's "Styles" drop-down alongside any classes discovered in the site's
+// editor.css (and used on their own when the site supplies no editor.css).
+const EDITOR_CLASS_DEFAULTS = [
+    'lead', 'text-muted', 'text-center', 'text-end', 'float-start', 'float-end',
+    'img-fluid', 'rounded', 'border', 'table', 'table-striped',
+];
+
+/**
+ * Discover CSS class names from a stylesheet's selectors. Comments and
+ * declaration blocks are stripped first so only selector text is scanned,
+ * then every `.class` token is collected (deduped, alphabetical).
+ */
+function parseEditorCssClasses(css) {
+    if (!css || typeof css !== 'string') return [];
+    const selectors = css
+        .replace(/\/\*[\s\S]*?\*\//g, ' ') // drop comments
+        .replace(/\{[^}]*\}/g, ' ');       // drop declaration blocks, keep selectors
+    const found = new Set();
+    const re = /\.(-?[A-Za-z_][\w-]*)/g;
+    let m;
+    while ((m = re.exec(selectors)) !== null) found.add(m[1]);
+    return [...found].sort((a, b) => a.localeCompare(b));
+}
+
+/** The class list offered by the Styles drop-down: editor.css classes + defaults. */
+function editorStyleClasses() {
+    const parsed = parseEditorCssClasses(State.editorCss);
+    return [...new Set([...parsed, ...EDITOR_CLASS_DEFAULTS])]
+        .sort((a, b) => a.localeCompare(b));
+}
+
 async function initTinyMCE(draft) {
     if (State.tinyMCEEditor) {
         try { State.tinyMCEEditor.remove(); } catch {}
@@ -2031,7 +2063,21 @@ async function initTinyMCE(draft) {
     const site = State.sites.find(s => s.id === editorSiteId);
     const baseUrl = site ? (site.baseUrl || '').replace(/\/?$/, '/') : '';
 
+    // CSS classes offered by the "Styles" drop-down, and the inline/block format
+    // pair backing each one (see the styleselect button in setup). The block
+    // variant is a *selector* format so it only sets the class on an existing
+    // block (it never changes the tag); the inline variant wraps a <span>.
+    const editorClasses = editorStyleClasses();
+    const BLOCK_FORMAT_SELECTOR =
+        'p,h1,h2,h3,h4,h5,h6,div,blockquote,pre,ul,ol,li,table,td,th,figure,img,a';
+    const styleFormats = {};
+    editorClasses.forEach((cls, i) => {
+        styleFormats['grafidaInline_' + i] = { inline: 'span', classes: cls };
+        styleFormats['grafidaBlock_' + i] = { selector: BLOCK_FORMAT_SELECTOR, classes: cls };
+    });
+
     await tinymce.init({
+        formats: styleFormats,
         selector: '#tinymce-editor',
         height: '100%',
         resize: false,
@@ -2058,7 +2104,7 @@ async function initTinyMCE(draft) {
         menu: {
             tools: { title: 'Tools', items: 'sourcecode wordcount' },
         },
-        toolbar: 'undo redo | blocks | bold italic underline strikethrough | ' +
+        toolbar: 'undo redo | blocks styleselect | bold italic underline strikethrough | ' +
                  'alignleft aligncenter alignright alignjustify | ' +
                  'bullist numlist outdent indent | removeformat | ' +
                  'readmore | link image | sourcecode',
@@ -2127,6 +2173,46 @@ async function initTinyMCE(draft) {
                 icon: 'sourcecode',
                 text: t('GRAFIDA_LBL_SOURCE_CODE'),
                 onAction: () => openSourceCodeEditor(editor),
+            });
+
+            // "Styles" drop-down: apply a CSS class to the selection, the way
+            // Joomla's editor does. The class list is editorClasses (site
+            // editor.css + built-in defaults). Application is automatic: a text
+            // selection is wrapped in a <span class="…"> (inline format), while a
+            // mere cursor sets the class on the enclosing block (selector format).
+            // Each item is a toggle that reflects, and removes, an active class.
+            const classFormatName = (cls, collapsed) => {
+                const i = editorClasses.indexOf(cls);
+                if (i < 0) return null;
+                return (collapsed ? 'grafidaBlock_' : 'grafidaInline_') + i;
+            };
+            const classIsActive = (cls) => {
+                const i = editorClasses.indexOf(cls);
+                if (i < 0) return false;
+                return editor.formatter.match('grafidaInline_' + i) ||
+                       editor.formatter.match('grafidaBlock_' + i);
+            };
+            editor.ui.registry.addMenuButton('styleselect', {
+                text: t('GRAFIDA_LBL_STYLES'),
+                tooltip: t('GRAFIDA_LBL_STYLES'),
+                fetch: (done) => {
+                    done(editorClasses.map(cls => ({
+                        type: 'togglemenuitem',
+                        text: cls,
+                        onAction: () => {
+                            const name = classFormatName(cls, editor.selection.isCollapsed());
+                            if (!name) return;
+                            editor.undoManager.transact(() => editor.formatter.toggle(name));
+                            editor.nodeChanged();
+                        },
+                        onSetup: (api) => {
+                            const update = () => api.setActive(classIsActive(cls));
+                            update();
+                            editor.on('NodeChange', update);
+                            return () => editor.off('NodeChange', update);
+                        },
+                    })));
+                },
             });
 
             // "CSS class…" action: set any CSS class(es) on the selected image.
