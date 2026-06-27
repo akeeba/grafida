@@ -2101,6 +2101,12 @@ async function initTinyMCE(draft) {
         promotion: false,
         branding: false,
         skin: editorSkin(),
+        // Use the native webview spell checker (the old TinyMCE spellchecker
+        // plugin was removed in v6+). This sets spellcheck="true" on the editing
+        // body so WKWebView/WebKitGTK/Edge underline misspellings; suggestions
+        // appear in the native context menu (Ctrl/Cmd + right-click, since
+        // TinyMCE's own context menu otherwise intercepts the right-click).
+        browser_spellcheck: true,
         // The editor UI always follows the app theme; the editing surface only
         // switches to the dark built-in CSS when the site supplies no editor.css.
         content_css: cssOpts.length ? cssOpts : editorContentCss(),

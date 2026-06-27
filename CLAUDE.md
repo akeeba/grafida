@@ -215,6 +215,18 @@ dialog makes the endpoint return 503).
   `selector` format over common block/img/anchor tags — it never changes the tag). Each class is
   pre-registered as a `grafidaInline_N` / `grafidaBlock_N` format pair in the init `formats` option;
   menu items are toggles whose active state mirrors `editor.formatter.match()`.
+  **Spell checking** uses the native webview checker (`browser_spellcheck: true`) — the bundled
+  TinyMCE spellchecker plugin was removed in v6+ and the replacement is a premium cloud service we
+  won't use in an offline editor. This sets `spellcheck="true"` on the editing body and defers to the
+  OS/webview dictionary (WKWebView/`NSSpellChecker` on macOS, WebKitGTK on Linux, WebView2 on Windows);
+  suggestions appear in the *native* context menu via **Ctrl/Cmd + right-click** (TinyMCE's own context
+  menu intercepts a plain right-click). **The spell-check language is an OS setting Grafida cannot
+  override** — there is no JS/HTML API to pin a dictionary and no native hook into Boson's webview. On
+  macOS in particular, results depend on System Settings → Keyboard → Text Input → Spelling: set to a
+  fixed language (e.g. "U.S. English"), text in any other language is flagged wholesale; set to
+  "Automatic by Language", per-sentence detection works but **only among the languages enabled in that
+  list** (so a German writer must enable German there). Windows/Linux likewise defer to their OS
+  spell-check configuration. This is a documented limitation, not a bug.
   The active site is remembered client-side in `localStorage` (`grafida.lastSiteId`, via
   `rememberLastSite()` / `recallLastSite()`); it is not persisted server-side. On startup
   `bootstrap()` opens the **Articles** page (instead of **Sites**) when at least one site is
