@@ -24,7 +24,7 @@ use Joomla\Language\LanguageFactory;
  *   3. en-GB (the canonical fallback).
  *
  * Strings are loaded with the {@see https://github.com/joomla-framework/language joomla/language}
- * package from the `com_grafida` extension. Missing keys fall back to en-GB.
+ * package from one `<tag>.ini` file per language. Missing keys fall back to en-GB.
  */
 final class LanguageService
 {
@@ -35,7 +35,11 @@ final class LanguageService
     /** Translation key each language file carries to name itself in its own tongue. */
     private const ENDONYM_KEY = 'GRAFIDA_LANGUAGE_ENDONYM';
 
-    private const EXTENSION = 'com_grafida';
+    /**
+     * Extension name passed to joomla/language's {@see Language::load()}. An empty string makes it
+     * load a bare `<tag>.ini` (its "internal" naming) rather than `<tag>.<extension>.ini`.
+     */
+    private const EXTENSION = '';
 
     private ?Language $language = null;
     private ?Language $fallback = null;
@@ -65,7 +69,7 @@ final class LanguageService
     /**
      * The languages the application ships, as an ordered tag => endonym map.
      *
-     * Discovered at runtime by scanning the language directory: every `<tag>/<tag>.com_grafida.ini`
+     * Discovered at runtime by scanning the language directory: every `<tag>/<tag>.ini`
      * is a shipped language, and its `GRAFIDA_LANGUAGE_ENDONYM` key names it in its own tongue (so
      * adding a translation needs no code change). The default language sorts first, the rest by endonym.
      *
@@ -237,7 +241,7 @@ final class LanguageService
 
     /**
      * Discovers the shipped language tags by scanning the language directory for
-     * `<tag>/<tag>.com_grafida.ini` files. en-GB is always present (the canonical source).
+     * `<tag>/<tag>.ini` files. en-GB is always present (the canonical source).
      *
      * @return list<string>
      */
@@ -258,13 +262,19 @@ final class LanguageService
                 continue;
             }
 
-            // Only count it as a shipped language if it actually carries our extension's strings.
-            if (is_file($dir . '/' . $tag . '.' . self::EXTENSION . '.ini')) {
+            // Only count it as a shipped language if it actually carries our strings.
+            if (is_file($this->iniPath($tag))) {
                 $tags[] = $tag;
             }
         }
 
         return $this->availableTags = $tags;
+    }
+
+    /** Absolute path to a language's `<tag>/<tag>.ini` catalogue. */
+    private function iniPath(string $tag): string
+    {
+        return $this->basePath . '/language/' . $tag . '/' . $tag . '.ini';
     }
 
     /**
@@ -273,7 +283,7 @@ final class LanguageService
      */
     private function readEndonym(string $tag): ?string
     {
-        $file = $this->basePath . '/language/' . $tag . '/' . $tag . '.' . self::EXTENSION . '.ini';
+        $file = $this->iniPath($tag);
 
         $handle = @fopen($file, 'r');
 

@@ -243,9 +243,12 @@ dialog makes the endpoint return 503).
   defined and a previously remembered last active site is still in the list — the remembered id
   is read *before* `renderSiteSelector()` writes its first-site fallback, so a freshly added but
   never-selected site does not trigger the Articles default.
-- `language/<tag>/<tag>.com_grafida.ini` + `language/grafida.xml` — translations + manifest.
+- `language/<tag>/<tag>.ini` — translations, one file per language (e.g. `language/de-DE/de-DE.ini`).
+  (There is **no** Joomla `.sys.ini` or `language/grafida.xml` manifest, and the files are **not**
+  named `<tag>.com_grafida.ini` — Grafida is a desktop app, not a Joomla component. `LanguageService`
+  loads each catalogue with joomla/language's empty-extension "internal" naming, i.e. a bare `<tag>.ini`.)
   The shipped-language list is **not** hard-coded: `LanguageService::available()` discovers it at
-  runtime by scanning `language/` for every `<tag>/<tag>.com_grafida.ini` and reading that file's
+  runtime by scanning `language/` for every `<tag>/<tag>.ini` and reading that file's
   `GRAFIDA_LANGUAGE_ENDONYM` key (the language's name in its own tongue) for the label; the default
   (en-GB) sorts first, the rest by endonym. So every `.ini` MUST carry `GRAFIDA_LANGUAGE_ENDONYM`,
   and adding a translation needs no code change (the list is sent to the SPA as `bootstrap`'s
@@ -307,7 +310,7 @@ failing compile or a genuine packaging-tool error is fatal. Pieces:
 
 - Every PHP file starts with the GPLv3 copyright docblock. `declare(strict_types=1)`.
 - `composer test` runs the suite; `composer linter:check` runs PHPStan (level max + strict rules).
-- Add new UI strings to `language/en-GB/en-GB.com_grafida.ini` (canonical) and the `UI_KEYS`
+- Add new UI strings to `language/en-GB/en-GB.ini` (canonical) and the `UI_KEYS`
   list in `ApiController`, then translate. **See the translation flow below.**
 - Never build a localised sentence by concatenating fragments around an injected value — word
   order differs per language. Keep each message a single string with `%s` placeholders and
@@ -318,9 +321,10 @@ failing compile or a genuine packaging-tool error is fatal. Pieces:
 
 The canonical source is **en-GB**. Translations use the **Joomla INI** format. Before each
 translation run, consult the per-language glossary in `build/glossaries/<tag>.md` (create it
-if missing) and update it with any new terms — glossaries keep terminology consistent. After
-creating each `<tag>.com_grafida.ini` (and `.sys.ini`), register the language in
-`language/grafida.xml`. Each `<tag>.com_grafida.ini` MUST include a `GRAFIDA_LANGUAGE_ENDONYM`
+if missing) and update it with any new terms — glossaries keep terminology consistent. A new
+language needs only its `<tag>/<tag>.ini` file (e.g. `language/de-DE/de-DE.ini`) — there is no
+`.sys.ini` and no manifest to register it in (`LanguageService` discovers languages by scanning
+the directory at runtime). Each `<tag>.ini` MUST include a `GRAFIDA_LANGUAGE_ENDONYM`
 key holding the language's name in its own tongue (e.g. `"Français (France)"`) — `LanguageService`
 reads it to build the runtime language list, so the new language appears in the UI automatically.
 When a generated file is large, write it in ~10–12 KiB chunks, each
