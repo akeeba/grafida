@@ -360,14 +360,18 @@ failing compile or a genuine packaging-tool error is fatal. Pieces:
   draft is auto-saved first, a blank title is auto-generated via a short non-streaming completion, and
   the transcript is saved. Saved chats appear in the panel's **AI Chats** banner (open/continue/rename/
   delete). Assistant replies are the model's HTML (or Markdown, for the Generate tool); the panel
-  renders them as **formatted** text. Because the output is untrusted, rendering is **sanitised
-  server-side**: `panel.js`'s `_renderRichText()` shows the raw reply as plain text first (always-safe
-  placeholder) then calls `POST /api/ai/render`, which `Ai\AiRenderer` turns into safe HTML —
-  auto-detecting Markdown vs HTML, converting Markdown via the existing CommonMark `MarkdownService`,
-  and sanitising the result with **Symfony's `HtmlSanitizer`** (the W3C safe-element subset +
-  relative links/medias). Only that returned HTML is set as `innerHTML`; if the call fails the
-  plain-text placeholder stays. Insert/Copy still use the **raw** model output, not the rendered HTML;
-  only Insert routes it into TinyMCE. The same `provider`/`tool` config is managed from two
+  renders them as **formatted** text — **and so are user/tool prompt bubbles** (`_buildUserBubble()`),
+  since tool prompts and many typed prompts are Markdown. Because the output is untrusted, rendering is
+  **sanitised server-side**: `panel.js`'s `_renderRichText()` shows the raw text as plain text first
+  (always-safe placeholder) then calls `POST /api/ai/render`, which `Ai\AiRenderer` turns into safe
+  HTML — auto-detecting Markdown vs HTML, converting Markdown via the existing CommonMark
+  `MarkdownService`, and sanitising the result with **Symfony's `HtmlSanitizer`** (the W3C safe-element
+  subset + relative links/medias). Only that returned HTML is set as `innerHTML`; if the call fails the
+  plain-text placeholder stays. **Streaming replies format live** (chatbot-style), not only at the end:
+  `_createStreamRenderer()` re-renders the accumulating reply through the same `/api/ai/render` pipeline,
+  throttled to ~200 ms, with sequenced results so a slow/stale render can never roll the view backwards;
+  `finish()` does the authoritative final render. Reflow jumps as blocks resolve are expected/acceptable.
+  Insert/Copy still use the **raw** model output, not the rendered HTML; only Insert routes it into TinyMCE. The same `provider`/`tool` config is managed from two
   **Settings** cards (AI Services, AI Tools).
 
 ## Conventions

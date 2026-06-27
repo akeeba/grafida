@@ -1656,10 +1656,17 @@ input[type="color"].form-control {
     max-width: 100%;
 }
 
-/* Rendered (formatted) assistant output: normalise whitespace and tame the
-   margins of the HTML the model returns so it reads as formatted prose. */
-.ai-bubble-assistant .ai-bubble-text.ai-rich {
+/* Rendered (formatted) output: normalise whitespace and tame the margins of the
+   HTML so both the model's reply and the user's Markdown prompt read as prose. */
+.ai-bubble-assistant .ai-bubble-text.ai-rich,
+.ai-bubble-user .ai-bubble-text.ai-rich {
     white-space: normal;
+}
+
+/* Keep links legible on the user bubble's accent background. */
+.ai-bubble-user .ai-bubble-text.ai-rich a {
+    color: #fff;
+    text-decoration: underline;
 }
 
 .ai-bubble-text.ai-rich > :first-child { margin-top: 0; }

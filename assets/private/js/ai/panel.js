@@ -285,6 +285,9 @@
 
         _setStreaming(true);
         _streamingBubble = _appendStreamingBubble();
+        const streamRenderer = _streamingBubble
+            ? _createStreamRenderer(_streamingBubble.querySelector('.ai-bubble-text'))
+            : null;
         _abortCtrl = GrafidaAI.newAbort();
 
         let fullText = '';
@@ -298,7 +301,13 @@
                     fullText += delta;
                     if (_streamingBubble) {
                         const textEl = _streamingBubble.querySelector('.ai-bubble-text');
-                        if (textEl) textEl.textContent += delta;
+                        // Show raw text as an instant placeholder only until the
+                        // first formatted render lands; after that the throttled
+                        // renderer owns the element (avoids rich⇄plain flicker).
+                        if (textEl && !(streamRenderer && streamRenderer.hasApplied())) {
+                            textEl.textContent = fullText;
+                        }
+                        if (streamRenderer) streamRenderer.push(fullText);
                         const conv = document.getElementById('ai-conversation');
                         if (conv) conv.scrollTop = conv.scrollHeight;
                     }
@@ -314,11 +323,15 @@
             // Record the assistant turn.
             _history.push({ role: 'assistant', content: fullText });
 
-            // Render the completed response as formatted HTML and attach the
-            // Insert / Copy action buttons.
+            // Final, authoritative render of the completed response (supersedes
+            // any in-flight streaming render) + the Insert / Copy action buttons.
             if (_streamingBubble) {
-                const textEl = _streamingBubble.querySelector('.ai-bubble-text');
-                if (textEl) _renderRichText(textEl, fullText);
+                if (streamRenderer) {
+                    streamRenderer.finish(fullText);
+                } else {
+                    const textEl = _streamingBubble.querySelector('.ai-bubble-text');
+                    if (textEl) _renderRichText(textEl, fullText);
+                }
                 _addBubbleActions(_streamingBubble, fullText);
             }
 
@@ -329,8 +342,12 @@
                     // Keep partial response in history.
                     _history.push({ role: 'assistant', content: fullText });
                     if (_streamingBubble) {
-                        const textEl = _streamingBubble.querySelector('.ai-bubble-text');
-                        if (textEl) _renderRichText(textEl, fullText);
+                        if (streamRenderer) {
+                            streamRenderer.finish(fullText);
+                        } else {
+                            const textEl = _streamingBubble.querySelector('.ai-bubble-text');
+                            if (textEl) _renderRichText(textEl, fullText);
+                        }
                         _addBubbleActions(_streamingBubble, fullText);
                     }
                 } else {
@@ -383,15 +400,32 @@
 
         _history.forEach((msg) => {
             if (msg.role === 'user') {
-                const bubble = el('div', 'ai-bubble ai-bubble-user');
-                bubble.textContent = _stripDocContext(msg.content);
-                conv.appendChild(bubble);
+                conv.appendChild(_buildUserBubble(msg.content));
             } else if (msg.role === 'assistant') {
                 conv.appendChild(_buildAssistantBubble(msg.content));
             }
         });
 
         conv.scrollTop = conv.scrollHeight;
+    }
+
+    /**
+     * Build a user-message bubble with the prompt rendered as *formatted* text.
+     *
+     * Tool prompts (and many hand-typed prompts) are Markdown, so the prompt is
+     * run through the same CommonMark + sanitiser pipeline as assistant replies
+     * (`_renderRichText`) rather than shown as raw Markdown. The embedded
+     * document-context preamble is stripped first so only the actual query shows.
+     *
+     * @param {string} content
+     * @returns {HTMLElement}
+     */
+    function _buildUserBubble(content) {
+        const bubble = el('div', 'ai-bubble ai-bubble-user');
+        const textEl = el('div', 'ai-bubble-text');
+        _renderRichText(textEl, _stripDocContext(content));
+        bubble.appendChild(textEl);
+        return bubble;
     }
 
     /**
@@ -537,6 +571,81 @@
                 textEl.innerHTML = html;
             })
             .catch(() => { /* leave the plain-text fallback in place */ });
+    }
+
+    /** Minimum gap between successive streaming rich-render calls (ms). */
+    const STREAM_RENDER_INTERVAL = 200;
+
+    /**
+     * Create a throttled rich-text renderer for an in-progress streaming reply.
+     *
+     * Chatbot-style: the reply is re-formatted *as it streams* instead of staying
+     * raw until the end. As tokens arrive, call `push(fullText)`; it renders the
+     * accumulated text through the same CommonMark + sanitiser pipeline as a
+     * finished bubble (`POST /api/ai/render`), but at most once every
+     * STREAM_RENDER_INTERVAL ms. Each render is an async server round-trip, so
+     * results are sequenced: a slow, stale response can never overwrite a newer
+     * one — the formatting only ever moves forward (occasional reflow jumps as
+     * blocks resolve are expected and acceptable).
+     *
+     * Call `finish(fullText)` once when the stream ends for an authoritative final
+     * render that supersedes any still-in-flight streaming render.
+     *
+     * @param {HTMLElement} textEl
+     * @returns {{push: function(string): void, finish: function(string): void, hasApplied: function(): boolean}}
+     */
+    function _createStreamRenderer(textEl) {
+        let seq     = 0;      // id of the most recent render REQUEST issued
+        let applied = 0;      // id of the most recent render RESULT applied
+        let timer   = null;   // throttle timer handle, or null when idle
+        let pending = false;  // tokens arrived while a render was in flight
+        let latest  = '';     // newest accumulated text
+        let done    = false;  // finish() has been called
+
+        function apply(mySeq, html) {
+            if (html === null || mySeq < applied) return;  // stale or failed
+            applied = mySeq;
+            textEl.classList.add('ai-rich');
+            textEl.innerHTML = html;
+            const conv = document.getElementById('ai-conversation');
+            if (conv) conv.scrollTop = conv.scrollHeight;
+        }
+
+        function fire() {
+            timer = null;
+            const content = latest;
+            if (!content) return;
+            const mySeq = ++seq;
+            api.aiRender(content)
+                .then((res) => apply(mySeq, res && typeof res.html === 'string' ? res.html : null))
+                .catch(() => { /* keep the last good / plain-text view */ })
+                .finally(() => {
+                    if (pending && !done) {
+                        pending = false;
+                        timer = setTimeout(fire, STREAM_RENDER_INTERVAL);
+                    }
+                });
+        }
+
+        return {
+            push(content) {
+                latest = content;
+                if (done) return;
+                if (timer) { pending = true; return; }
+                timer = setTimeout(fire, STREAM_RENDER_INTERVAL);
+            },
+            finish(content) {
+                done   = true;
+                latest = content;
+                if (timer) { clearTimeout(timer); timer = null; }
+                if (!content) return;
+                const mySeq = ++seq;
+                api.aiRender(content)
+                    .then((res) => apply(mySeq, res && typeof res.html === 'string' ? res.html : null))
+                    .catch(() => { /* keep the last good / plain-text view */ });
+            },
+            hasApplied() { return applied > 0; },
+        };
     }
 
     // -------------------------------------------------------------------------
