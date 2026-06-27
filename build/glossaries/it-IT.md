@@ -110,3 +110,6 @@ I nomi propri non si traducono: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | discard (conversation) | Scarta | Non salvare la conversazione corrente (contrapposto a «Memorizza»). Nota: distinto da «Ignora tutte le modifiche» (articolo). |
 | conversation (chat) | conversazione | Una sessione di chat con l'assistente IA. Plurale: conversazioni. |
 | conversation title | Titolo della conversazione | Nome dato a una conversazione salvata. |
+| article properties | proprietà dell'articolo | Title of the editor's metadata sidebar (status, category, access…). GRAFIDA_LBL_ARTICLE_PROPERTIES. |
+| sidebar | barra laterale | Collapsible navigation/metadata columns. GRAFIDA_BTN_TOGGLE_SIDEBAR. |
+| collapse or expand | comprimi o espandi | Toggling a sidebar's collapsed state. GRAFIDA_BTN_TOGGLE_SIDEBAR / GRAFIDA_BTN_TOGGLE_PROPERTIES. |

@@ -120,3 +120,6 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | discard (conversation) | Descartar | Dismiss/discard the conversation without saving. (Reuses the existing «Descartar» gloss.) |
 | conversation title | Título de la conversación | Name given to a saved AI conversation. |
 | rename conversation | Cambiar nombre de la conversación | Action to rename a saved chat session. |
+| article properties | propiedades del artículo | Title of the editor's metadata sidebar (status, category, access…). GRAFIDA_LBL_ARTICLE_PROPERTIES. |
+| sidebar | barra lateral | Collapsible navigation/metadata columns. GRAFIDA_BTN_TOGGLE_SIDEBAR. |
+| collapse or expand | contraer o expandir | Toggling a sidebar's collapsed state. GRAFIDA_BTN_TOGGLE_SIDEBAR / GRAFIDA_BTN_TOGGLE_PROPERTIES. |

@@ -3896,6 +3896,11 @@ function applyStrings() {
     document.querySelectorAll('[data-i18n]').forEach(node => {
         node.textContent = t(node.dataset.i18n);
     });
+    document.querySelectorAll('[data-i18n-title]').forEach(node => {
+        const text = t(node.dataset.i18nTitle);
+        node.title = text;
+        node.setAttribute('aria-label', text);
+    });
     renderSiteSelector();
     renderSettingsScreen();
 }
@@ -4883,6 +4888,87 @@ async function bootstrap() {
 }
 
 // ============================================================
+//  Collapsible sidebars + resizable AI panel
+// ============================================================
+
+const SIDEBAR_COLLAPSED_KEY = 'grafida.sidebarCollapsed';
+const PROPS_COLLAPSED_KEY = 'grafida.propsCollapsed';
+const AI_PANEL_WIDTH_KEY = 'grafida.aiPanelWidth';
+
+/** Toggle a collapsible aside and persist the preference. */
+function setupCollapsible(asideId, toggleId, storageKey) {
+    const aside = document.getElementById(asideId);
+    const toggle = document.getElementById(toggleId);
+    if (!aside) return;
+
+    if (localStorage.getItem(storageKey) === '1') aside.classList.add('collapsed');
+
+    if (toggle) {
+        toggle.addEventListener('click', () => {
+            const collapsed = aside.classList.toggle('collapsed');
+            localStorage.setItem(storageKey, collapsed ? '1' : '0');
+        });
+    }
+}
+
+/** Make the AI panel resizable by dragging its left-edge handle. */
+function setupAiPanelResize() {
+    const panel = document.getElementById('ai-panel');
+    const resizer = document.getElementById('ai-panel-resizer');
+    if (!panel || !resizer) return;
+
+    const MIN = 280;
+    const maxWidth = () => Math.max(MIN, Math.min(window.innerWidth - 360, 760));
+
+    function applyWidth(px) {
+        const w = Math.round(Math.max(MIN, Math.min(px, maxWidth())));
+        panel.style.width = w + 'px';
+        panel.style.minWidth = w + 'px';
+        panel.style.maxWidth = w + 'px';
+        return w;
+    }
+
+    const saved = parseInt(localStorage.getItem(AI_PANEL_WIDTH_KEY) || '', 10);
+    if (saved) applyWidth(saved);
+
+    let startX = 0;
+    let startW = 0;
+
+    function onMove(e) {
+        // The panel sits on the right edge, so dragging left (dx < 0) widens it.
+        const dx = e.clientX - startX;
+        applyWidth(startW - dx);
+    }
+
+    function onUp(e) {
+        resizer.releasePointerCapture?.(e.pointerId);
+        resizer.removeEventListener('pointermove', onMove);
+        resizer.removeEventListener('pointerup', onUp);
+        resizer.removeEventListener('pointercancel', onUp);
+        document.body.classList.remove('resizing-col');
+        localStorage.setItem(AI_PANEL_WIDTH_KEY,
+            String(Math.round(panel.getBoundingClientRect().width)));
+    }
+
+    resizer.addEventListener('pointerdown', (e) => {
+        startX = e.clientX;
+        startW = panel.getBoundingClientRect().width;
+        resizer.setPointerCapture?.(e.pointerId);
+        document.body.classList.add('resizing-col');
+        resizer.addEventListener('pointermove', onMove);
+        resizer.addEventListener('pointerup', onUp);
+        resizer.addEventListener('pointercancel', onUp);
+        e.preventDefault();
+    });
+}
+
+function initLayoutControls() {
+    setupCollapsible('sidebar', 'sidebar-toggle', SIDEBAR_COLLAPSED_KEY);
+    setupCollapsible('editor-sidebar', 'editor-sidebar-toggle', PROPS_COLLAPSED_KEY);
+    setupAiPanelResize();
+}
+
+// ============================================================
 //  Wire up DOM once loaded
 // ============================================================
 
@@ -4952,6 +5038,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const btnModalClose = document.getElementById('btn-modal-close');
     if (btnModalClose) btnModalClose.addEventListener('click', closeModal);
+
+    initLayoutControls();
 
     bootstrap();
 });

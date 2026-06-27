@@ -260,6 +260,15 @@ dialog makes the endpoint return 503).
   defined and a previously remembered last active site is still in the list — the remembered id
   is read *before* `renderSiteSelector()` writes its first-site fallback, so a freshly added but
   never-selected site does not trigger the Articles default.
+  **Collapsible/resizable layout** (`initLayoutControls()` in `app.js`): the left **`#sidebar`**
+  and the editor metadata **`#editor-sidebar`** ("Article properties") each carry an `.icon-toggle`
+  button (`#sidebar-toggle` / `#editor-sidebar-toggle`) that toggles a `.collapsed` class — the left
+  sidebar collapses to a 56px icon-only rail, the metadata sidebar to a 40px rail; the state persists
+  in `localStorage` (`grafida.sidebarCollapsed` / `grafida.propsCollapsed`). The **`#ai-panel`** is
+  width-**resizable** by dragging `#ai-panel-resizer`, a `col-resize` handle on its left edge
+  (`setupAiPanelResize()`, pointer events, clamped 280px…`min(innerWidth−360, 760)`); the chosen
+  width persists in `grafida.aiPanelWidth`. Toggle buttons localise their tooltip/`aria-label` via a
+  `data-i18n-title` attribute (`applyStrings()` sets both `title` and `aria-label` from it).
 - `language/<tag>/<tag>.ini` — translations, one file per language (e.g. `language/de-DE/de-DE.ini`).
   (There is **no** Joomla `.sys.ini` or `language/grafida.xml` manifest, and the files are **not**
   named `<tag>.com_grafida.ini` — Grafida is a desktop app, not a Joomla component. `LanguageService`

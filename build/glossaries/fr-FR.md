@@ -111,3 +111,6 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | chat (noun) | conversation | An AI chat session. Kept as « conversation » throughout; avoid the Anglicism « chat ». |
 | conversation title | titre de la conversation | Title given to a saved AI conversation. |
 | fetch (models) | récupérer | Retrieve a list of available AI models from the provider. |
+| article properties | propriétés de l'article | Title of the editor's metadata sidebar (status, category, access…). GRAFIDA_LBL_ARTICLE_PROPERTIES. |
+| sidebar | barre latérale | Collapsible navigation/metadata columns. GRAFIDA_BTN_TOGGLE_SIDEBAR. |
+| collapse or expand | réduire ou développer | Toggling a sidebar's collapsed state. GRAFIDA_BTN_TOGGLE_SIDEBAR / GRAFIDA_BTN_TOGGLE_PROPERTIES. |

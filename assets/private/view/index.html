@@ -22,8 +22,14 @@
     <!-- ========== SIDEBAR ========== -->
     <aside id="sidebar">
         <div id="sidebar-header">
-            <h1>Grafida</h1>
-            <div class="subtitle" data-i18n="GRAFIDA_APP_SUBTITLE">Desktop Article Editor for Joomla®</div>
+            <div class="sidebar-header-titles">
+                <h1>Grafida</h1>
+                <div class="subtitle" data-i18n="GRAFIDA_APP_SUBTITLE">Desktop Article Editor for Joomla®</div>
+            </div>
+            <button id="sidebar-toggle" type="button" class="icon-toggle"
+                    aria-label="Toggle sidebar" data-i18n-title="GRAFIDA_BTN_TOGGLE_SIDEBAR">
+                <i class="fa-solid fa-angles-left" aria-hidden="true"></i>
+            </button>
         </div>
 
         <div id="site-selector">
@@ -132,11 +138,21 @@
 
                 <!-- Editor metadata sidebar -->
                 <aside id="editor-sidebar" aria-label="Article metadata">
+                    <div id="editor-sidebar-header">
+                        <span class="editor-sidebar-title" data-i18n="GRAFIDA_LBL_ARTICLE_PROPERTIES">Article properties</span>
+                        <button id="editor-sidebar-toggle" type="button" class="icon-toggle"
+                                aria-label="Toggle article properties" data-i18n-title="GRAFIDA_BTN_TOGGLE_PROPERTIES">
+                            <i class="fa-solid fa-angles-right" aria-hidden="true"></i>
+                        </button>
+                    </div>
                     <div id="editor-sidebar-inner"></div>
                 </aside>
 
                 <!-- AI assistant panel (toggled by the TinyMCE toolbar buttons) -->
                 <aside id="ai-panel" class="hidden" aria-label="AI Assistant">
+
+                    <!-- Drag handle on the panel's left edge to resize its width -->
+                    <div id="ai-panel-resizer" role="separator" aria-orientation="vertical" aria-hidden="true"></div>
 
                     <!-- Panel header: title + New chat / Close actions -->
                     <header id="ai-panel-header">
