@@ -61,6 +61,15 @@ if [[ ! -f "$ICON_DIR/Grafida.icns" || ! -f "$ICON_DIR/Grafida.ico" ]]; then
     bash scripts/make-icons.sh || warn "icon generation reported problems"
 fi
 
+# The front-end libraries (TinyMCE, CodeMirror, FontAwesome) are npm-managed and
+# gitignored; boson.json bundles assets/private at COMPILE time, so they must exist
+# on disk first. Re-run the vendoring step (idempotent — an mtime guard skips files
+# already in place). Requires node + npm on the build host.
+if [[ ! -f "assets/private/js/tinymce/tinymce.min.js" ]] || [[ "${GRAFIDA_REFRESH_ASSETS:-0}" == "1" ]]; then
+    heading "Vendoring front-end libraries (composer run-script vendor:assets)"
+    composer run-script vendor:assets || warn "front-end vendoring reported problems"
+fi
+
 # ---------------------------------------------------------------------------
 # 1. Compile all targets (fatal on failure)
 # ---------------------------------------------------------------------------

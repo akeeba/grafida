@@ -36,7 +36,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Grafida\\Tests\\": "tests"
+            "Grafida\\Tests\\": "tests",
+            "Grafida\\Build\\": "build/composer"
         }
     },
     "scripts-aliases": {
@@ -47,6 +48,13 @@
     },
     "scripts": {
         "post-create-project-cmd": "boson init",
+        "post-install-cmd": ["@vendor:assets"],
+        "post-update-cmd": ["@vendor:assets"],
+        "vendor:assets": [
+            "npm install",
+            "Grafida\\Build\\InstallationScript::copyStatic",
+            "Grafida\\Build\\InstallationScript::minify"
+        ],
         "compile": "boson compile",
         "build": "bash scripts/build-all.sh",
         "test": ["@test:unit", "@test:integration", "@test:feature"],
@@ -59,8 +67,136 @@
         "phpcs:fix": "php-cs-fixer fix --config=.php-cs-fixer.php --allow-risky=yes --verbose --diff"
     },
     "scripts-descriptions": {
+        "vendor:assets": "Fetch the pinned front-end libraries (TinyMCE, CodeMirror, FontAwesome) via npm and copy them into their gitignored locations under assets/private/. Runs automatically after composer install/update.",
         "compile": "Compile self-contained binaries for every target in boson.json (output under ./build).",
         "build": "Compile and package Grafida for every platform: macOS .app/.dmg, Linux .tar.gz, Windows installer/zip, and the PHAR (artifacts in build/dist/)."
+    },
+    "extra": {
+        "copy-static": [
+            {
+                "type": "file",
+                "from": "node_modules/@fortawesome/fontawesome-free/css/fontawesome.min.css",
+                "to": "assets/private/css/fontawesome.min.css"
+            },
+            {
+                "type": "file",
+                "from": "node_modules/@fortawesome/fontawesome-free/css/solid.min.css",
+                "to": "assets/private/css/solid.min.css"
+            },
+            {
+                "type": "file",
+                "from": "node_modules/@fortawesome/fontawesome-free/webfonts/fa-solid-900.woff2",
+                "to": "assets/private/webfonts/fa-solid-900.woff2"
+            },
+            {
+                "type": "file",
+                "from": "node_modules/@fortawesome/fontawesome-free/LICENSE.txt",
+                "to": "assets/private/webfonts/FONTAWESOME-LICENSE.txt"
+            },
+            {
+                "type": "folder",
+                "clean": true,
+                "from": "node_modules/tinymce/icons",
+                "to": "assets/private/js/tinymce/icons"
+            },
+            {
+                "type": "folder",
+                "clean": true,
+                "from": "node_modules/tinymce/models",
+                "to": "assets/private/js/tinymce/models"
+            },
+            {
+                "type": "folder",
+                "clean": true,
+                "from": "node_modules/tinymce/plugins",
+                "to": "assets/private/js/tinymce/plugins"
+            },
+            {
+                "type": "folder",
+                "clean": true,
+                "from": "node_modules/tinymce/skins",
+                "to": "assets/private/js/tinymce/skins"
+            },
+            {
+                "type": "folder",
+                "clean": true,
+                "from": "node_modules/tinymce/themes",
+                "to": "assets/private/js/tinymce/themes"
+            },
+            {
+                "type": "folder",
+                "from": "node_modules/tinymce",
+                "to": "assets/private/js/tinymce",
+                "names": ["tinymce.min.js"]
+            },
+            {
+                "type": "folder",
+                "clean": true,
+                "from": "node_modules/tinymce-i18n/langs7",
+                "to": "assets/private/js/tinymce/langs",
+                "names": ["de.js", "el.js", "es.js", "fr_FR.js", "it.js", "pt_PT.js"]
+            },
+            {
+                "type": "file",
+                "from": "node_modules/codemirror/lib/codemirror.js",
+                "to": "assets/private/js/codemirror/lib/codemirror.js"
+            },
+            {
+                "type": "file",
+                "from": "node_modules/codemirror/lib/codemirror.css",
+                "to": "assets/private/js/codemirror/lib/codemirror.css"
+            },
+            {
+                "type": "file",
+                "from": "node_modules/codemirror/mode/xml/xml.js",
+                "to": "assets/private/js/codemirror/mode/xml/xml.js"
+            },
+            {
+                "type": "file",
+                "from": "node_modules/codemirror/mode/javascript/javascript.js",
+                "to": "assets/private/js/codemirror/mode/javascript/javascript.js"
+            },
+            {
+                "type": "file",
+                "from": "node_modules/codemirror/mode/css/css.js",
+                "to": "assets/private/js/codemirror/mode/css/css.js"
+            },
+            {
+                "type": "file",
+                "from": "node_modules/codemirror/mode/htmlmixed/htmlmixed.js",
+                "to": "assets/private/js/codemirror/mode/htmlmixed/htmlmixed.js"
+            },
+            {
+                "type": "file",
+                "from": "node_modules/codemirror/addon/edit/matchbrackets.js",
+                "to": "assets/private/js/codemirror/addon/edit/matchbrackets.js"
+            },
+            {
+                "type": "file",
+                "from": "node_modules/codemirror/addon/edit/closetag.js",
+                "to": "assets/private/js/codemirror/addon/edit/closetag.js"
+            },
+            {
+                "type": "file",
+                "from": "node_modules/codemirror/theme/material-darker.css",
+                "to": "assets/private/js/codemirror/theme/material-darker.css"
+            }
+        ],
+        "minify": {
+            "js": [
+                "assets/private/js/codemirror/lib/codemirror.js",
+                "assets/private/js/codemirror/mode/xml/xml.js",
+                "assets/private/js/codemirror/mode/javascript/javascript.js",
+                "assets/private/js/codemirror/mode/css/css.js",
+                "assets/private/js/codemirror/mode/htmlmixed/htmlmixed.js",
+                "assets/private/js/codemirror/addon/edit/matchbrackets.js",
+                "assets/private/js/codemirror/addon/edit/closetag.js"
+            ],
+            "css": [
+                "assets/private/js/codemirror/lib/codemirror.css",
+                "assets/private/js/codemirror/theme/material-darker.css"
+            ]
+        }
     },
     "config": {
         "optimize-autoloader": true,

@@ -1,5 +1,7 @@
 *
 !.gitignore
+!composer/
+!composer/**
 !glossaries/
 !glossaries/**
 !icon/

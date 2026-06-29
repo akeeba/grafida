@@ -211,8 +211,20 @@ dialog makes the endpoint return 503).
   disclaimer — sent to the SPA in the `bootstrap` payload's `app` key), and `UrlOpener`
   (opens an external http(s) URL in the OS default browser; backs `POST /api/open-url`).
   The sidebar footer shows the version and opens an About dialog using this metadata.
-- `assets/private/` — SPA (`view/index.html`, `css/`, `js/`, vendored `js/tinymce/`).
-  UI icons use the vendored **FontAwesome 7 Free** solid font (`css/fontawesome.min.css`
+- `assets/private/` — SPA (`view/index.html`, `css/`, `js/`, `js/tinymce/`).
+  **The three front-end libraries — TinyMCE 7, CodeMirror 5, FontAwesome 7 Free — are
+  NPM-managed, not committed.** Their pinned versions live in `package.json`; running
+  `composer run-script vendor:assets` (also fired automatically by `composer install`/`update`
+  via `post-install-cmd`/`post-update-cmd`) does `npm install` then copies the prescribed subset
+  into `assets/private/` per the `extra.copy-static` / `extra.minify` manifests in `composer.json`
+  (`build/composer/InstallationScript.php` does the work). The copy targets — `js/tinymce/`,
+  `js/codemirror/`, `css/{fontawesome,solid}.min.css`, `webfonts/` — are therefore **gitignored**.
+  CodeMirror's npm package ships only unminified source, so the install step minifies it (terser +
+  clean-css) into the `*.min.js`/`*.min.css` the HTML references. To update a library, bump its
+  version in `package.json` and re-run `vendor:assets`. (`node`+`npm` are now build prerequisites;
+  `scripts/build-all.sh` runs `vendor:assets` before `boson compile` because `boson.json` bundles
+  `assets/private` at compile time.)
+  UI icons use the **FontAwesome 7 Free** solid font (`css/fontawesome.min.css`
   + `css/solid.min.css` + `webfonts/fa-solid-900.woff2`) — never images/emoji. Action
   buttons carry a leading `<i class="fa-solid fa-…" aria-hidden="true">` before the label;
   in `app.js` use the `icon()` / `iconBtn()` helpers. Source-code editing uses vendored
@@ -251,8 +263,10 @@ dialog makes the endpoint return 503).
   built-in UI is English — so it (and any unmapped tag) falls through to the English default with no
   `language` set. `language_url` is an absolute `/js/tinymce/langs/<code>.js` path because the init's
   `document_base_url` is the *site* URL, which would otherwise mis-resolve a relative path. Adding a
-  shipped language needs a matching pack file + a `TINYMCE_LANGS` entry (none for languages TinyMCE
-  has no pack for — they get the English editor UI). This is the editor UI *chrome*; it is unrelated
+  shipped language needs **both** its pack name added to the `tinymce-i18n` langs filter in
+  `composer.json`'s `extra.copy-static` (so `vendor:assets` copies it into `js/tinymce/langs/`) **and**
+  a `TINYMCE_LANGS` entry in `app.js` (none for languages TinyMCE has no pack for — they get the
+  English editor UI). This is the editor UI *chrome*; it is unrelated
   to the spell-check dictionary (an OS setting, above) and the article content language.
   The active site is remembered client-side in `localStorage` (`grafida.lastSiteId`, via
   `rememberLastSite()` / `recallLastSite()`); it is not persisted server-side. On startup
@@ -287,10 +301,16 @@ dialog makes the endpoint return 503).
   `make-macos-app.sh` copies the `.icns` into the bundle + `Info.plist` (`CFBundleIconFile`);
   the Windows installer bundles the `.ico` beside `grafida.exe`; Linux ships `grafida.desktop`
   + a hicolor PNG. `build/` is otherwise gitignored — the whitelisted exceptions are
-  `build/icon/`, `build/glossaries/`, and the two packaging sources `build/linux-install.sh`
-  + `build/windows-installer.nsi` (see `build/.gitignore`). Re-run make-icons after editing the SVG.
+  `build/icon/`, `build/glossaries/`, `build/composer/` (the npm-vendoring install script), and the
+  two packaging sources `build/linux-install.sh` + `build/windows-installer.nsi` (see
+  `build/.gitignore`). Re-run make-icons after editing the SVG.
 
 ## Build & packaging (one step)
+
+**Front-end vendoring:** the build host needs `node`+`npm`. The npm-managed libraries (TinyMCE,
+CodeMirror, FontAwesome — see the `assets/private/` note above) are gitignored, so `build-all.sh`
+runs `composer run-script vendor:assets` before compiling to populate `assets/private` (which
+`boson.json` bundles at compile time).
 
 `composer build` → `scripts/build-all.sh` is the **one-shot** compile-and-package pipeline; it
 runs `boson compile` (every target in `boson.json`) then packages each platform into

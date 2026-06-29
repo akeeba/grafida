@@ -10,9 +10,19 @@ Thumbs.db
 
 # Build artifacts and dependencies
 /build/*
+!/build/composer/
 !/build/glossaries/
 !/build/icon/
 /vendor
+/node_modules
+
+# Front-end libraries fetched via npm and placed by `composer run-script vendor:assets`
+# (pinned in package.json; never committed). See build/composer/InstallationScript.php.
+/assets/private/js/tinymce/
+/assets/private/js/codemirror/
+/assets/private/css/fontawesome.min.css
+/assets/private/css/solid.min.css
+/assets/private/webfonts/
 
 # Implementation step plans (working notes, not shipped)
 /.plans
