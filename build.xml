@@ -10,11 +10,28 @@
 
 	<property name="dirs.root" value="${phing.dir}" />
 	<property name="dirs.icon" value="${dirs.root}/build/icon" />
+	<property name="dirs.dist" value="${dirs.root}/build/dist" />
 	<property name="boson.config" value="${dirs.root}/boson.json" />
 	<property name="compile.target.script" value="${dirs.root}/build/tasks/compile-target.php" />
 	<property name="setversion.script" value="${dirs.root}/build/tasks/set-version.php" />
 	<property name="assets.marker" value="${dirs.root}/assets/private/js/tinymce/tinymce.min.js" />
 	<property name="composer.marker" value="${dirs.root}/vendor/autoload.php" />
+
+	<!--
+	Private build configuration (secrets): GitHub Releases + CDN FTP credentials for publishing
+	releases and update information. This file is gitignored and never committed — copy
+	build/build.sample.properties to build/build.properties and fill it in. A missing file is
+	tolerated (Phing skips it), so targets that don't need these properties keep working.
+	-->
+	<property file="${dirs.root}/build/build.properties" override="true" />
+
+	<!--
+	Custom Phing tasks live in build/tasks/ under the `tasks\` namespace; the classpath points at build/
+	so `tasks\Foo` resolves to build/tasks/Foo.php.
+	-->
+	<taskdef name="githubrelease" classname="tasks\GitHubRelease" classpath="${dirs.root}/build" />
+	<taskdef name="updatejson"    classname="tasks\UpdateJson"    classpath="${dirs.root}/build" />
+	<taskdef name="ftpsupload"    classname="tasks\FtpsUpload"    classpath="${dirs.root}/build" />
 
 	<!--
 	====================================================================================================
@@ -330,5 +347,68 @@
 		<exec executable="bash" dir="${dirs.root}" passthru="true" checkreturn="true">
 			<arg value="scripts/make-phar-dist.sh" />
 		</exec>
+	</target>
+
+	<!--
+	====================================================================================================
+	Tasks - Release
+
+	`all` is an alias for `package` (build + package every platform). `release` is the standard release
+	process: build everything, create a published GitHub release with the installers/DMGs as assets and
+	RELEASENOTES.md as the description, build a grafida.json from that release (UpdateJson) and upload it
+	to the CDN over FTPS. Needs the github.* and cdn.ftp.* properties from build/build.properties.
+	====================================================================================================
+	-->
+
+	<target name="all" depends="package"
+			description="Alias for 'package' — build and package every platform" />
+
+	<target name="release" depends="all"
+			description="Build, publish a GitHub release with the artifacts, and push grafida.json to the CDN">
+		<!-- The version is the topmost CHANGELOG entry (same source the git-* targets stamp into the app). -->
+		<exec executable="php" dir="${dirs.root}" outputProperty="version" checkreturn="true">
+			<arg value="${setversion.script}" />
+			<arg value="--print" />
+		</exec>
+
+		<fail unless="github.token" message="release: github.token is not set — copy build/build.sample.properties to build/build.properties and fill it in." />
+		<fail unless="cdn.ftp.password" message="release: cdn.ftp.* is not set — copy build/build.sample.properties to build/build.properties and fill it in." />
+
+		<echo>Releasing Grafida ${version} to ${github.organization}/${github.repository}</echo>
+
+		<!-- 1. Create a published GitHub release with the distributables as assets. -->
+		<githubrelease token="${github.token}"
+					   organization="${github.organization}"
+					   repository="${github.repository}"
+					   tagName="${version}"
+					   releaseName="Grafida ${version}"
+					   bodyFile="${dirs.root}/RELEASENOTES.md"
+					   draft="false">
+			<fileset dir="${dirs.dist}">
+				<include name="Grafida-${version}-macos-*.dmg" />
+				<include name="Grafida-${version}-linux-*.tar.gz" />
+				<include name="Grafida-${version}-windows-amd64-Setup.exe" />
+				<include name="Grafida-${version}-windows-amd64.zip" />
+				<include name="Grafida-${version}.phar" />
+			</fileset>
+		</githubrelease>
+
+		<!-- 2. Build grafida.json from the just-published release. -->
+		<updatejson organization="${github.organization}"
+					repository="${github.repository}"
+					token="${github.token}"
+					outfile="${dirs.dist}/grafida.json" />
+
+		<!-- 3. Upload grafida.json to the CDN over FTPS. -->
+		<ftpsupload host="${cdn.ftp.hostname}"
+					username="${cdn.ftp.username}"
+					password="${cdn.ftp.password}"
+					remoteDir="${cdn.ftp.directory}">
+			<fileset dir="${dirs.dist}">
+				<include name="grafida.json" />
+			</fileset>
+		</ftpsupload>
+
+		<echo>Release ${version} complete.</echo>
 	</target>
 </project>

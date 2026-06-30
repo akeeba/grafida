@@ -39,6 +39,14 @@ if ($version === null || $version === '')
     exit(1);
 }
 
+// `--print` just emits the resolved version (no trailing newline) so build.xml can capture it into a
+// property via <exec outputProperty="…">. It does not touch App.php.
+if (\in_array('--print', $argv, true))
+{
+    \fwrite(\STDOUT, $version);
+    exit(0);
+}
+
 if (!\is_file($appFile))
 {
     \fwrite(\STDERR, "ERROR: {$appFile} not found.\n");

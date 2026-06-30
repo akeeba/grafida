@@ -354,6 +354,17 @@ stamps it into `App::VERSION` in `src/Support/App.php` before every compile (ide
 already current). `GRAFIDA_VERSION` overrides the CHANGELOG. So every `git-*` build (and transitively
 `package-*`/`run`) reports the CHANGELOG version in the binary and the About dialog.
 
+**Private build configuration:** `build.xml` loads `build/build.properties` (gitignored — holds
+secrets, never committed; a missing file is tolerated). The committed `build/build.sample.properties`
+is the template (`cp` it to `build/build.properties` and fill in). It carries the plumbing for the
+not-yet-built update mechanism: GitHub Releases (`github.organization`, `github.repository`,
+`github.token` — the PAT) and CDN upload over FTP (`cdn.ftp.hostname`, `cdn.ftp.username`,
+`cdn.ftp.password`, `cdn.ftp.directory`). The plan: publish a release to GitHub Releases, then use the
+`build/tasks/UpdateJson.php` Phing task (organization/repository/token/outfile attributes) to fetch the
+latest release's metadata into an `update.json` and upload it to the CDN. (`build/.gitignore` ignores
+everything under `build/` except a whitelist, so `build.properties` is ignored automatically; the
+sample is explicitly whitelisted.)
+
 **Packaged build via Phing:** the `package` target (also `composer build:package`) builds *and*
 packages every platform into `build/dist/` — it depends on six per-platform `package-*` targets
 (`package-macos-arm/-x86`, `package-win-x86`, `package-linux-x86/-arm`, `package-phar`), and each
@@ -371,6 +382,21 @@ host and launches it. Since Phing `depends` is static, `run` resolves the host's
 the `package-*` targets. macOS arm64→`git-macos-arm`, macOS x86_64→`git-macos-x86`,
 Linux aarch64→`git-linux-arm`, Linux x86_64→`git-linux-x86`, Windows→`git-win-x86`; an unrecognised
 host fails with a clear message.
+
+**Release:** `all` is an alias for `package`. `release` (depends on `all`) is the standard release
+process: build+package every platform, then (1) create a **published GitHub release** with the
+installers/DMGs/PHAR as assets and `RELEASENOTES.md` as the description, (2) build `grafida.json` from
+that release, and (3) upload it to the CDN over **FTPS**. It needs the `github.*` + `cdn.ftp.*`
+properties from `build/build.properties` (it fails early with a clear message if they're unset). Three
+custom Phing tasks under `build/tasks/` (namespace `tasks\`, taskdef'd with `classpath="…/build"`)
+back it, all curl-based (no extra binaries, matching `UpdateJson.php`): **`GitHubRelease`** (creates a
+draft release, uploads each nested-`<fileset>` asset, then publishes — so a partial release is never
+visible), **`UpdateJson`** (fetches the latest release's metadata into `grafida.json`), and
+**`FtpsUpload`** (uploads over explicit FTPS — `CURLUSESSL_ALL`). The version comes from the CHANGELOG
+via `set-version.php --print`. `UpdateJson` treats a release as downloadable when it has any asset
+ending in `.zip`/`.exe`/`.dmg`/`.tar.gz` (`UpdateJson::ASSET_EXTENSIONS` / `isDownloadableAsset()`); its
+`grafida.json` `download` field is provisionally the **first** such asset — a real per-platform download
+map is for when the update mechanism itself is built.
 
 ## Key Joomla API facts (verified against Joomla 5.4 source)
 

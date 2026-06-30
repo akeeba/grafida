@@ -149,7 +149,15 @@ class UpdateJson extends Task
     }
 
     /**
-     * Return the first release that is not a draft, not a pre-release, and has a .zip upload asset.
+     * File extensions that count as a downloadable release artifact.
+     *
+     * Grafida ships a per-platform set (macOS .dmg, Windows .exe installer or .zip, Linux .tar.gz)
+     * plus the cross-platform .phar; any of these marks a release as a real, downloadable one.
+     */
+    private const ASSET_EXTENSIONS = ['.zip', '.exe', '.dmg', '.tar.gz'];
+
+    /**
+     * Return the first release that is not a draft, not a pre-release, and has a downloadable asset.
      *
      * GitHub returns releases in reverse-chronological order, so the first match is the latest stable.
      *
@@ -168,11 +176,7 @@ class UpdateJson extends Task
 
             foreach ($release['assets'] ?? [] as $asset)
             {
-                if (
-                    str_ends_with($asset['name'], '.zip')
-                    && $asset['content_type'] === 'application/zip'
-                    && $asset['state'] === 'uploaded'
-                )
+                if ($this->isDownloadableAsset($asset))
                 {
                     return $release;
                 }
@@ -180,6 +184,31 @@ class UpdateJson extends Task
         }
 
         return null;
+    }
+
+    /**
+     * Is this release asset a finished, downloadable artifact (uploaded, with a recognised extension)?
+     *
+     * @param   array<string, mixed>  $asset
+     */
+    private function isDownloadableAsset(array $asset): bool
+    {
+        if (($asset['state'] ?? '') !== 'uploaded')
+        {
+            return false;
+        }
+
+        $name = (string) ($asset['name'] ?? '');
+
+        foreach (self::ASSET_EXTENSIONS as $extension)
+        {
+            if (str_ends_with($name, $extension))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -203,11 +232,7 @@ class UpdateJson extends Task
 
         foreach ($release['assets'] ?? [] as $asset)
         {
-            if (
-                str_ends_with($asset['name'], '.zip')
-                && $asset['content_type'] === 'application/zip'
-                && $asset['state'] === 'uploaded'
-            )
+            if ($this->isDownloadableAsset($asset))
             {
                 $downloadUrl = $asset['browser_download_url'];
                 break;
