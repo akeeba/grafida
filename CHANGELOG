@@ -1,0 +1,12 @@
+Grafida 0.1
+================================================================================
++ First release
++ Connect to one or more Joomla! 5.4+ sites through the Web Services (REST) API
++ Browse, search, sort, filter and paginate a site's articles, mirroring the Joomla back-end list
++ Create and edit articles in a TinyMCE 7 WYSIWYG editor with the site's own editor.css
++ Local article drafts stored offline in SQLite; edit a remote article as an unsaved draft
++ Offline media picker, inline image handling and a full online Media Manager screen
++ Publish articles back to the site (intro/full-text split, categories, tags, custom fields, images)
++ AI chat assistant and writing tools (multiple configurable providers; streaming replies)
++ Markdown import, light/dark/auto interface theme, and seven interface languages
++ Native desktop application for macOS, Windows and Linux built with Boson

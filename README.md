@@ -49,49 +49,59 @@ It is built with [Boson](https://bosonphp.com) (PHP on the desktop) and runs nat
 ## Building from source
 
 Grafida needs **PHP 8.4+** with the `ffi`, `pdo_sqlite`, `dom`, `mbstring` and `curl`
-extensions, plus [Composer](https://getcomposer.org).
+extensions, plus [Composer](https://getcomposer.org), [Node.js + npm](https://nodejs.org)
+(the front-end libraries are vendored via npm, not committed) and
+[Phing](https://www.phing.info) installed as a **global** command.
 
 ```bash
 git clone https://github.com/akeeba/grafida.git
 cd grafida
-composer install
+composer install                     # also vendors the front-end libraries via npm
 
-# Run in development (opens the app window):
-php index.php
+# Compile the binary for THIS host and launch it:
+phing run                            # or: composer start
 
 # One step: compile AND package every platform's distributable.
 composer build                       # artifacts land in build/dist/
 ```
 
-`composer build` (which runs `scripts/build-all.sh`) is the one-shot pipeline. It compiles
-the self-contained binaries for every target in `boson.json` and then packages each one,
-writing the results to **`build/dist/`**:
+The build is driven by [`build.xml`](build.xml) (Phing) alongside the one-shot
+`scripts/build-all.sh` pipeline. The Phing targets let you build (or package) one platform at a
+time; `git` compiles **binaries only**, `package` also wraps them into the distributables in
+**`build/dist/`**:
 
-| Platform | Artifact | Built by |
+```bash
+phing git                            # compile the native binaries for every platform (no packaging)
+phing package                        # build AND package every platform into build/dist/
+phing git-macos-arm                  # …or just one platform's binary (also -macos-x86, -win-x86,
+phing package-linux-x86              #    -linux-x86, -linux-arm, -phar; and the package-* variants)
+```
+
+Equivalent Composer shortcuts: `composer start` (`phing run`), `composer build:git`
+(`phing git`), `composer build:package` (`phing package`), and `composer build`
+(`scripts/build-all.sh`). Both `build-all.sh` and the Phing `package-*` targets produce the same
+artifacts through the same per-platform `scripts/make-*.sh` helpers:
+
+| Platform | Artifact | Packaged by |
 | --- | --- | --- |
 | macOS (arm64, amd64) | `Grafida-<version>-macos-<arch>.dmg` (a `.app` inside) | `scripts/make-macos-app.sh` + `scripts/make-dmg.sh` *(macOS host only)* |
-| Linux (amd64, arm64) | `Grafida-<version>-linux-<arch>.tar.gz` (binary + `.so` + assets + `install.sh`) | `scripts/build-all.sh` + `build/linux-install.sh` |
-| Windows (amd64) | `Grafida-<version>-windows-amd64-Setup.exe` (or a portable `.zip`) | `build/windows-installer.nsi` via `makensis` |
-| Any | `Grafida-<version>.phar` | the Boson compiler |
+| Linux (amd64, arm64) | `Grafida-<version>-linux-<arch>.tar.gz` (binary + `.so` + assets + `install.sh`) | `scripts/make-linux-tarball.sh` |
+| Windows (amd64) | `Grafida-<version>-windows-amd64-Setup.exe` (or a portable `.zip`) | `scripts/make-windows-installer.sh` (NSIS `makensis`) |
+| Any | `Grafida-<version>.phar` | `scripts/make-phar-dist.sh` |
 
 The Windows installer is built with **NSIS**, whose `makensis` compiler runs natively on
 macOS and Linux (`brew install makensis`) — no Wine, Docker, or Windows host needed. If
 `makensis` is absent the pipeline falls back to a portable `.zip`. The `.dmg` steps need
-`hdiutil` and so only run on a macOS host; the version is read from `App::VERSION` (override
-with `GRAFIDA_VERSION=…`).
+`hdiutil` and so only run on a macOS host.
 
-You can also run individual stages:
+**The application version is the topmost entry of the [`CHANGELOG`](CHANGELOG)** (e.g. `Grafida
+0.1`). The Phing `git-*` targets stamp it into `App::VERSION` before compiling, so the binary and
+the About dialog report it; set `GRAFIDA_VERSION=…` to override the CHANGELOG.
 
-```bash
-composer compile                     # binaries only, into ./build
-php vendor/bin/boson compile -c boson.macos.json   # just this platform
-scripts/make-macos-app.sh            # wrap the macOS binary in build/macos/<arch>/Grafida.app
-```
-
-`boson compile` bundles a PHP runtime and produces a self-contained executable. End users do
-not need PHP installed. The bundled language files and SQL migrations are extracted once, on
-first launch, into the application data directory (because `parse_ini_file()`/`glob()` cannot
-read from inside the packed binary).
+`boson compile` (under the hood) bundles a PHP runtime and produces a self-contained executable.
+End users do not need PHP installed. The bundled language files and SQL migrations are extracted
+once, on first launch, into the application data directory (because `parse_ini_file()`/`glob()`
+cannot read from inside the packed binary).
 
 For distribution, sign the macOS bundle with a Developer ID identity and notarise it (the
 script only applies an ad-hoc signature, which is enough to run locally); sign the Windows

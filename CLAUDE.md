@@ -347,7 +347,12 @@ can live in `build/.temp/`), drops the stale box/entrypoint cache, then runs `bo
 (so a fresh `git clone … && phing` bootstraps itself — and since Composer's post-install-cmd runs
 `vendor:assets`, that also vendors the front-end libraries), re-rasterises the icons, and vendors the
 front-end libraries (force a re-vendor with `-Drefresh.assets=1`); Phing runs `prepare` once per
-invocation.
+invocation. `prepare` also runs **`set-version`** (`build/tasks/set-version.php`): the **`CHANGELOG`
+is the single source of truth for the version** — its topmost entry's heading ends with the version
+number (Akeeba convention, e.g. `Grafida 0.1`; parsed like Akeeba's `AutoVersionTask`), and the step
+stamps it into `App::VERSION` in `src/Support/App.php` before every compile (idempotent; no-ops when
+already current). `GRAFIDA_VERSION` overrides the CHANGELOG. So every `git-*` build (and transitively
+`package-*`/`run`) reports the CHANGELOG version in the binary and the About dialog.
 
 **Packaged build via Phing:** the `package` target (also `composer build:package`) builds *and*
 packages every platform into `build/dist/` — it depends on six per-platform `package-*` targets

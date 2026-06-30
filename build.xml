@@ -12,6 +12,7 @@
 	<property name="dirs.icon" value="${dirs.root}/build/icon" />
 	<property name="boson.config" value="${dirs.root}/boson.json" />
 	<property name="compile.target.script" value="${dirs.root}/build/tasks/compile-target.php" />
+	<property name="setversion.script" value="${dirs.root}/build/tasks/set-version.php" />
 	<property name="assets.marker" value="${dirs.root}/assets/private/js/tinymce/tinymce.min.js" />
 	<property name="composer.marker" value="${dirs.root}/vendor/autoload.php" />
 
@@ -37,8 +38,19 @@
 	force a re-vendor). The order matters: Composer's post-install-cmd itself runs `vendor:assets`, so
 	on a fresh clone prepare-composer populates the assets too and prepare-assets then skips.
 	-->
-	<target name="prepare" depends="prepare-composer,prepare-icons,prepare-assets"
+	<target name="prepare" depends="prepare-composer,prepare-icons,prepare-assets,set-version"
 			description="Ensure dependencies, icons + front-end libraries are on disk before compiling" />
+
+	<!--
+	Stamp the application version (App::VERSION) from the topmost CHANGELOG entry before every compile,
+	so the binary and the About dialog report the right version. Runs unguarded (it is a cheap, idempotent
+	regex replace that no-ops when the version already matches). GRAFIDA_VERSION overrides the CHANGELOG.
+	-->
+	<target name="set-version" description="Stamp App::VERSION from the CHANGELOG">
+		<exec executable="php" dir="${dirs.root}" passthru="true" checkreturn="true">
+			<arg value="${setversion.script}" />
+		</exec>
+	</target>
 
 	<!--
 	Fresh-clone case: `git clone … && phing`. The Composer dependencies (including the Boson compiler in

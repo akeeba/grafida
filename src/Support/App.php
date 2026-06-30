@@ -24,7 +24,7 @@ final class App
     public const NAME = 'Grafida';
 
     /** Application version (semantic versioning). */
-    public const VERSION = '0.1.0';
+    public const VERSION = '0.1';
 
     /** Copyright line. */
     public const COPYRIGHT = 'Copyright © 2026 Nicholas K. Dionysopoulos';
