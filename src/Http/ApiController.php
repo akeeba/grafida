@@ -25,6 +25,7 @@ use Grafida\Ai\AiToolRepository;
 use Grafida\Ai\Defaults;
 use Grafida\Ai\AiProxy;
 use Grafida\Article\Draft;
+use Grafida\Article\DraftExportService;
 use Grafida\Article\DraftRepository;
 use Grafida\Display\DisplayModeService;
 use Grafida\Field\FieldSupport;
@@ -163,6 +164,11 @@ final class ApiController
         'GRAFIDA_MSG_CHAT_SAVED', 'GRAFIDA_MSG_CHAT_DELETED', 'GRAFIDA_MSG_CHAT_RENAMED',
         'GRAFIDA_MSG_NO_AI_CHATS', 'GRAFIDA_MSG_DELETE_CHAT_CONFIRM',
         'GRAFIDA_LBL_RENAME_CHAT', 'GRAFIDA_MSG_SAVE_CHAT_CHANGES',
+        // Export / import .grafida draft files
+        'GRAFIDA_BTN_EXPORT_DRAFT', 'GRAFIDA_BTN_IMPORT_DRAFT', 'GRAFIDA_BTN_REPLACE_DRAFT',
+        'GRAFIDA_MSG_DRAFT_EXPORTED', 'GRAFIDA_MSG_DRAFT_IMPORTED', 'GRAFIDA_MSG_DRAFT_REPLACED',
+        'GRAFIDA_MSG_REPLACE_DRAFT_TITLE', 'GRAFIDA_MSG_REPLACE_DRAFT_CONFIRM',
+        'GRAFIDA_MSG_INVALID_GRAFIDA_FILE',
     ];
 
     public function __construct(
@@ -173,6 +179,7 @@ final class ApiController
         private readonly DraftRepository $drafts,
         private readonly MediaRepository $media,
         private readonly PublishService $publish,
+        private readonly DraftExportService $draftExport,
         private readonly MarkdownService $markdown,
         private readonly LanguageService $language,
         private readonly DisplayModeService $displayMode,
@@ -231,6 +238,8 @@ final class ApiController
             $method === 'POST' && $path === '/api/settings/storage/reset' => $this->resetStorage(),
             $method === 'POST' && $path === '/api/open-url'          => $this->openUrl($body),
             $method === 'POST' && $path === '/api/dialog/open-file'  => $this->openFile($body),
+            $method === 'POST' && $path === '/api/dialog/select-directory' => $this->selectDirectory($body),
+            $method === 'POST' && $path === '/api/drafts/import'      => $this->importDraft($body),
             $method === 'GET'  && $path === '/api/ai/services'       => $this->listAiServices(),
             $method === 'POST' && $path === '/api/ai/services'       => $this->createAiService($body),
             $method === 'GET'  && $path === '/api/ai/tools'          => $this->listAiTools(),
@@ -346,6 +355,12 @@ final class ApiController
         }
         if ($method === 'GET' && preg_match('#^/api/drafts/(\d+)/chats$#', $path, $m) === 1) {
             return $this->listDraftChats((int) $m[1]);
+        }
+        if ($method === 'POST' && preg_match('#^/api/drafts/(\d+)/export$#', $path, $m) === 1) {
+            return $this->exportDraft((int) $m[1], $body);
+        }
+        if ($method === 'POST' && preg_match('#^/api/drafts/(\d+)/import$#', $path, $m) === 1) {
+            return $this->importDraftInto((int) $m[1], $body);
         }
 
         if (preg_match('#^/api/drafts/(\d+)$#', $path, $m) === 1) {
@@ -464,6 +479,7 @@ final class ApiController
         $filter = match ($this->str($body, 'filter', 'any')) {
             'image'    => ['*.png', '*.jpg', '*.jpeg', '*.gif', '*.webp', '*.svg', '*.bmp', '*.avif'],
             'markdown' => ['*.md', '*.markdown', '*.txt'],
+            'grafida'  => ['*.grafida'],
             default    => [],
         };
 
@@ -486,6 +502,28 @@ final class ApiController
         ]);
     }
 
+    /**
+     * Open a native OS directory-picker (Boson has no "Save As" file dialog,
+     * so exporting a draft asks for a destination folder instead and the
+     * filename is derived from the draft).
+     *
+     * @param array<string, mixed> $body
+     */
+    private function selectDirectory(array $body): ResponseInterface
+    {
+        if ($this->dialog === null) {
+            return Json::error('Native file dialog is unavailable', 503);
+        }
+
+        $path = $this->dialog->selectDirectory();
+
+        if ($path === null || $path === '') {
+            return Json::ok(['cancelled' => true]);
+        }
+
+        return Json::ok(['path' => $path]);
+    }
+
     /** Best-effort MIME type from a file extension (fileinfo is not bundled). */
     private static function mimeForPath(string $path): string
     {
@@ -499,6 +537,7 @@ final class ApiController
             'avif'          => 'image/avif',
             'md', 'markdown' => 'text/markdown',
             'txt'           => 'text/plain',
+            'grafida'       => 'application/json',
             default         => 'application/octet-stream',
         };
     }
@@ -1456,6 +1495,96 @@ final class ApiController
         $this->drafts->delete($id);
 
         return Json::ok();
+    }
+
+    /**
+     * Writes a draft (all visible fields, offline images and saved AI chats,
+     * but never its site/remote-article linkage) to a `.grafida` JSON file in
+     * the given directory.
+     *
+     * @param array<string, mixed> $body
+     */
+    private function exportDraft(int $id, array $body): ResponseInterface
+    {
+        $directory = $this->str($body, 'directory');
+
+        if ($directory === '' || !is_dir($directory)) {
+            return Json::error('A valid destination folder is required.', 400);
+        }
+
+        $draft = $this->drafts->find($id);
+
+        if ($draft === null) {
+            return Json::error('Draft not found', 404);
+        }
+
+        $payload = $this->draftExport->export($id);
+
+        $slug     = self::slugForFilename($draft->alias !== '' ? $draft->alias : $draft->title);
+        $filename = ($slug !== '' ? $slug : 'draft') . '.grafida';
+        $path     = rtrim($directory, '/\\') . \DIRECTORY_SEPARATOR . $filename;
+
+        $json = json_encode($payload, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES);
+
+        if ($json === false || @file_put_contents($path, $json) === false) {
+            return Json::error('Could not write the export file', 500);
+        }
+
+        return Json::ok(['path' => $path, 'filename' => $filename]);
+    }
+
+    private static function slugForFilename(string $text): string
+    {
+        $slug = strtolower(trim($text));
+        $slug = preg_replace('/[^a-z0-9]+/', '-', $slug) ?? '';
+
+        return trim($slug, '-');
+    }
+
+    /**
+     * Imports a `.grafida` payload as a brand-new draft on the given site.
+     *
+     * @param array<string, mixed> $body
+     */
+    private function importDraft(array $body): ResponseInterface
+    {
+        $siteId     = $this->int($body, 'siteId', 0);
+        $payloadRaw = $body['payload'] ?? null;
+
+        if ($siteId <= 0 || !is_array($payloadRaw)) {
+            return Json::error('A siteId and payload are required.', 400);
+        }
+
+        /** @var array<string, mixed> $payload */
+        $payload = $payloadRaw;
+        $draft   = $this->draftExport->importAsNewDraft($siteId, $payload);
+
+        return Json::ok($draft->toArray(), 201);
+    }
+
+    /**
+     * Replaces an existing draft's content with an imported `.grafida`
+     * payload, keeping the draft's own id, site and remote-article linkage.
+     *
+     * @param array<string, mixed> $body
+     */
+    private function importDraftInto(int $id, array $body): ResponseInterface
+    {
+        $payloadRaw = $body['payload'] ?? null;
+
+        if (!is_array($payloadRaw)) {
+            return Json::error('A payload is required.', 400);
+        }
+
+        if ($this->drafts->find($id) === null) {
+            return Json::error('Draft not found', 404);
+        }
+
+        /** @var array<string, mixed> $payload */
+        $payload = $payloadRaw;
+        $draft   = $this->draftExport->replaceDraft($id, $payload);
+
+        return Json::ok($draft->toArray());
     }
 
     // ------------------------------------------------------------------

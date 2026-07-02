@@ -176,6 +176,19 @@ function formatNodes(template, ...subs) {
     return nodes;
 }
 
+/**
+ * Plain-string counterpart of formatNodes(), for places (like toasts) that
+ * need a single string rather than DOM nodes.
+ *
+ * @param {string} template — localized string with `%s` placeholders
+ * @param {...string} subs — substitutions, in placeholder order
+ * @returns {string}
+ */
+function formatText(template, ...subs) {
+    let i = 0;
+    return String(template).replace(/%s/g, () => (subs[i++] ?? ''));
+}
+
 /** Create a button with textContent and class names. */
 function btn(labelKey, ...classes) {
     const b = document.createElement('button');
@@ -316,6 +329,10 @@ const api = {
     saveDraft: (id, body) => apiFetch('PUT', `/api/drafts/${id}`, body),
     deleteDraft: (id) => apiFetch('DELETE', `/api/drafts/${id}`),
     publishDraft: (id) => apiFetch('POST', `/api/drafts/${id}/publish`),
+    exportDraft: (id, directory) => apiFetch('POST', `/api/drafts/${id}/export`, { directory }),
+    importDraft: (siteId, payload) => apiFetch('POST', '/api/drafts/import', { siteId, payload }),
+    importDraftInto: (id, payload) => apiFetch('POST', `/api/drafts/${id}/import`, { payload }),
+    selectDirectory: () => apiFetch('POST', '/api/dialog/select-directory'),
     uploadMedia: (siteId, body) => apiFetch('POST', `/api/sites/${siteId}/media`, body),
     openFile: (filter) => apiFetch('POST', '/api/dialog/open-file', { filter }),
     browseMedia: (siteId, path = '') => apiFetch('GET', `/api/sites/${siteId}/media?path=${encodeURIComponent(path)}`),
@@ -609,6 +626,8 @@ function updateNavState() {
 function updateNewArticleButton() {
     const btnEl = document.getElementById('btn-new-article');
     if (btnEl) btnEl.disabled = !State.currentSiteId;
+    const btnImport = document.getElementById('btn-import-draft');
+    if (btnImport) btnImport.disabled = !State.currentSiteId;
 }
 
 // ============================================================
@@ -3812,6 +3831,128 @@ async function importMarkdown() {
     }
 }
 
+// --------------------------------------------------------
+//  Export / Import .grafida draft files
+// --------------------------------------------------------
+
+/** Decodes a native-picker result's base64 bytes as UTF-8 text. */
+function decodePickedText(picked) {
+    const bytes = Uint8Array.from(atob(picked.dataBase64), c => c.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+}
+
+/**
+ * Opens the native picker for a `.grafida` file and parses it as JSON.
+ * Returns null on cancel or an unparsable file (toasting the error itself).
+ */
+async function pickGrafidaPayload() {
+    let picked;
+    try {
+        picked = await api.openFile('grafida');
+    } catch (err) {
+        showToast(err.message, 'error');
+        return null;
+    }
+    if (!picked || picked.cancelled) return null;
+
+    try {
+        return JSON.parse(decodePickedText(picked));
+    } catch {
+        showToast(t('GRAFIDA_MSG_INVALID_GRAFIDA_FILE'), 'error');
+        return null;
+    }
+}
+
+/**
+ * Export the currently-open article as a `.grafida` file. The article is
+ * saved first — offline images and saved AI chats only exist once it has
+ * been persisted locally.
+ */
+async function exportCurrentDraft() {
+    if (!State.currentDraft) return;
+
+    let saved;
+    try {
+        saved = await saveDraft();
+    } catch {
+        return;
+    }
+    if (!saved) return;
+
+    let dir;
+    try {
+        dir = await api.selectDirectory();
+    } catch (err) {
+        showToast(err.message, 'error');
+        return;
+    }
+    if (!dir || dir.cancelled) return;
+
+    try {
+        const result = await api.exportDraft(saved.id, dir.path);
+        showToast(formatText(t('GRAFIDA_MSG_DRAFT_EXPORTED'), result.path), 'success');
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+/** Import a `.grafida` file as a brand-new local article on the current site. */
+async function importDraftAsNew() {
+    if (!State.currentSiteId) return;
+
+    const payload = await pickGrafidaPayload();
+    if (!payload) return;
+
+    try {
+        const created = await api.importDraft(State.currentSiteId, payload);
+        State.drafts.push(created);
+        showToast(t('GRAFIDA_MSG_DRAFT_IMPORTED'), 'success');
+        await openDraftInEditor(created);
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+/**
+ * Replace the currently-open article's content with an imported `.grafida`
+ * file, keeping its own id/site/remote-article linkage untouched. The
+ * article is saved first so the replace has a persisted row to act on.
+ */
+async function replaceDraftFromFile() {
+    if (!State.currentDraft) return;
+
+    const payload = await pickGrafidaPayload();
+    if (!payload) return;
+
+    const confirmed = await confirmYesNo(
+        t('GRAFIDA_MSG_REPLACE_DRAFT_TITLE'),
+        [el('p', null, t('GRAFIDA_MSG_REPLACE_DRAFT_CONFIRM'))]
+    );
+    if (!confirmed) return;
+
+    let saved;
+    try {
+        saved = await saveDraft();
+    } catch {
+        return;
+    }
+    if (!saved) return;
+
+    try {
+        const replaced = await api.importDraftInto(saved.id, payload);
+        State.currentDraft = replaced;
+        State.currentDraftId = replaced.id;
+        State.editorForceDirty = false;
+        renderEditorSidebar(replaced);
+        await initTinyMCE(replaced);
+        State.editorBaseline = JSON.stringify(collectDraftFormData());
+        if (typeof GrafidaAIPanel !== 'undefined') GrafidaAIPanel.onEditorOpen();
+        showToast(t('GRAFIDA_MSG_DRAFT_REPLACED'), 'success');
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
 // ============================================================
 //  SETTINGS SCREEN
 // ============================================================
@@ -5104,6 +5245,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnNewArticle = document.getElementById('btn-new-article');
     if (btnNewArticle) btnNewArticle.addEventListener('click', openNewArticle);
 
+    const btnImportDraft = document.getElementById('btn-import-draft');
+    if (btnImportDraft) btnImportDraft.addEventListener('click', importDraftAsNew);
+
     const btnSaveDraft = document.getElementById('btn-save-draft');
     if (btnSaveDraft) btnSaveDraft.addEventListener('click', saveDraft);
 
@@ -5123,6 +5267,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const btnImportMd = document.getElementById('btn-import-md');
     if (btnImportMd) btnImportMd.addEventListener('click', importMarkdown);
+
+    const btnExportDraft = document.getElementById('btn-export-draft');
+    if (btnExportDraft) btnExportDraft.addEventListener('click', exportCurrentDraft);
+
+    const btnReplaceDraft = document.getElementById('btn-replace-draft');
+    if (btnReplaceDraft) btnReplaceDraft.addEventListener('click', replaceDraftFromFile);
 
     const btnBack = document.getElementById('btn-back-to-articles');
     if (btnBack) {

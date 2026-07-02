@@ -260,11 +260,20 @@ final class ApiRoutingTest extends TestCase
     /** A native Dialog API stub whose file-open returns the given path (or null). */
     private function stubDialog(?string $path): \Boson\Api\Dialog\DialogApiInterface
     {
-        return new class($path) implements \Boson\Api\Dialog\DialogApiInterface {
-            public function __construct(private readonly ?string $path) {}
+        return $this->stubDialogWith($path, null);
+    }
+
+    /** A native Dialog API stub whose file-open and directory-select return the given paths. */
+    private function stubDialogWith(?string $filePath, ?string $directoryPath): \Boson\Api\Dialog\DialogApiInterface
+    {
+        return new class($filePath, $directoryPath) implements \Boson\Api\Dialog\DialogApiInterface {
+            public function __construct(
+                private readonly ?string $filePath,
+                private readonly ?string $directoryPath,
+            ) {}
             public function selectFile(?string $directory = null, iterable $filter = []): ?string
             {
-                return $this->path;
+                return $this->filePath;
             }
             public function selectFiles(?string $directory = null, iterable $filter = []): iterable
             {
@@ -272,7 +281,7 @@ final class ApiRoutingTest extends TestCase
             }
             public function selectDirectory(?string $directory = null, iterable $filter = []): ?string
             {
-                return null;
+                return $this->directoryPath;
             }
             public function selectDirectories(?string $directory = null, iterable $filter = []): iterable
             {
@@ -280,5 +289,105 @@ final class ApiRoutingTest extends TestCase
             }
             public function open(string|\Stringable $uri): void {}
         };
+    }
+
+    public function testSelectDirectoryIsUnavailableWithoutDialog(): void
+    {
+        [$status, $json] = $this->call($this->kernel(), 'POST', '/api/dialog/select-directory');
+
+        self::assertSame(503, $status);
+        self::assertFalse($json['ok']);
+    }
+
+    public function testSelectDirectoryReturnsChosenPath(): void
+    {
+        $kernel = new Kernel(
+            $this->kernelStatic(),
+            Database::connect(':memory:'),
+            \dirname(__DIR__, 2),
+            $this->stubDialogWith(null, '/tmp/somewhere')
+        );
+        [$status, $json] = $this->call($kernel, 'POST', '/api/dialog/select-directory');
+
+        self::assertSame(200, $status);
+        self::assertTrue($json['ok']);
+        self::assertSame('/tmp/somewhere', $json['data']['path']);
+    }
+
+    public function testExportImportAsNewAndReplaceRoundTrip(): void
+    {
+        $pdo    = Database::connect(':memory:');
+        (new Migrator($pdo))->migrate();
+        $this->lastPdo = $pdo;
+        $kernel = new Kernel($this->kernelStatic(), $pdo, \dirname(__DIR__, 2));
+
+        $siteId    = $this->seedSite('Source');
+        $targetId  = $this->seedSite('Target');
+
+        [, $created] = $this->call(
+            $kernel,
+            'POST',
+            '/api/sites/' . $siteId . '/drafts',
+            json_encode(['title' => 'Hello', 'alias' => 'hello', 'html' => '<p>Body</p>'])
+        );
+        self::assertTrue($created['ok']);
+        $draftId = $created['data']['id'];
+
+        $dir = sys_get_temp_dir() . '/grafida-export-test-' . uniqid();
+        mkdir($dir);
+
+        [$status, $exported] = $this->call(
+            $kernel,
+            'POST',
+            '/api/drafts/' . $draftId . '/export',
+            json_encode(['directory' => $dir])
+        );
+        self::assertSame(200, $status);
+        self::assertTrue($exported['ok']);
+        self::assertFileExists($exported['data']['path']);
+
+        $payload = json_decode((string) file_get_contents($exported['data']['path']), true);
+        self::assertSame(1, $payload['grafidaExport']);
+        self::assertSame('Hello', $payload['draft']['title']);
+        self::assertArrayNotHasKey('siteId', $payload['draft']);
+
+        unlink($exported['data']['path']);
+        rmdir($dir);
+
+        // Import as a brand-new draft on a different site.
+        [$status, $importedNew] = $this->call(
+            $kernel,
+            'POST',
+            '/api/drafts/import',
+            json_encode(['siteId' => $targetId, 'payload' => $payload])
+        );
+        self::assertSame(201, $status);
+        self::assertTrue($importedNew['ok']);
+        self::assertSame($targetId, $importedNew['data']['siteId']);
+        self::assertNull($importedNew['data']['remoteId']);
+        self::assertSame('Hello', $importedNew['data']['title']);
+        self::assertNotSame($draftId, $importedNew['data']['id']);
+
+        // Replace an existing draft's content, keeping its own site/remote linkage.
+        [, $target] = $this->call(
+            $kernel,
+            'POST',
+            '/api/sites/' . $targetId . '/drafts',
+            json_encode(['title' => 'Old', 'html' => '<p>Old</p>'])
+        );
+        $targetDraftId = $target['data']['id'];
+
+        [$status, $replaced] = $this->call(
+            $kernel,
+            'POST',
+            '/api/drafts/' . $targetDraftId . '/import',
+            json_encode(['payload' => $payload])
+        );
+        self::assertSame(200, $status);
+        self::assertTrue($replaced['ok']);
+        self::assertSame($targetDraftId, $replaced['data']['id']);
+        self::assertSame($targetId, $replaced['data']['siteId']);
+        self::assertSame('Hello', $replaced['data']['title']);
+        self::assertSame('<p>Body</p>', $replaced['data']['html']);
     }
 }

@@ -23,6 +23,7 @@ use Grafida\Ai\AiServiceManager;
 use Grafida\Ai\AiServiceRepository;
 use Grafida\Ai\AiToolRepository;
 use Grafida\Ai\Defaults;
+use Grafida\Article\DraftExportService;
 use Grafida\Article\DraftRepository;
 use Grafida\Display\DisplayModeService;
 use Grafida\Field\FieldSupport;
@@ -96,6 +97,7 @@ final class Kernel
         $drafts      = new DraftRepository($pdo);
         $media       = new MediaRepository($pdo);
         $publish     = new PublishService($siteService, $apiClient, $references, $drafts, $media);
+        $draftExport = new DraftExportService($drafts, $media, $aiChatRepo);
         $language    = new LanguageService($settings, $basePath);
         $displayMode = new DisplayModeService($settings);
         $storage     = new StorageService($pdo, $siteService);
@@ -112,6 +114,7 @@ final class Kernel
             drafts: $drafts,
             media: $media,
             publish: $publish,
+            draftExport: $draftExport,
             markdown: $markdown,
             aiRenderer: new AiRenderer($markdown),
             language: $language,

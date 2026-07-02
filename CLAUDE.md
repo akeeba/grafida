@@ -102,6 +102,24 @@ dialog makes the endpoint return 503).
   (`openEditorFor()` reuses the matching draft). The API only accepts a
   **single** category/tag and an INT `state`, so there is no multi-select or "all states"; an
   author filter is omitted (no local user list).
+  `DraftExportService` builds and consumes the portable **`.grafida`** file format (plain JSON
+  under a `.grafida` extension): every visible field, saved AI chats and any locally-picked
+  (not-yet-published) images, but **never** `site_id`/`remote_id` or the local `media_blobs`/
+  `ai_services` row ids (those are local-install specifics with no portable meaning). A
+  `grafida-media://N` sentinel in `images.image_intro`/`image_fulltext` is resolved to an
+  embedded base64 blob under `offlineMedia`, keyed by an export-local ref (`grafida-media://
+  export:mN` — the `m` prefix stops PHP auto-casting a numeric-looking key to an int); inline
+  `<img data-grafida-media-id>`/pasted images need no such handling since their `data:` URI is
+  already embedded in `html`. Boson has **no native "Save As" dialog** (`DialogApiInterface`
+  only offers open-file/open-directory pickers), so export asks for a destination **folder**
+  (`POST /api/dialog/select-directory` → `selectDirectory()`) and writes `<alias-or-title>
+  .grafida` into it server-side; import reuses the existing open-file dialog with a new
+  `'grafida'` filter. Two import endpoints: `POST /api/drafts/import` (`importAsNewDraft()`) —
+  creates a brand-new draft on the given site — and `POST /api/drafts/{id}/import`
+  (`replaceDraft()`) — used by the editor's "Replace from file…" button to overwrite an
+  **already-open, just-saved** draft's content and saved AI chats while explicitly preserving
+  its own id/`site_id`/`remote_id`, so a replaced draft stays linked to the same site and
+  (if any) the same remote article.
 - `src/Media/` — offline image blobs (`media_blobs`). `ApiClient::listMedia()` browses the
   site's Media Manager (`GET /v1/media/files`); `ApiController` exposes it as
   `GET /api/sites/{id}/media?path=…` and serves an offline blob's data: URI back to the SPA

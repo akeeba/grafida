@@ -84,6 +84,10 @@
             <div class="screen-header">
                 <h2 data-i18n="GRAFIDA_NAV_ARTICLES">Articles</h2>
                 <div id="articles-toolbar">
+                    <button id="btn-import-draft" class="btn btn-secondary" disabled>
+                        <i class="fa-solid fa-file-import" aria-hidden="true"></i>
+                        <span data-i18n="GRAFIDA_BTN_IMPORT_DRAFT">Import from file…</span>
+                    </button>
                     <button id="btn-new-article" class="btn btn-primary" disabled>
                         <i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i>
                         <span data-i18n="GRAFIDA_BTN_NEW_ARTICLE">New Article</span>
@@ -116,6 +120,14 @@
                         <button id="btn-import-md" class="btn btn-secondary btn-sm">
                             <i class="fa-solid fa-file-import" aria-hidden="true"></i>
                             <span data-i18n="GRAFIDA_BTN_IMPORT_MD">Import Markdown</span>
+                        </button>
+                        <button id="btn-export-draft" class="btn btn-secondary btn-sm">
+                            <i class="fa-solid fa-file-export" aria-hidden="true"></i>
+                            <span data-i18n="GRAFIDA_BTN_EXPORT_DRAFT">Export…</span>
+                        </button>
+                        <button id="btn-replace-draft" class="btn btn-secondary btn-sm">
+                            <i class="fa-solid fa-file-arrow-up" aria-hidden="true"></i>
+                            <span data-i18n="GRAFIDA_BTN_REPLACE_DRAFT">Replace from file…</span>
                         </button>
                         <div class="btn-group">
                             <button id="btn-save-draft" class="btn btn-secondary">
