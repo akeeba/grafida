@@ -481,6 +481,16 @@ map is for when the update mechanism itself is built.
   API calls stall ("the interface freezes") and nothing streams (the answer arrives all at once).
   Enabling CORS restores live streaming and keeps the kernel free. This is the first thing to check
   when a user reports the AI panel hanging with a local model.
+- **On macOS, plain-HTTP provider endpoints also need an ATS exception, or every reply falls back to
+  the proxy regardless of CORS.** `WKWebView` (the webview macOS Boson uses) enforces App Transport
+  Security on JS-initiated `fetch()`/XHR from web content; a plain-`http://` endpoint — e.g. LM Studio
+  on a LAN box (`http://192.168.x.x:1234`) — is blocked before the request leaves the process, thrown
+  as a network `TypeError` just like a CORS failure, so `sendChat()` silently takes the same synchronous
+  proxy path even with CORS fully enabled server-side. `scripts/make-macos-app.sh` sets
+  `NSAppTransportSecurity → NSAllowsArbitraryLoadsInWebContent` in the generated `Info.plist` to lift
+  this for the webview specifically (Joomla REST calls are unaffected — those go through PHP `curl`
+  server-side, never through the webview, so ATS never applied to them). Linux (WebKitGTK) and Windows
+  (WebView2) have no equivalent restriction.
 - **The API key is handed to local JS per call.** This is a deliberate desktop-only trade-off (JS and
   PHP are equally-trusted local code; the SPA loads no remote content) and the price of streaming —
   do not "fix" it by moving the call back to PHP (that kills streaming).
