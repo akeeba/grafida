@@ -230,7 +230,10 @@ that still works.
 **Signing a stock Boson build is impossible** (the analysis below explains why),
 but Grafida ships a working solution: a **patched phpmicro SFX runtime** that can
 load its PHP payload from a *sibling file*, so the executable stays a clean,
-signable Mach-O. The one-time setup:
+signable Mach-O. The architecture and its rationale are documented in
+[`02-signing-architecture.md`](02-signing-architecture.md); the day-to-day
+maintenance playbook (PHP/Boson bumps, fork upkeep, troubleshooting) in
+[`03-sfx-maintenance.md`](03-sfx-maintenance.md). The one-time setup:
 
 1. **Get the patched `micro.sfx`.** The normal way is to download the CI-built
    binaries — GitHub Actions on the

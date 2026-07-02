@@ -338,7 +338,9 @@ warn+skip), but a failing compile or a genuine packaging-tool error is fatal. Pi
   `build/macos/<bosondir>/Grafida.app` — Boson names the arm64 dir `aarch64`, amd64 stays
   `amd64` — then `scripts/make-dmg.sh <arch>` wraps it (via `hdiutil`) into
   `Grafida-<v>-macos-<arch>.dmg` with an `/Applications` symlink. **Code signing works via a
-  patched SFX runtime** (`build/readme/01-macos-signing.md` has the full recipe/analysis): a
+  patched SFX runtime** — docs: `build/readme/01-macos-signing.md` (Apple setup + recipe +
+  unsignability analysis), `02-signing-architecture.md` (architecture, why the fork exists,
+  design decisions), `03-sfx-maintenance.md` (PHP/Boson bump playbook, troubleshooting): a
   `micro.sfx` built with static-php-cli from the `nikosdion/phpmicro` fork's `sibling-phar`
   branch (which adds an additive fallback — no appended payload → load `"<self>.phar"`, then
   `"../Resources/<self>.phar"`, realpath-canonicalised so the offset stream hooks keep
