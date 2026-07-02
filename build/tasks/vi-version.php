@@ -25,6 +25,10 @@ declare(strict_types=1);
  *   rc    N (1-100)  -> 900-999 (up to ~99 release candidates)
  *   stable           -> 1000    (always sorts above every pre-release)
  *
+ * Every 0.x version is treated as alpha even without an explicit suffix
+ * (0.x is inherently pre-1.0/unstable); an explicit -alpha/-beta/-rc suffix
+ * on a 0.x version still wins and is encoded normally.
+ *
  * Usage: php build/tasks/vi-version.php <version>
  */
 
@@ -66,16 +70,18 @@ function viProductVersion(string $version): string
     $minor = $numeric[1] ?? '0';
     $patch = $numeric[2] ?? '0';
 
-    $tier = stabilityTier($rest);
+    $tier = stabilityTier($rest, (int) $major);
 
     return "{$major}.{$minor}.{$patch}.{$tier}";
 }
 
-function stabilityTier(string $rest): int
+function stabilityTier(string $rest, int $major): int
 {
     if ($rest === '')
     {
-        return 1000; // stable
+        // A bare 0.x version is implicitly alpha (nothing below 1.0 is stable),
+        // even though nothing in the version string says so.
+        return $major === 0 ? 0 : 1000;
     }
 
     if (!\preg_match('/^[.\-]?(alpha|a|beta|b|rc|dev)\.?(\d+)?$/i', $rest, $m))
