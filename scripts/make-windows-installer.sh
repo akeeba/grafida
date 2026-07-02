@@ -35,6 +35,9 @@ MAKENSIS="$(command -v makensis 2>/dev/null || true)"
 if [ -n "$MAKENSIS" ]; then
   echo "Packaging Windows (amd64, version: $VERSION): NSIS installer (native makensis)"
   SETUP="$DIST/Grafida-${VERSION}-windows-amd64-Setup.exe"
+  # VIProductVersion needs exactly four numeric components (X.X.X.X) — pad/encode
+  # the human version (which may carry an alpha/beta/rc suffix) accordingly.
+  VIVERSION="$(php "$ROOT/build/tasks/vi-version.php" "$VERSION")"
   # makensis chdir's to the script dir, so pass ABSOLUTE source/output paths.
   "$MAKENSIS" -V2 \
     "-DSRCDIR=$SRC_DIR" \
@@ -42,6 +45,7 @@ if [ -n "$MAKENSIS" ]; then
     "-DLICENSEFILE=$ROOT/LICENSE.txt" \
     "-DICONFILE=$ICON_DIR/Grafida.ico" \
     "-DAPPVERSION=$VERSION" \
+    "-DVIVERSION=$VIVERSION" \
     "$ROOT/build/windows-installer.nsi"
   echo "Done: $SETUP"
   exit 0

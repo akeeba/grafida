@@ -39,6 +39,12 @@ Unicode true
 !ifndef APPVERSION
   !define APPVERSION "0.1.0"
 !endif
+; VIProductVersion requires exactly four numeric components (X.X.X.X); build-all.sh
+; computes this from APPVERSION via build/tasks/vi-version.php (see that script for
+; the alpha/beta/rc/stable encoding of the fourth component).
+!ifndef VIVERSION
+  !define VIVERSION "${APPVERSION}.0"
+!endif
 !ifndef LICENSEFILE
   !define LICENSEFILE "${__FILEDIR__}/../LICENSE.txt"
 !endif
@@ -67,7 +73,7 @@ RequestExecutionLevel user
 InstallDir "$LOCALAPPDATA\Programs\${APPNAME}"
 InstallDirRegKey HKCU "Software\${APPNAME}" "InstallDir"
 SetCompressor /SOLID lzma
-VIProductVersion "${APPVERSION}.0"
+VIProductVersion "${VIVERSION}"
 VIAddVersionKey "ProductName"     "${APPNAME}"
 VIAddVersionKey "FileDescription" "${APPNAME} installer"
 VIAddVersionKey "LegalCopyright"  "(c) 2026 ${PUBLISHER}"
