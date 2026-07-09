@@ -348,44 +348,59 @@
 		<echo>Packaged all Grafida platforms into build/dist/.</echo>
 	</target>
 
+	<!--
+	Signing credentials are forwarded as POSITIONAL ARGS, not <env> entries, then re-exported inside a
+	one-line bash prologue. Phing 3's ExecTask (in passthru mode) forwards <env> by building an
+	UNESCAPED `export KEY=VALUE; …; cmd` shell string, which breaks on any value containing shell
+	metacharacters — e.g. a Developer ID identity "Developer ID Application: … (TEAMID)" or a 1Password
+	item name like "Microsoft Account (previously: Hotmail)" (the parentheses trigger a shell syntax
+	error). Args are passed through as argv and properly escaped, so `export VAR="$1"` reconstructs the
+	exact value regardless of its contents. $0 is a throwaway label; the real values start at $1.
+	-->
 	<target name="package-macos-arm" depends="git-macos-arm" description="Package the macOS (Apple Silicon) .app + .dmg">
 		<exec executable="bash" dir="${dirs.root}" passthru="true" checkreturn="true">
-			<arg value="scripts/make-macos-app.sh" />
-			<arg value="arm64" />
-			<env key="MACOS_SIGN_IDENTITY" value="${macos.sign.identity}" />
+			<arg value="-c" />
+			<arg value="export MACOS_SIGN_IDENTITY=&quot;$1&quot;; exec bash scripts/make-macos-app.sh arm64" />
+			<arg value="phing" />
+			<arg value="${macos.sign.identity}" />
 		</exec>
 		<exec executable="bash" dir="${dirs.root}" passthru="true" checkreturn="true">
-			<arg value="scripts/make-dmg.sh" />
-			<arg value="arm64" />
-			<env key="MACOS_SIGN_IDENTITY" value="${macos.sign.identity}" />
-			<env key="MACOS_NOTARY_PROFILE" value="${macos.notary.profile}" />
+			<arg value="-c" />
+			<arg value="export MACOS_SIGN_IDENTITY=&quot;$1&quot;; export MACOS_NOTARY_PROFILE=&quot;$2&quot;; exec bash scripts/make-dmg.sh arm64" />
+			<arg value="phing" />
+			<arg value="${macos.sign.identity}" />
+			<arg value="${macos.notary.profile}" />
 		</exec>
 	</target>
 
 	<target name="package-macos-x86" depends="git-macos-x86" description="Package the macOS (Intel) .app + .dmg">
 		<exec executable="bash" dir="${dirs.root}" passthru="true" checkreturn="true">
-			<arg value="scripts/make-macos-app.sh" />
-			<arg value="amd64" />
-			<env key="MACOS_SIGN_IDENTITY" value="${macos.sign.identity}" />
+			<arg value="-c" />
+			<arg value="export MACOS_SIGN_IDENTITY=&quot;$1&quot;; exec bash scripts/make-macos-app.sh amd64" />
+			<arg value="phing" />
+			<arg value="${macos.sign.identity}" />
 		</exec>
 		<exec executable="bash" dir="${dirs.root}" passthru="true" checkreturn="true">
-			<arg value="scripts/make-dmg.sh" />
-			<arg value="amd64" />
-			<env key="MACOS_SIGN_IDENTITY" value="${macos.sign.identity}" />
-			<env key="MACOS_NOTARY_PROFILE" value="${macos.notary.profile}" />
+			<arg value="-c" />
+			<arg value="export MACOS_SIGN_IDENTITY=&quot;$1&quot;; export MACOS_NOTARY_PROFILE=&quot;$2&quot;; exec bash scripts/make-dmg.sh amd64" />
+			<arg value="phing" />
+			<arg value="${macos.sign.identity}" />
+			<arg value="${macos.notary.profile}" />
 		</exec>
 	</target>
 
 	<target name="package-win-x86" depends="git-win-x86" description="Package the Windows (x64) installer (or portable .zip)">
 		<exec executable="bash" dir="${dirs.root}" passthru="true" checkreturn="true">
-			<arg value="scripts/make-windows-installer.sh" />
-			<env key="WINDOWS_SIGN_OP_ITEM" value="${windows.sign.op-item}" />
-			<env key="WINDOWS_SIGN_OP_FIELD_APPID" value="${windows.sign.op-field-appid}" />
-			<env key="WINDOWS_SIGN_OP_FIELD_PASSWORD" value="${windows.sign.op-field-password}" />
-			<env key="WINDOWS_SIGN_OP_FIELD_TENANT" value="${windows.sign.op-field-tenant}" />
-			<env key="WINDOWS_SIGN_KEYSTORE" value="${windows.sign.keystore}" />
-			<env key="WINDOWS_SIGN_ALIAS" value="${windows.sign.alias}" />
-			<env key="WINDOWS_SIGN_TSAURL" value="${windows.sign.tsaurl}" />
+			<arg value="-c" />
+			<arg value="export WINDOWS_SIGN_OP_ITEM=&quot;$1&quot;; export WINDOWS_SIGN_OP_FIELD_APPID=&quot;$2&quot;; export WINDOWS_SIGN_OP_FIELD_PASSWORD=&quot;$3&quot;; export WINDOWS_SIGN_OP_FIELD_TENANT=&quot;$4&quot;; export WINDOWS_SIGN_KEYSTORE=&quot;$5&quot;; export WINDOWS_SIGN_ALIAS=&quot;$6&quot;; export WINDOWS_SIGN_TSAURL=&quot;$7&quot;; exec bash scripts/make-windows-installer.sh" />
+			<arg value="phing" />
+			<arg value="${windows.sign.op-item}" />
+			<arg value="${windows.sign.op-field-appid}" />
+			<arg value="${windows.sign.op-field-password}" />
+			<arg value="${windows.sign.op-field-tenant}" />
+			<arg value="${windows.sign.keystore}" />
+			<arg value="${windows.sign.alias}" />
+			<arg value="${windows.sign.tsaurl}" />
 		</exec>
 	</target>
 

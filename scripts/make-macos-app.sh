@@ -57,10 +57,19 @@ mkdir -p "$MACOS" "$RES"
 # gets a symlink there.
 SIBLING_SFX=0
 if LC_ALL=C grep -q "next to this executable" "$BIN"; then
+  # The Mach-O image ends where its last segment ends — max(fileoff+filesize)
+  # over every LC_SEGMENT_64 — and the appended PHP payload starts there. Do NOT
+  # key off LC_CODE_SIGNATURE: only the arm64 SFX ships with an (ad-hoc)
+  # signature (Apple Silicon requires one); the cross-compiled x86_64 SFX has no
+  # LC_CODE_SIGNATURE at all, so a dataoff+datasize probe returns nothing and the
+  # amd64 build wrongly looks unsplittable. The last-segment end is present on
+  # both arches (and when a signature exists, __LINKEDIT's filesize already covers
+  # it, so the two agree on arm64).
   MACHO_END="$(otool -l "$BIN" 2>/dev/null | awk '
-    /LC_CODE_SIGNATURE/ {sig=1}
-    sig && /dataoff/ {off=$2}
-    sig && /datasize/ {print off+$2; exit}')"
+    /cmd LC_SEGMENT_64/ {seg = 1}
+    seg && /fileoff/    {fo = $2}
+    seg && /filesize/   {end = fo + $2; if (end > max) max = end; seg = 0}
+    END                 {if (max) print max}')"
   FILE_SIZE="$(stat -f%z "$BIN")"
   if [ -n "$MACHO_END" ] && [ "$FILE_SIZE" -gt "$MACHO_END" ]; then
     SIBLING_SFX=1
