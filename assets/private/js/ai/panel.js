@@ -58,6 +58,18 @@
      */
     let _loadedHistoryLength = 0;
 
+    /**
+     * Responses-API chain state (an optimisation only — _history remains the
+     * authoritative record of the conversation; see _sendMessage).
+     *   _previousResponseId — the provider's response id from the last turn, or null.
+     *   _chainServiceId     — the service id that produced it (a chain from service A
+     *                         is meaningless to service B), or null.
+     *   _lastResponseAt     — ISO timestamp of the last response, for the retention window.
+     */
+    let _previousResponseId = null;
+    let _chainServiceId     = null;
+    let _lastResponseAt     = null;
+
     // -------------------------------------------------------------------------
     //  Public: toggle / open / close
     // -------------------------------------------------------------------------
@@ -90,6 +102,9 @@
         _docContextEmbedded = false;
         _loadedChatId = null;
         _loadedHistoryLength = 0;
+        _previousResponseId = null;
+        _chainServiceId = null;
+        _lastResponseAt = null;
         _streamingBubble = null;
         if (_abortCtrl) { _abortCtrl.abort(); _abortCtrl = null; }
         _setStreaming(false);
@@ -128,6 +143,9 @@
         _activeTool = null;
         _loadedChatId = null;
         _loadedHistoryLength = 0;
+        _previousResponseId = null;
+        _chainServiceId = null;
+        _lastResponseAt = null;
         _renderConversation();
 
         // Keep the panel hidden when the editor first opens; user must toggle it.
@@ -156,6 +174,9 @@
         _docContextEmbedded = false;
         _loadedChatId = null;
         _loadedHistoryLength = 0;
+        _previousResponseId = null;
+        _chainServiceId = null;
+        _lastResponseAt = null;
         if (_abortCtrl) { _abortCtrl.abort(); _abortCtrl = null; }
         _setStreaming(false);
         _streamingBubble = null;
@@ -283,6 +304,22 @@
         const svc = State.aiServices.find(s => s.id === serviceId);
         const wantStream = !(svc && svc.params && svc.params.stream === false);
 
+        // Chain onto the prior response (Responses-API optimisation only —
+        // _history stays the authoritative record) when all of these hold:
+        //   1. we have a previous response id;
+        //   2. it came from this same service (a chain from service A is
+        //      meaningless to service B — a tool can target a different service);
+        //   3. it is still within the service's retention window.
+        const retentionDays = (svc && svc.params && svc.params.store_retention_days != null)
+            ? svc.params.store_retention_days
+            : 15;
+        const withinRetention = _lastResponseAt != null
+            && (Date.now() - Date.parse(_lastResponseAt)) <= retentionDays * 86400000;
+        const useChain = _previousResponseId != null
+            && _chainServiceId === serviceId
+            && withinRetention;
+        const previousResponseId = useChain ? _previousResponseId : null;
+
         _setStreaming(true);
         _streamingBubble = _appendStreamingBubble();
         const streamRenderer = _streamingBubble
@@ -297,6 +334,7 @@
                 stream:   wantStream,
                 signal:   _abortCtrl.signal,
                 toolKey:  tool ? (tool.toolKey || '') : '',
+                previousResponseId,
                 onToken:  (delta) => {
                     fullText += delta;
                     if (_streamingBubble) {
@@ -323,6 +361,12 @@
             // Record the assistant turn.
             _history.push({ role: 'assistant', content: fullText });
 
+            // Update the chain optimisation state. _history above already holds
+            // the authoritative transcript regardless of what happens here.
+            _previousResponseId = result.responseId || null;
+            _chainServiceId     = serviceId;
+            _lastResponseAt     = new Date().toISOString();
+
             // Final, authoritative render of the completed response (supersedes
             // any in-flight streaming render) + the Insert / Copy action buttons.
             if (_streamingBubble) {
@@ -336,6 +380,15 @@
             }
 
         } catch (err) {
+            // An aborted response may be stored partial or cancelled on the
+            // provider's side, and a provider error already retracts the user
+            // turn from _history — either way the server-side chain no longer
+            // mirrors _history, so drop the optimisation and let the next turn
+            // resend the full transcript.
+            _previousResponseId = null;
+            _chainServiceId     = null;
+            _lastResponseAt     = null;
+
             if (err.name === 'AbortError') {
                 // User cancelled via the Stop button or panel close.
                 if (fullText) {
@@ -747,6 +800,9 @@
         _docContextEmbedded  = false;
         _loadedChatId        = null;
         _loadedHistoryLength = 0;
+        _previousResponseId  = null;
+        _chainServiceId      = null;
+        _lastResponseAt      = null;
         _renderConversation();
         renderAiChatsBanner();
 
@@ -869,6 +925,12 @@
             _docContextEmbedded = false;
             _loadedChatId       = chatId;
             _loadedHistoryLength = _history.length;
+            // Hydrate the chain optimisation state; eligibility (service match +
+            // retention window) is re-decided per-send in _sendMessage, so a chat
+            // reopened after the window simply resends its full history.
+            _previousResponseId = chat.previousResponseId || null;
+            _chainServiceId     = chat.serviceId != null ? chat.serviceId : null;
+            _lastResponseAt     = chat.lastResponseAt || null;
             _renderConversation();
             const conv = document.getElementById('ai-conversation');
             if (conv) conv.scrollTop = conv.scrollHeight;
@@ -908,7 +970,11 @@
             if (!save) return;
 
             try {
-                await api.updateAiChat(chatId, { messages: _buildStoredMessages() });
+                await api.updateAiChat(chatId, {
+                    messages:           _buildStoredMessages(),
+                    previousResponseId: _previousResponseId,
+                    lastResponseAt:     _lastResponseAt,
+                });
                 showToast(t('GRAFIDA_MSG_CHAT_SAVED'), 'success');
             } catch (err) {
                 showToast(err.message, 'error');
@@ -945,10 +1011,12 @@
 
         try {
             await api.createAiChat({
-                draftId:   State.currentDraftId,
+                draftId:            State.currentDraftId,
                 serviceId,
-                title:     chatTitle,
-                messages:  _buildStoredMessages(),
+                title:              chatTitle,
+                messages:           _buildStoredMessages(),
+                previousResponseId: _previousResponseId,
+                lastResponseAt:     _lastResponseAt,
             });
             showToast(t('GRAFIDA_MSG_CHAT_SAVED'), 'success');
         } catch (err) {

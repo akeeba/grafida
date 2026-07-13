@@ -232,11 +232,18 @@ dialog makes the endpoint return 503).
   loads bundled `resources/{defaults.json,voices.json,providers.json}` (ported from AITiny: the base
   **system prompt**, the writing **tools** generate/proofread/friendly/professional/concise, the
   tone-of-voice library, and the **provider table** — OpenAI, Anthropic, Cohere, DeepSeek, Google,
-  Groq, Mistral, OpenRouter, Perplexity, Scaleway, GitHub, Custom — each with endpoint/auth/chat-path/
-  models-path/SSE-dialect). `effectiveTools()` overlays the code defaults with `ai_tools` DB overrides
+  Groq, Mistral, OpenRouter, Perplexity, Scaleway, GitHub, Custom (OpenAI Completions API), Custom
+  (OpenAI Responses API) — each with endpoint/auth/chat-path/models-path/`sse_dialect`). The dialect
+  is **never persisted**: `ai_services` stores only the provider *key*, and chat-path/auth/models-path/
+  dialect are derived from `providers.json` at runtime, so changing the table needs no DB migration.
+  `effectiveTools()` overlays the code defaults with `ai_tools` DB overrides
   + custom tools; **each tool may target its own service** (`service_id`). `AiChatRepository` persists
   **saved chats** (`ai_chats` + `ai_chat_messages`) linked to a draft; deleting the draft cascades
-  them away. Transport is deliberately **inverted vs. AITiny — see the AI transport facts below**.
+  them away. `ai_chats` also carries the Responses-API conversation chain
+  (`previous_response_id` + `last_response_at`, the latter **ISO-8601 UTC** — unlike the other
+  timestamp columns — because the SPA compares it against `Date.now()` and WKWebView's `Date.parse()`
+  does not reliably handle the naive `gmdate('Y-m-d H:i:s')` form); see the AI facts below.
+  Transport is deliberately **inverted vs. AITiny — see the AI transport facts below**.
   Endpoints: `/api/ai/services[...]` (+ `/default`, `/resolved`), `/api/ai/tools[...]`,
   `/api/ai/system-prompt`, `/api/ai/proxy`, `/api/ai/render` (sanitise a reply for display — see the
   AI facts), `/api/ai/chats[...]`, `/api/drafts/{id}/chats`.
@@ -488,10 +495,42 @@ map is for when the update mechanism itself is built.
   stream — `Http\Json::response()` buffers the whole body and the SPA awaits `res.json()` whole — so
   the **provider call runs in the SPA's JavaScript**, which streams the SSE response token-by-token.
   `assets/private/js/ai/providers.js` (`window.GrafidaAI`) ports AITiny's provider request builders +
-  both SSE dialects (OpenAI `data:`/`[DONE]`; Anthropic `event:`/`content_block_delta`/`message_stop`).
+  **three** wire dialects, switched on `sse_dialect` at three sites (`buildRequest`, `readSseStream`,
+  `parseFullResponse`):
+  **`openai_completions`** — Chat Completions (`data:` lines, `choices[].delta.content`, `[DONE]`
+  sentinel). This is the `else` branch at all three sites, so **any unknown or legacy dialect value
+  degrades to it** — that is the whole backward-compatibility story, no aliasing needed.
+  **`anthropic`** — `event:`/`data:` pairs, `content_block_delta`/`text_delta`, `message_stop`.
+  **`openai_responses`** — OpenAI's Responses API (`/responses`), used by the **OpenAI** and **Custom
+  (OpenAI Responses API)** providers *only*; every OpenAI-*compatible* third party (Scaleway, Groq,
+  Mistral, …) stays on `openai_completions`, since they implement Chat Completions and have no
+  Responses API. It sends `instructions` + `input` (**not** `messages`) and `max_output_tokens` (mapped
+  from the `max_completion_tokens` param); its SSE is `event:`/`data:` pairs where every payload carries
+  a `type`, so the parser dispatches on `type` and ignores the `event:` lines — `response.output_text.
+  delta` carries the text and `response.completed` is terminal, with **no `[DONE]` sentinel**. A
+  non-streaming reply nests its text under `output[]` → `type:"message"` → `content[]` →
+  `type:"output_text"` (interleaved `reasoning` items must be skipped), not at a single path.
   `sendChat()` fetches `GET /api/ai/services/{id}/resolved` (endpoint + dialect + model + params **and
   the API key**), then streams directly from the provider. **PHP stays the source of truth** for
   services, prompts/tools and saved chats — only the HTTP call moved to JS.
+- **The Responses API is stateful; `_history` is still authoritative.** With the per-service **Store**
+  param (`store`, **default on**) the provider retains the response, so a follow-up sends only the new
+  user turn plus `previous_response_id` instead of re-uploading the whole transcript — which matters
+  because Grafida embeds the entire article HTML in the first user turn. The chain is **persisted on
+  the chat** (`ai_chats.previous_response_id` / `.last_response_at`) so a remembered conversation
+  resumes server-side across restarts. `panel.js` reuses it only when *all* hold: the id exists, it
+  came from the **same service** (a tool may target a different one, and a chain from service A is
+  meaningless to service B), and it is within the service's **retention window** (`store_retention_days`,
+  **default 15**). Both params are shown in Settings **only** for providers whose dialect is
+  `openai_responses` — the UI gates on the *dialect*, never the provider key, so a new Responses
+  provider needs no JS change. Two rules keep this safe: **any abort or provider error clears the
+  chain** (an aborted response may be stored partial, and the error path already retracts the user turn
+  from `_history`, so the server copy no longer mirrors it), and a `previous_response_id` the provider
+  **rejects** (HTTP 404 / "previous response not found") triggers **one automatic retry with the full
+  history** — the window is a guess about the provider's retention policy, not a guarantee, so an
+  expired chain must degrade to a working call rather than surface as an error. Correctness never
+  depends on the chain; it is purely an optimisation. `.grafida` exports deliberately **omit** it (a
+  response id is a local, provider-specific artefact, like `site_id`/`media_blobs` ids).
 - **`POST /api/ai/proxy` is the non-streaming fallback.** When a provider's browser **CORS** blocks the
   direct `fetch()` (caught as a `TypeError`) or streaming is off, `sendChat()` retries once through this
   **dumb, host-allowlisted forwarder** (`AiProxy` validates the target host equals the configured

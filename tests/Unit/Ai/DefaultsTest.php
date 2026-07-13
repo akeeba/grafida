@@ -90,20 +90,50 @@ final class DefaultsTest extends TestCase
     {
         $providers = $this->defaults()->providers();
 
-        foreach (['openai', 'anthropic', 'cohere', 'deepseek', 'google', 'groq', 'mistral', 'openrouter', 'perplexity', 'scaleway', 'github', 'custom'] as $key) {
+        foreach (['openai', 'anthropic', 'cohere', 'deepseek', 'google', 'groq', 'mistral', 'openrouter', 'perplexity', 'scaleway', 'github', 'custom', 'custom_responses'] as $key) {
             self::assertArrayHasKey($key, $providers, "providers() must contain provider key '$key'");
         }
+
+        self::assertCount(13, $providers);
     }
 
-    public function testOpenAIProviderUsesBeaerAndOpenaiDialect(): void
+    public function testOpenAIProviderUsesResponsesApi(): void
     {
         $p = $this->defaults()->providers()['openai'];
 
         self::assertSame('https://api.openai.com/v1', $p['endpoint']);
         self::assertSame('bearer',            $p['auth']);
-        self::assertSame('/chat/completions', $p['chat_path']);
+        self::assertSame('/responses',        $p['chat_path']);
         self::assertSame('/models',           $p['models_path']);
-        self::assertSame('openai',            $p['sse_dialect']);
+        self::assertSame('openai_responses',  $p['sse_dialect']);
+    }
+
+    public function testNoProviderUsesTheBareOpenaiDialect(): void
+    {
+        foreach ($this->defaults()->providers() as $key => $p) {
+            self::assertContains(
+                $p['sse_dialect'],
+                ['openai_completions', 'openai_responses', 'anthropic'],
+                "provider '$key' must use one of the three known sse_dialect values"
+            );
+        }
+    }
+
+    public function testScalewayIsUnaffectedByTheDialectRename(): void
+    {
+        $p = $this->defaults()->providers()['scaleway'];
+
+        self::assertSame('openai_completions',  $p['sse_dialect']);
+        self::assertSame('/chat/completions',   $p['chat_path']);
+    }
+
+    public function testCustomResponsesProviderUsesResponsesApiWithEmptyEndpoint(): void
+    {
+        $p = $this->defaults()->providers()['custom_responses'];
+
+        self::assertSame('',                  $p['endpoint']);
+        self::assertSame('/responses',        $p['chat_path']);
+        self::assertSame('openai_responses',  $p['sse_dialect']);
     }
 
     public function testAnthropicProviderUsesXApiKeyAndAnthropicDialect(): void
@@ -124,7 +154,7 @@ final class DefaultsTest extends TestCase
         self::assertSame('https://models.github.ai',       $p['endpoint']);
         self::assertSame('/inference/chat/completions',    $p['chat_path']);
         self::assertSame('/catalog/models',                $p['models_path']);
-        self::assertSame('openai',                         $p['sse_dialect']);
+        self::assertSame('openai_completions',              $p['sse_dialect']);
     }
 
     public function testCohereHasNullModelsPath(): void

@@ -4179,10 +4179,12 @@ function buildAiServiceFormBody(svc) {
     endpIn.placeholder = 'https://api.example.com';
     if (svc) endpIn.value = svc.endpoint || '';
 
-    // Pre-fill endpoint from provider preset when the endpoint field is blank.
+    // Pre-fill endpoint from provider preset when the endpoint field is blank,
+    // and show/hide the Responses-API-only Store/retention fields (see below).
     provSel.addEventListener('change', () => {
         const preset = State.aiProviders[provSel.value];
         if (preset && endpIn.value.trim() === '') endpIn.value = preset.endpoint || '';
+        updateResponsesParamsVisibility();
     });
 
     // API key (write-only; password field with keep-existing placeholder in edit mode)
@@ -4260,6 +4262,41 @@ function buildAiServiceFormBody(svc) {
     });
     if (existParams.stream !== undefined) streamSel.value = existParams.stream ? '1' : '0';
 
+    // Store + retention (Responses-API providers only: unset store means ON,
+    // unset store_retention_days means 15 — see app-level docs).
+    const storeSel = document.createElement('select');
+    storeSel.id = 'modal-ai-param-store';
+    storeSel.className = 'form-control';
+    [['', t('GRAFIDA_OPT_AUTO')], ['1', t('GRAFIDA_BTN_YES')], ['0', t('GRAFIDA_BTN_NO')]].forEach(([v, l]) => {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = l;
+        storeSel.appendChild(o);
+    });
+    if (existParams.store !== undefined) storeSel.value = existParams.store ? '1' : '0';
+
+    const retentionIn = document.createElement('input');
+    retentionIn.id = 'modal-ai-param-store-days';
+    retentionIn.type = 'number';
+    retentionIn.className = 'form-control';
+    retentionIn.step = '1'; retentionIn.min = '1';
+    retentionIn.placeholder = t('GRAFIDA_OPT_AUTO');
+    if (existParams.store_retention_days !== undefined) {
+        retentionIn.value = String(existParams.store_retention_days);
+    }
+
+    const storeGroup = formGroup(t('GRAFIDA_LBL_AI_STORE'), storeSel);
+    const retentionGroup = formGroup(t('GRAFIDA_LBL_AI_STORE_DAYS'), retentionIn);
+
+    // Gate on the dialect (not the provider key) so this covers both `openai`
+    // and `custom_responses` — and any future Responses-API provider — with no
+    // extra code. State.aiProviders is the raw snake_case providers.json map.
+    function updateResponsesParamsVisibility() {
+        const isResponses = State.aiProviders[provSel.value]?.sse_dialect === 'openai_responses';
+        storeGroup.classList.toggle('hidden', !isResponses);
+        retentionGroup.classList.toggle('hidden', !isResponses);
+    }
+    updateResponsesParamsVisibility();
+
     const nodes = [
         formGroup(t('GRAFIDA_LBL_AI_NAME'), nameIn),
         formGroup(t('GRAFIDA_LBL_AI_PROVIDER'), provSel),
@@ -4276,6 +4313,8 @@ function buildAiServiceFormBody(svc) {
         formGroup(t('GRAFIDA_LBL_AI_TOP_P'), topPIn),
         formGroup(t('GRAFIDA_LBL_AI_MAX_TOKENS'), maxTokIn),
         formGroup(t('GRAFIDA_LBL_AI_STREAM'), streamSel),
+        storeGroup,
+        retentionGroup,
     );
 
     return nodes;
@@ -4313,6 +4352,8 @@ async function saveAiServiceHandler(id) {
     const topPEl = document.getElementById('modal-ai-param-topp');
     const maxTokEl = document.getElementById('modal-ai-param-maxtok');
     const streamEl = document.getElementById('modal-ai-param-stream');
+    const storeEl = document.getElementById('modal-ai-param-store');
+    const retentionEl = document.getElementById('modal-ai-param-store-days');
 
     const name = nameEl ? nameEl.value.trim() : '';
     if (!name) {
@@ -4325,6 +4366,8 @@ async function saveAiServiceHandler(id) {
     if (topPEl && topPEl.value !== '') params.top_p = parseFloat(topPEl.value);
     if (maxTokEl && maxTokEl.value !== '') params.max_completion_tokens = parseInt(maxTokEl.value, 10);
     if (streamEl && streamEl.value !== '') params.stream = streamEl.value === '1';
+    if (storeEl && storeEl.value !== '') params.store = storeEl.value === '1';
+    if (retentionEl && retentionEl.value !== '') params.store_retention_days = parseInt(retentionEl.value, 10);
 
     const body = {
         name,
@@ -4438,8 +4481,30 @@ async function fetchAndShowModels(serviceId) {
             body: '',
         });
 
-        // OpenAI-style response: { data: [{id, ...}, ...] }; some providers use { models: [...] }.
-        const rawList = proxyRes.data || proxyRes.models || [];
+        // api.aiProxy resolves to { status, body } where body is the raw JSON
+        // *string* from the provider (mirrors sendChat()'s proxy path) — it is
+        // never { data: [...] } directly.
+        if (proxyRes.status < 200 || proxyRes.status >= 300) {
+            let errMsg = 'HTTP ' + proxyRes.status;
+            try {
+                const j = JSON.parse(proxyRes.body);
+                errMsg = j.error?.message || j.message || errMsg;
+            } catch {}
+            showToast(t('GRAFIDA_MSG_AI_MODELS_FAIL') + ' — ' + errMsg, 'error');
+            return;
+        }
+
+        let parsed;
+        try {
+            parsed = JSON.parse(proxyRes.body);
+        } catch {
+            showToast(t('GRAFIDA_MSG_AI_MODELS_FAIL'), 'warning');
+            return;
+        }
+
+        // OpenAI-style response: { data: [{id, ...}, ...] }; some providers use
+        // { models: [...] }; GitHub's /catalog/models returns a bare array.
+        const rawList = Array.isArray(parsed) ? parsed : (parsed.data || parsed.models || []);
         const models = rawList
             .map(m => (typeof m === 'string' ? m : (m.id || '')))
             .filter(Boolean)

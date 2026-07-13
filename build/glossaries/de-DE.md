@@ -111,6 +111,9 @@ Eigennamen (Grafida, Joomla!, API, Markdown, HTML, TinyMCE) werden nicht überse
 | icon (tool icon) | Symbol | Symbol eines KI-Werkzeugs. GRAFIDA_LBL_AI_TOOL_ICON. |
 | service override | Dienst-Override | Spezifischer KI-Dienst für ein Werkzeug, der den Standarddienst überschreibt; Anglizismus „Override" beibehalten. GRAFIDA_LBL_AI_SERVICE_OVERRIDE. |
 | sort order (tools) | Sortierreihenfolge | Anzeigereihenfolge von KI-Werkzeugen. GRAFIDA_LBL_AI_SORT_ORDER. |
+| server (AI provider) | Server | Serverinfrastruktur des KI-Anbieters; „Server" bleibt unverändert (Fremdwort). GRAFIDA_LBL_AI_STORE. |
+| store (conversation, Responses API) | speichern | Serverseitiges Speichern einer Unterhaltung beim Anbieter, damit sie später fortgesetzt werden kann, statt den gesamten Verlauf erneut zu senden. GRAFIDA_LBL_AI_STORE. |
+| resume window (days) | Tage (Fortsetzungsfrist) | Anzahl Tage, für die eine gespeicherte Unterhaltung als fortsetzbar gilt, bevor Grafida auf das erneute Senden des vollständigen Verlaufs zurückfällt. GRAFIDA_LBL_AI_STORE_DAYS. |
 | article properties | Artikeleigenschaften | Title of the editor's metadata sidebar (status, category, access…). GRAFIDA_LBL_ARTICLE_PROPERTIES. |
 | sidebar | Seitenleiste | Collapsible navigation/metadata columns. GRAFIDA_BTN_TOGGLE_SIDEBAR. |
 | collapse or expand | ein- oder ausklappen | Toggling a sidebar's collapsed state. GRAFIDA_BTN_TOGGLE_SIDEBAR / GRAFIDA_BTN_TOGGLE_PROPERTIES. |

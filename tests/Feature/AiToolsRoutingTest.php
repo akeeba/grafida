@@ -370,12 +370,26 @@ final class AiToolsRoutingTest extends TestCase
 
         $data = $json['data'];
         self::assertSame('https://api.openai.com/v1', $data['endpoint']);
-        self::assertSame('/chat/completions', $data['chatPath']);
-        self::assertSame('openai', $data['sseDialect']);
+        self::assertSame('/responses', $data['chatPath']);
+        self::assertSame('openai_responses', $data['sseDialect']);
         self::assertSame('gpt-4o', $data['model']);
         self::assertSame('Authorization', $data['authHeader']);
         self::assertSame('sk-resolved-key', $data['apiKey']);
         self::assertIsArray($data['params']);
+    }
+
+    public function testResolvedConfigResolvesScalewayToChatCompletions(): void
+    {
+        $store  = new ArraySecretStore();
+        $kernel = $this->kernelWithSecrets($store);
+        $id     = $this->createService($kernel, 'scaleway', 'https://api.scaleway.ai/v1', 'sk-scaleway-key');
+
+        [$status, $json] = $this->call($kernel, 'GET', '/api/ai/services/' . $id . '/resolved');
+
+        self::assertSame(200, $status);
+        self::assertTrue($json['ok']);
+        self::assertSame('/chat/completions', $json['data']['chatPath']);
+        self::assertSame('openai_completions', $json['data']['sseDialect']);
     }
 
     public function testResolvedConfigUsesXApiKeyForAnthropic(): void

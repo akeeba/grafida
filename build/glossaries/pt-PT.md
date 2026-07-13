@@ -104,6 +104,9 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | sort order | ordem de apresentação | A numeric field controlling the display sequence of AI tools. |
 | custom (tool) | personalizado | A user-created AI tool (as opposed to a built-in). |
 | override | substituir | Replace or supersede a default value (e.g. service override, override system prompt). |
+| server (AI provider) | servidor | Infraestrutura de servidor do fornecedor de IA. GRAFIDA_LBL_AI_STORE. |
+| store (conversation, Responses API) | armazenar | Guardar uma conversa no servidor do fornecedor para poder retomá-la sem reenviar todo o histórico. GRAFIDA_LBL_AI_STORE. |
+| resume window (days) | dias (janela de retoma) | Número de dias durante os quais uma conversa armazenada é considerada retomável antes de o Grafida voltar a enviar o histórico completo. GRAFIDA_LBL_AI_STORE_DAYS. |
 | article properties | propriedades do artigo | Title of the editor's metadata sidebar (status, category, access…). GRAFIDA_LBL_ARTICLE_PROPERTIES. |
 | sidebar | barra lateral | Collapsible navigation/metadata columns. GRAFIDA_BTN_TOGGLE_SIDEBAR. |
 | collapse or expand | recolher ou expandir | Toggling a sidebar's collapsed state. GRAFIDA_BTN_TOGGLE_SIDEBAR / GRAFIDA_BTN_TOGGLE_PROPERTIES. |

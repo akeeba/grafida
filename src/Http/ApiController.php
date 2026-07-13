@@ -144,6 +144,7 @@ final class ApiController
         'GRAFIDA_MSG_AI_HOST_MISMATCH',
         'GRAFIDA_LBL_AI_NAME', 'GRAFIDA_LBL_AI_TEMPERATURE', 'GRAFIDA_LBL_AI_TOP_P',
         'GRAFIDA_LBL_AI_MAX_TOKENS', 'GRAFIDA_LBL_AI_STREAM', 'GRAFIDA_BTN_FETCH_MODELS',
+        'GRAFIDA_LBL_AI_STORE', 'GRAFIDA_LBL_AI_STORE_DAYS',
         'GRAFIDA_LBL_AI_TOOL_ICON', 'GRAFIDA_LBL_AI_SERVICE_OVERRIDE',
         'GRAFIDA_OPT_AI_DEFAULT_SERVICE', 'GRAFIDA_OPT_AI_TONE_DEFAULT',
         'GRAFIDA_MSG_AI_DEFAULT_SET', 'GRAFIDA_MSG_AI_MODELS_FAIL', 'GRAFIDA_LBL_AI_CUSTOM_TOOL',
@@ -979,7 +980,7 @@ final class ApiController
      * The resolved configuration includes:
      * - `endpoint`    — the service's configured base endpoint URL
      * - `chatPath`    — the provider's chat completion path (e.g. `/chat/completions`)
-     * - `sseDialect`  — `"openai"` or `"anthropic"`
+     * - `sseDialect`  — `"openai_completions"`, `"openai_responses"` or `"anthropic"`
      * - `model`       — the service's configured model identifier
      * - `authHeader`  — the auth header name (`Authorization` or `X-Api-Key`)
      * - `apiKey`      — the resolved API key (from OS keychain or insecure fallback)
@@ -1011,7 +1012,7 @@ final class ApiController
         );
 
         $chatPath   = is_array($preset) ? ($preset['chat_path'] ?? '/chat/completions') : '/chat/completions';
-        $sseDialect = is_array($preset) ? ($preset['sse_dialect'] ?? 'openai') : 'openai';
+        $sseDialect = is_array($preset) ? ($preset['sse_dialect'] ?? 'openai_completions') : 'openai_completions';
         $authType   = is_array($preset) ? ($preset['auth'] ?? 'bearer') : 'bearer';
         $authHeader = $authType === 'x-api-key' ? 'X-Api-Key' : 'Authorization';
 
@@ -1613,6 +1614,12 @@ final class ApiController
         $serviceIdRaw = $body['serviceId'] ?? null;
         $serviceId    = is_numeric($serviceIdRaw) ? (int) $serviceIdRaw : null;
 
+        $previousResponseIdRaw = $body['previousResponseId'] ?? null;
+        $previousResponseId    = is_string($previousResponseIdRaw) ? $previousResponseIdRaw : null;
+
+        $lastResponseAtRaw = $body['lastResponseAt'] ?? null;
+        $lastResponseAt    = is_string($lastResponseAtRaw) ? $lastResponseAtRaw : null;
+
         $messages = $this->parseAiMessages($body, null);
 
         $chat = new AiChat(
@@ -1621,6 +1628,8 @@ final class ApiController
             serviceId: $serviceId,
             title: $this->str($body, 'title'),
             messages: $messages,
+            previousResponseId: $previousResponseId,
+            lastResponseAt: $lastResponseAt,
         );
 
         $id      = $this->aiChats->create($chat);
@@ -1642,11 +1651,14 @@ final class ApiController
     }
 
     /**
-     * Renames a chat and/or replaces its messages.
+     * Renames a chat, replaces its messages, and/or updates its response-id chain.
      *
-     * Accepts `{title?, messages?}`. An empty/absent `title` leaves the existing
-     * title unchanged; a non-empty `title` renames the chat. A present `messages`
-     * key (even an empty array) replaces the stored transcript.
+     * Accepts `{title?, messages?, serviceId?, previousResponseId?, lastResponseAt?}`. An
+     * empty/absent `title` leaves the existing title unchanged; a non-empty `title` renames
+     * the chat. A present `messages` key (even an empty array) replaces the stored transcript.
+     * A present `previousResponseId` or `lastResponseAt` key updates the response-id chain
+     * together with `serviceId` (falling back to the chat's existing serviceId when the body
+     * omits it) so the chain and its owning service are always written atomically.
      *
      * @param array<string, mixed> $body
      */
@@ -1668,6 +1680,19 @@ final class ApiController
         if (array_key_exists('messages', $body)) {
             $messages = $this->parseAiMessages($body, $id);
             $this->aiChats->replaceMessages($id, $messages);
+        }
+
+        if (array_key_exists('previousResponseId', $body) || array_key_exists('lastResponseAt', $body)) {
+            $serviceIdRaw = $body['serviceId'] ?? null;
+            $serviceId    = is_numeric($serviceIdRaw) ? (int) $serviceIdRaw : $chat->serviceId;
+
+            $previousResponseIdRaw = $body['previousResponseId'] ?? null;
+            $previousResponseId    = is_string($previousResponseIdRaw) ? $previousResponseIdRaw : null;
+
+            $lastResponseAtRaw = $body['lastResponseAt'] ?? null;
+            $lastResponseAt    = is_string($lastResponseAtRaw) ? $lastResponseAtRaw : null;
+
+            $this->aiChats->setResponseChain($id, $serviceId, $previousResponseId, $lastResponseAt);
         }
 
         $updated = $this->aiChats->find($id);

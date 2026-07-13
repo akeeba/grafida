@@ -80,17 +80,20 @@ final class AiChatRepository
 
         try {
             $chatStmt = $this->pdo->prepare(
-                'INSERT INTO ai_chats (draft_id, service_id, title, created_at, updated_at) '
-                . 'VALUES (:draft_id, :service_id, :title, :created_at, :updated_at)'
+                'INSERT INTO ai_chats '
+                . '(draft_id, service_id, title, created_at, updated_at, previous_response_id, last_response_at) '
+                . 'VALUES (:draft_id, :service_id, :title, :created_at, :updated_at, :previous_response_id, :last_response_at)'
             );
             // Distinct placeholders: PDO's native SQLite prepares (emulation off) reject
             // re-using one named parameter twice with a "column index out of range" error.
             $chatStmt->execute([
-                ':draft_id'   => $chat->draftId,
-                ':service_id' => $chat->serviceId,
-                ':title'      => $chat->title,
-                ':created_at' => $now,
-                ':updated_at' => $now,
+                ':draft_id'              => $chat->draftId,
+                ':service_id'            => $chat->serviceId,
+                ':title'                 => $chat->title,
+                ':created_at'            => $now,
+                ':updated_at'            => $now,
+                ':previous_response_id'  => $chat->previousResponseId,
+                ':last_response_at'      => $chat->lastResponseAt,
             ]);
 
             $chatId = (int) $this->pdo->lastInsertId();
@@ -132,6 +135,18 @@ final class AiChatRepository
             'UPDATE ai_chats SET title = ?, updated_at = ? WHERE id = ?'
         );
         $stmt->execute([$title, gmdate('Y-m-d H:i:s'), $id]);
+    }
+
+    /**
+     * Updates the response-id chain (and its owning service) in one statement, so a
+     * chain is never left pointing at a different service than the one that produced it.
+     */
+    public function setResponseChain(int $id, ?int $serviceId, ?string $responseId, ?string $lastResponseAt): void
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE ai_chats SET service_id = ?, previous_response_id = ?, last_response_at = ?, updated_at = ? WHERE id = ?'
+        );
+        $stmt->execute([$serviceId, $responseId, $lastResponseAt, gmdate('Y-m-d H:i:s'), $id]);
     }
 
     /** Deletes a chat and, via ON DELETE CASCADE, all its messages. */

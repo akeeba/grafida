@@ -199,7 +199,15 @@ final class DraftExportService
         return [$out, $offlineMedia];
     }
 
-    /** @return list<array<string, mixed>> */
+    /**
+     * @return list<array<string, mixed>>
+     *
+     * Deliberately omits `serviceId`, `previousResponseId` and `lastResponseAt`: the
+     * response-id chain is a local, provider-specific artefact with no portable meaning
+     * (exactly like `site_id`/`media_blobs` ids, which the format already refuses to
+     * carry). `importChats()` therefore creates chats with a null chain, which is
+     * correct — an imported chat must resend its full history on the next turn.
+     */
     private function exportChats(int $draftId): array
     {
         $chats = [];

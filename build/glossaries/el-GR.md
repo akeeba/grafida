@@ -111,6 +111,9 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | icon | εικονίδιο | UI icon for an AI tool button. |
 | service override | παράκαμψη υπηρεσίας | Per-tool setting to use a non-default AI service. |
 | sort order (display) | σειρά εμφάνισης | The display/listing order of AI tools (distinct from article sort-by). |
+| server (AI provider) | διακομιστής | Υποδομή διακομιστή του παρόχου ΤΝ. Πληθυντικός: διακομιστές. GRAFIDA_LBL_AI_STORE. |
+| store (conversation, Responses API) | αποθήκευση | Διατήρηση μιας συνομιλίας στον διακομιστή του παρόχου ώστε να μπορεί να συνεχιστεί χωρίς επανάληψη ολόκληρου του ιστορικού. GRAFIDA_LBL_AI_STORE. |
+| resume window (days) | ημέρες (περίοδος συνέχισης) | Αριθμός ημερών για τις οποίες μια αποθηκευμένη συνομιλία θεωρείται ότι μπορεί να συνεχιστεί, πριν το Grafida επιστρέψει στην αποστολή ολόκληρου του ιστορικού. GRAFIDA_LBL_AI_STORE_DAYS. |
 | article properties | Ιδιότητες άρθρου | Title of the editor's metadata sidebar (status, category, access…). GRAFIDA_LBL_ARTICLE_PROPERTIES. |
 | sidebar | πλαϊνή στήλη | Collapsible navigation/metadata columns. GRAFIDA_BTN_TOGGLE_SIDEBAR. |
 | collapse or expand | σύμπτυξη ή ανάπτυξη | Toggling a sidebar's collapsed state. GRAFIDA_BTN_TOGGLE_SIDEBAR / GRAFIDA_BTN_TOGGLE_PROPERTIES. |

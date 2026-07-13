@@ -280,6 +280,146 @@ final class AiChatRoutingTest extends TestCase
         self::assertSame(404, $getStatus);
     }
 
+    public function testCreateChatPersistsResponseChain(): void
+    {
+        $kernel  = $this->kernel();
+        $siteId  = $this->seedSite();
+
+        [, $draftData] = $this->call(
+            $kernel,
+            'POST',
+            '/api/sites/' . $siteId . '/drafts',
+            json_encode(['title' => 'Draft']),
+        );
+        $draftId = $draftData['data']['id'];
+
+        [$status, $json] = $this->call(
+            $kernel,
+            'POST',
+            '/api/ai/chats',
+            json_encode([
+                'draftId'             => $draftId,
+                'title'               => 'Resumable Chat',
+                'messages'            => [['role' => 'user', 'content' => 'Hi']],
+                'previousResponseId'  => 'resp_abc123',
+                'lastResponseAt'      => '2026-07-13T10:00:00+00:00',
+            ]),
+        );
+
+        self::assertSame(201, $status);
+        self::assertTrue($json['ok']);
+        self::assertSame('resp_abc123', $json['data']['previousResponseId']);
+        self::assertSame('2026-07-13T10:00:00+00:00', $json['data']['lastResponseAt']);
+
+        // Read it back via GET too.
+        [, $reread] = $this->call($kernel, 'GET', '/api/ai/chats/' . $json['data']['id']);
+        self::assertSame('resp_abc123', $reread['data']['previousResponseId']);
+        self::assertSame('2026-07-13T10:00:00+00:00', $reread['data']['lastResponseAt']);
+    }
+
+    public function testPatchingResponseChainOntoExistingChatPersists(): void
+    {
+        $kernel  = $this->kernel();
+        $siteId  = $this->seedSite();
+
+        [, $draftData] = $this->call(
+            $kernel,
+            'POST',
+            '/api/sites/' . $siteId . '/drafts',
+            json_encode(['title' => 'Draft']),
+        );
+
+        [, $chatData] = $this->call(
+            $kernel,
+            'POST',
+            '/api/ai/chats',
+            json_encode([
+                'draftId'  => $draftData['data']['id'],
+                'title'    => 'Chat',
+                'messages' => [['role' => 'user', 'content' => 'Hi']],
+            ]),
+        );
+        $chatId = $chatData['data']['id'];
+
+        self::assertNull($chatData['data']['previousResponseId']);
+        self::assertNull($chatData['data']['lastResponseAt']);
+
+        [$patchStatus, $patched] = $this->call(
+            $kernel,
+            'PATCH',
+            '/api/ai/chats/' . $chatId,
+            json_encode([
+                'previousResponseId' => 'resp_xyz789',
+                'lastResponseAt'     => '2026-07-13T11:30:00+00:00',
+            ]),
+        );
+
+        self::assertSame(200, $patchStatus);
+        self::assertSame('resp_xyz789', $patched['data']['previousResponseId']);
+        self::assertSame('2026-07-13T11:30:00+00:00', $patched['data']['lastResponseAt']);
+
+        // Confirm it survives a fresh GET too (not just the PATCH response echo).
+        [, $reread] = $this->call($kernel, 'GET', '/api/ai/chats/' . $chatId);
+        self::assertSame('resp_xyz789', $reread['data']['previousResponseId']);
+        self::assertSame('2026-07-13T11:30:00+00:00', $reread['data']['lastResponseAt']);
+    }
+
+    /**
+     * A `.grafida` export of a draft must not carry the response-id chain — it is a
+     * local, provider-specific artefact with no portable meaning (see DraftExportService).
+     */
+    public function testExportedGrafidaFileDoesNotContainResponseChain(): void
+    {
+        $kernel  = $this->kernel();
+        $siteId  = $this->seedSite();
+
+        [, $draftData] = $this->call(
+            $kernel,
+            'POST',
+            '/api/sites/' . $siteId . '/drafts',
+            json_encode(['title' => 'Exportable Draft']),
+        );
+        $draftId = $draftData['data']['id'];
+
+        $this->call(
+            $kernel,
+            'POST',
+            '/api/ai/chats',
+            json_encode([
+                'draftId'             => $draftId,
+                'title'               => 'Chat with chain',
+                'messages'            => [['role' => 'user', 'content' => 'Hi']],
+                'previousResponseId'  => 'resp_should_not_export',
+                'lastResponseAt'      => '2026-07-13T12:00:00+00:00',
+            ]),
+        );
+
+        $directory = sys_get_temp_dir() . '/grafida-export-test-' . uniqid();
+        mkdir($directory);
+
+        try {
+            [$status, $json] = $this->call(
+                $kernel,
+                'POST',
+                '/api/drafts/' . $draftId . '/export',
+                json_encode(['directory' => $directory]),
+            );
+
+            self::assertSame(200, $status);
+            self::assertTrue($json['ok']);
+
+            $exported = json_decode((string) file_get_contents($json['data']['path']), true);
+
+            self::assertCount(1, $exported['aiChats']);
+            self::assertArrayNotHasKey('previousResponseId', $exported['aiChats'][0]);
+            self::assertArrayNotHasKey('lastResponseAt', $exported['aiChats'][0]);
+            self::assertArrayNotHasKey('serviceId', $exported['aiChats'][0]);
+        } finally {
+            @unlink($directory . '/exportable-draft.grafida');
+            @rmdir($directory);
+        }
+    }
+
     /**
      * Deleting a draft via the draft-delete route must cascade to its ai_chats
      * and ai_chat_messages rows (the schema wires this via ON DELETE CASCADE).

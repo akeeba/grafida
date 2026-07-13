@@ -111,6 +111,9 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | chat (noun) | conversation | An AI chat session. Kept as « conversation » throughout; avoid the Anglicism « chat ». |
 | conversation title | titre de la conversation | Title given to a saved AI conversation. |
 | fetch (models) | récupérer | Retrieve a list of available AI models from the provider. |
+| server (AI provider) | serveur | Infrastructure serveur du fournisseur IA. GRAFIDA_LBL_AI_STORE. |
+| store (conversation, Responses API) | stocker | Conserver une conversation côté serveur chez le fournisseur afin de pouvoir la reprendre sans renvoyer tout l'historique. GRAFIDA_LBL_AI_STORE. |
+| resume window (days) | jours (délai de reprise) | Nombre de jours pendant lesquels une conversation stockée est considérée comme reprenable avant que Grafida ne renvoie l'historique complet. GRAFIDA_LBL_AI_STORE_DAYS. |
 | article properties | propriétés de l'article | Title of the editor's metadata sidebar (status, category, access…). GRAFIDA_LBL_ARTICLE_PROPERTIES. |
 | sidebar | barre latérale | Collapsible navigation/metadata columns. GRAFIDA_BTN_TOGGLE_SIDEBAR. |
 | collapse or expand | réduire ou développer | Toggling a sidebar's collapsed state. GRAFIDA_BTN_TOGGLE_SIDEBAR / GRAFIDA_BTN_TOGGLE_PROPERTIES. |

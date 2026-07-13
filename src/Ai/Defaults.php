@@ -51,7 +51,7 @@ use RuntimeException;
  *     "auth": "bearer"|"x-api-key",
  *     "chat_path": "<string>",
  *     "models_path": "<string>|null",
- *     "sse_dialect": "openai"|"anthropic"
+ *     "sse_dialect": "openai_completions"|"openai_responses"|"anthropic"
  *   }
  * }
  * ```
@@ -154,6 +154,8 @@ final class Defaults
     /**
      * Returns all provider presets keyed by provider identifier.
      *
+     * `sse_dialect` is one of `openai_completions`|`openai_responses`|`anthropic`.
+     *
      * @return array<string, array{name: string, endpoint: string, auth: string, chat_path: string, models_path: string|null, sse_dialect: string}>
      */
     public function providers(): array
@@ -174,7 +176,7 @@ final class Defaults
             $endpoint    = isset($provider['endpoint'])    && is_string($provider['endpoint'])    ? $provider['endpoint']    : '';
             $auth        = isset($provider['auth'])        && is_string($provider['auth'])        ? $provider['auth']        : 'bearer';
             $chatPath    = isset($provider['chat_path'])   && is_string($provider['chat_path'])   ? $provider['chat_path']   : '/chat/completions';
-            $sseDial     = isset($provider['sse_dialect']) && is_string($provider['sse_dialect']) ? $provider['sse_dialect'] : 'openai';
+            $sseDial     = isset($provider['sse_dialect']) && is_string($provider['sse_dialect']) ? $provider['sse_dialect'] : 'openai_completions';
             $modelsRaw   = $provider['models_path'] ?? null;
             $modelsPath  = is_string($modelsRaw) ? $modelsRaw : null;
 
