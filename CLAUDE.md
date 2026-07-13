@@ -448,10 +448,30 @@ Linux aarch64→`git-linux-arm`, Linux x86_64→`git-linux-x86`, Windows→`git-
 host fails with a clear message.
 
 **Tests:** the `tests` target (depends only on `prepare-composer`, not the full `prepare`) runs
-`composer test` — the whole PHPUnit suite (unit + integration + feature). `phpunit.xml` sets
-`failOnEmptyTestSuite="false"` because `tests/Integration/` is currently scaffolding only (a base
-`TestCase` + stubs, no test classes yet); without that flag PHPUnit fails the whole run on that empty
-suite before the feature suite ever executes.
+`composer test` — the PHPUnit suites (unit + integration + feature) **and `test:js`**. `phpunit.xml`
+sets `failOnEmptyTestSuite="false"` because `tests/Integration/` was originally scaffolding only;
+without that flag PHPUnit fails the whole run on an empty suite before the feature suite executes.
+- **`composer test:js`** (`node --test 'tests/js/**/*.test.mjs'`) covers
+  `assets/private/js/ai/providers.js`, the AI transport. PHPUnit **cannot** reach it — the provider
+  call runs in the SPA (see the AI facts) — so this is its only automated coverage. It uses node's
+  built-in test runner and loads the browser IIFE in a `vm` context with a fake `window`/`fetch`/`api`;
+  no bundler and no new dependency (node is already a build prerequisite). Gotcha: providers.js
+  detects a CORS failure with `err instanceof TypeError`, so a stub must mint that error **inside the
+  sandbox realm** or the fallback never triggers.
+- **`tests/Integration/Ai/ResponsesApiLiveTest.php`** talks to a **real** OpenAI *Responses API*
+  server. It pins the wire-format assumptions providers.js is built on (the `output[]`→`output_text`
+  shape, `instructions`, the typed SSE events with **no `[DONE]`**, and that a `previous_response_id`
+  really does resume server-side and a stale one really is rejected) — if OpenAI changes the shape,
+  the JS would break silently in the webview; this fails loudly instead. It is **skipped unless
+  configured** via `GRAFIDA_TEST_RESPONSES_ENDPOINT` + `_MODEL` (+ `_KEY` for a hosted provider,
+  `_PROVIDER` to override the providers.json key). A local LM Studio server works as the endpoint.
+- **Test configuration lives in `tests/.env`** (gitignored — it holds provider credentials); copy
+  `tests/.env.sample` to create it. `tests/bootstrap.php` (the PHPUnit `bootstrap`) loads it with
+  **symfony/dotenv** (a dev dependency), and a variable exported in the real environment still wins,
+  so `FOO=bar composer test` overrides the file. **`tests/README.md` documents all of this** — the
+  suites, how to configure and run the live tests, and the two traps in them (a local server may
+  *ignore* an unknown `previous_response_id` rather than rejecting it, and these tests go through PHP
+  so they do not exercise the CORS/ATS constraints the SPA hits).
 
 **Release:** `all` is an alias for `package`. `release` (depends on `all`) is the standard release
 process: build+package every platform, then (1) create a **published GitHub release** with the

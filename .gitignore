@@ -32,5 +32,9 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 
+# Test configuration — holds live AI provider credentials. Copy tests/.env.sample
+# to tests/.env; see tests/README.md.
+/tests/.env
+
 # A running list of things I am working on
 TODO.md

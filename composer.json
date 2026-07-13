@@ -32,6 +32,7 @@
         "phpstan/phpstan": "^2.1",
         "phpstan/phpstan-strict-rules": "^2.0",
         "phpunit/phpunit": "^12.4",
+        "symfony/dotenv": "^8.1",
         "symfony/var-dumper": "^6.4|^7.0|^8.0"
     },
     "autoload-dev": {
@@ -60,10 +61,11 @@
         "build:git": "phing git",
         "build:package": "phing package",
         "start": "phing run",
-        "test": ["@test:unit", "@test:integration", "@test:feature"],
+        "test": ["@test:unit", "@test:integration", "@test:feature", "@test:js"],
         "test:unit": "phpunit --testsuite=unit --testdox",
         "test:feature": "phpunit --testsuite=feature --testdox",
         "test:integration": "phpunit --testsuite=integration --testdox",
+        "test:js": "node --test 'tests/js/**/*.test.mjs'",
         "linter:check": "phpstan analyse --configuration phpstan.neon --memory-limit 256M",
         "linter:baseline": "@linter:check --generate-baseline",
         "phpcs:check": "@phpcs:fix --dry-run",
@@ -75,7 +77,9 @@
         "build": "Compile and package Grafida for every platform: macOS .app/.dmg, Linux .tar.gz, Windows installer/zip, and the PHAR (artifacts in build/dist/).",
         "build:git": "Build the native binaries for every platform via Phing (the `git` target) — binaries only, no installers/DMG packaging. Requires Phing on the PATH.",
         "build:package": "Build AND package the application for every platform via Phing (the `package` target) — macOS .app/.dmg, Linux .tar.gz, Windows installer/zip, and the PHAR into build/dist/. Requires Phing on the PATH.",
-        "start": "Compile the binary for THIS host (the matching git-* target) and launch it, via the Phing `run` target. Requires Phing on the PATH."
+        "start": "Compile the binary for THIS host (the matching git-* target) and launch it, via the Phing `run` target. Requires Phing on the PATH.",
+        "test:js": "Run the JavaScript unit tests (node's built-in runner; node is already a build prerequisite). Covers assets/private/js/ai/providers.js — the AI transport — which PHPUnit cannot reach because it runs in the SPA.",
+        "test:integration": "Run the integration suite. The LIVE AI provider tests in it are SKIPPED unless GRAFIDA_TEST_RESPONSES_ENDPOINT and GRAFIDA_TEST_RESPONSES_MODEL are set in the environment (see tests/Integration/Ai/ResponsesApiLiveTest.php)."
     },
     "extra": {
         "copy-static": [

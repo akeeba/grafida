@@ -5,7 +5,7 @@
          backupGlobals="true"
          stopOnFailure="false"
          processIsolation="false"
-         bootstrap="vendor/autoload.php"
+         bootstrap="tests/bootstrap.php"
          cacheDirectory="vendor/.cache.phpunit"
          backupStaticProperties="false"
          failOnEmptyTestSuite="false"
@@ -30,6 +30,12 @@
         </include>
     </source>
 
+    <!--
+        Configuration for the LIVE AI provider tests lives in `tests/.env`
+        (gitignored; copy `tests/.env.sample`). tests/bootstrap.php loads it via
+        symfony/dotenv. Without it those tests skip and the suite stays green.
+        See tests/README.md.
+    -->
     <php>
         <ini name="error_reporting" value="-1"/>
         <ini name="memory_limit" value="-1"/>
