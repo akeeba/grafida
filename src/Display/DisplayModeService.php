@@ -37,6 +37,7 @@ final class DisplayModeService
     public function __construct(
         private readonly SettingsRepository $settings,
         private readonly ProcessRunner $runner = new ProcessRunner(),
+        private readonly WindowsThemeReader $windowsTheme = new WindowsThemeReader(),
     ) {}
 
     /** The stored preference, defaulting to "auto". */
@@ -93,9 +94,17 @@ final class DisplayModeService
     /**
      * Windows stores the apps appearance under the Personalize registry key:
      * `AppsUseLightTheme` is a DWORD, 0 for dark and 1 for light.
+     *
+     * Read it natively via FFI (no subprocess) whenever possible — this probe
+     * runs on every window focus and a `reg.exe` spawn can flash a console
+     * window. Fall back to `reg.exe` only when FFI is unavailable.
      */
     private function windowsPrefersDark(): ?bool
     {
+        if ($this->windowsTheme->available()) {
+            return $this->windowsTheme->prefersDark();
+        }
+
         [$code, $stdout] = $this->runner->run([
             'reg', 'query',
             'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize',

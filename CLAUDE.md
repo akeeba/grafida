@@ -489,8 +489,11 @@ warn+skip), but a failing compile or a genuine packaging-tool error is fatal. Pi
   PowerShell path wrote, so existing secrets keep working, and PowerShell remains a fallback only
   when FFI is unavailable. `WindowsSecretStore` also memoises decrypted secrets for the session (it
   is a container singleton) and no longer probes with `where powershell`. The registry theme probe
-  (`DisplayModeService::windowsPrefersDark()`, on window focus) still spawns `reg.exe`, but that is
-  a tiny native binary — tens of ms, not seconds — and now flash-free via the hidden console.
+  (`DisplayModeService::windowsPrefersDark()`, on window focus) also **no longer spawns**: it reads
+  the `AppsUseLightTheme` DWORD directly via FFI (`Grafida\Display\WindowsThemeReader`, calling
+  `advapi32.dll`'s `RegGetValueA`), because `proc_open` does not pass `CREATE_NO_WINDOW` and a
+  `reg.exe` child could still briefly flash a console even with the hidden console; `reg.exe` remains
+  a fallback only when FFI is unavailable.
 - PHAR: `scripts/make-phar-dist.sh` copies the compiler's `build/phar/grafida.phar` to `Grafida-<v>.phar`.
 
 **Binaries-only build (no packaging):** `build.xml` (root) is a **Phing** buildfile whose default

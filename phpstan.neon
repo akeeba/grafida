@@ -29,3 +29,11 @@ parameters:
     -
       identifier: argument.type
       path: src/Secret/WindowsDpapi.php
+    # WindowsThemeReader is the same FFI story: PHPStan cannot see through the
+    # advapi32 function or the FFI\CData scalar's magic ->cdata member.
+    -
+      identifier: property.notFound
+      path: src/Display/WindowsThemeReader.php
+    -
+      identifier: method.notFound
+      path: src/Display/WindowsThemeReader.php
