@@ -17,13 +17,13 @@ Web Services (REST) API.
 
 ### Downloads
 
-| Platform | File |
+| Platform | Download |
 | --- | --- |
-| macOS (Apple Silicon) | `Grafida-0.1-macos-arm64.dmg` |
-| macOS (Intel) | `Grafida-0.1-macos-amd64.dmg` |
-| Windows (x64) | `Grafida-0.1-windows-amd64-Setup.exe` |
-| Linux (x64) | `Grafida-0.1-linux-amd64.tar.gz` |
-| Linux (ARM64) | `Grafida-0.1-linux-arm64.tar.gz` |
-| Any (PHAR) | `Grafida-0.1.phar` |
+| macOS (Apple Silicon) | [`Grafida-0.1-macos-arm64.dmg`](https://github.com/akeeba/grafida/releases/download/0.1/Grafida-0.1-macos-arm64.dmg) |
+| macOS (Intel) | [`Grafida-0.1-macos-amd64.dmg`](https://github.com/akeeba/grafida/releases/download/0.1/Grafida-0.1-macos-amd64.dmg) |
+| Windows (x64) | [`Grafida-0.1-windows-amd64-Setup.exe`](https://github.com/akeeba/grafida/releases/download/0.1/Grafida-0.1-windows-amd64-Setup.exe) |
+| Linux (x64) | [`Grafida-0.1-linux-amd64.tar.gz`](https://github.com/akeeba/grafida/releases/download/0.1/Grafida-0.1-linux-amd64.tar.gz) |
+| Linux (ARM64) | [`Grafida-0.1-linux-arm64.tar.gz`](https://github.com/akeeba/grafida/releases/download/0.1/Grafida-0.1-linux-arm64.tar.gz) |
+| Any (PHAR) | [`Grafida-0.1.phar`](https://github.com/akeeba/grafida/releases/download/0.1/Grafida-0.1.phar) |
 
 See the [`CHANGELOG`](CHANGELOG) for the full list of changes.
