@@ -8,10 +8,14 @@ build recipe: [`01-macos-signing.md`](01-macos-signing.md).
 The binaries are built by GitHub Actions on
 [`nikosdion/phpmicro`](https://github.com/nikosdion/phpmicro) (branch
 `sibling-phar`, workflow `.github/workflows/build-sfx.yml`) and published to the
-rolling **`sfx-latest`** release. `scripts/fetch-sfx.sh` downloads them into the
-gitignored `build/sfx/` — automatically from the Phing `prepare-sfx` step and
-`scripts/build-all.sh`, best-effort, and it **never overwrites an existing
-file** unless you pass `--force`.
+rolling **`sfx-latest`** release: `macos-{aarch64,x86_64}.standard.sfx` (unix
+`build` matrix) and `windows-x86_64.standard.sfx` (separate `build-windows` job —
+static-php-cli uses the MSVC/php-sdk toolchain there, PE files must be `*.exe` to
+run, and there is no `chmod`, so its download/build steps mirror the unix job but
+the smoke test and packaging are PowerShell). `scripts/fetch-sfx.sh` downloads
+all three into the gitignored `build/sfx/` — automatically from the Phing
+`prepare-sfx` step and `scripts/build-all.sh`, best-effort, and it **never
+overwrites an existing file** unless you pass `--force`.
 
 ## When Boson bumps its PHP version
 
@@ -28,9 +32,12 @@ update moves to a new PHP minor (e.g. 8.4 → 8.5):
 
 Our `EXTENSIONS` in `build-sfx.yml` mirrors Boson's *standard* macOS edition:
 `STANDARD_SFX_EXTENSIONS` in
-`vendor/boson-php/compiler/src/Target/MacOSBuiltinTarget.php`. After a Boson
-upgrade, diff that constant against the workflow's list; if it changed, update
-the workflow, push, `fetch-sfx.sh --force`, rebuild, test.
+`vendor/boson-php/compiler/src/Target/MacOSBuiltinTarget.php`. The **Windows**
+standard edition (`WindowsBuiltinTarget.php`) is currently **identical**, so the
+single `EXTENSIONS` env feeds both the macOS and Windows jobs. After a Boson
+upgrade, diff **both** constants against the workflow's list; if either changed,
+update the workflow (splitting `EXTENSIONS` per-OS if they ever diverge), push,
+`fetch-sfx.sh --force`, rebuild, test.
 
 ## When bumping Boson itself
 
@@ -49,11 +56,18 @@ the workflow, push, `fetch-sfx.sh --force`, rebuild, test.
 * **Rebase/merge upstream** (`static-php/phpmicro`, branch `master`) into
   `sibling-phar` occasionally — at the latest when bumping the PHP version,
   since new PHP minors usually need new upstream micro fixes. The patch
-  surface is deliberately tiny: `php_micro_fileinfo.c` (sibling fallback,
-  payload-path override) and `php_micro_hooks.c` (`MICRO_TRACE_OPEN`).
-* Every push to `sibling-phar` rebuilds and republishes the SFX binaries. The
-  CI smoke-tests appended, `<self>.phar` and `../Resources/` payload modes —
-  a build from unpatched sources cannot reach the release.
+  surface is deliberately tiny: `php_micro_fileinfo.c` (sibling fallback +
+  payload-path override, in **both** the POSIX and `PHP_WIN32` branches of
+  `micro_fileinfo_init` / `micro_get_filename`) and `php_micro_hooks.c`
+  (`MICRO_TRACE_OPEN`). The Windows fallback tries `<self-without-.exe>.phar`
+  (`grafida.exe` → `grafida.phar`) then `<self>.phar`; it has no macOS
+  `../Resources/` candidate (bundle-specific). It sets `_micro_payload_path` to
+  the UTF-8 path because the plain-file stream hooks match the payload by the
+  narrow `micro_get_filename()`.
+* Every push to `sibling-phar` rebuilds and republishes the SFX binaries. CI
+  smoke-tests the payload modes on every platform — appended + `<self>.phar` on
+  all, plus `../Resources/` on unix (macOS bundle layout) — so a build from
+  unpatched sources cannot reach the release.
 * The workflow needs no secrets; it authenticates static-php-cli's tool
   downloads with the default `GITHUB_TOKEN` (without it, SPC hits the runners'
   anonymous GitHub API rate limit and fails in `doctor`).

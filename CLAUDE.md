@@ -424,12 +424,13 @@ warn+skip), but a failing compile or a genuine packaging-tool error is fatal. Pi
   branch (which adds an additive fallback — no appended payload → load `"<self>.phar"`, then
   `"../Resources/<self>.phar"`, realpath-canonicalised so the offset stream hooks keep
   matching) lives in the gitignored `build/sfx/<os>-<cpu>.standard.sfx`. **The fork's own
-  GitHub Actions (`build-sfx.yml`) builds the SFX for macOS arm64+x86_64 on every push to
-  `sibling-phar`** (via stock static-php-cli pointed at the repo with `-L`) and publishes it
-  to the rolling `sfx-latest` release; `scripts/fetch-sfx.sh` downloads + SHA-256-verifies
-  the assets into `build/sfx/` (never overwrites existing files; `--force` re-downloads) and
-  runs automatically from the Phing `prepare-sfx` step (macOS git targets) and
-  `build-all.sh` — best-effort, offline builds fall back to the stock runtime.
+  GitHub Actions (`build-sfx.yml`) builds the SFX for macOS arm64+x86_64 AND Windows x86_64 on
+  every push to `sibling-phar`** (via stock static-php-cli pointed at the repo with `-L`; Windows
+  is a separate `build-windows` job — MSVC/php-sdk toolchain, PowerShell smoke test) and publishes
+  them to the rolling `sfx-latest` release; `scripts/fetch-sfx.sh` downloads + SHA-256-verifies
+  the assets (`macos-{aarch64,x86_64}` + `windows-x86_64`) into `build/sfx/` (never overwrites
+  existing files; `--force` re-downloads) and runs automatically from the Phing `prepare-sfx` step
+  (macOS git targets) and `build-all.sh` — best-effort, offline builds fall back to the stock runtime.
   `build/tasks/compile-target.php` injects the SFX as the Boson target's `sfx` when present,
   and pre-cleans the output dirs — Boson's cleanup chokes on the previous `Grafida.app`,
   silently leaving a stale binary; `build-all.sh` compiles through `compile-target.php --all`
@@ -447,7 +448,21 @@ warn+skip), but a failing compile or a genuine packaging-tool error is fatal. Pi
 - Windows (amd64): `scripts/make-windows-installer.sh` compiles `build/windows-installer.nsi` with
   **NSIS** `makensis`, which runs natively on macOS/Linux (no Wine/Docker/Windows) →
   `Grafida-<v>-windows-amd64-Setup.exe` (per-user install in `%LOCALAPPDATA%\Programs\Grafida`).
-  Falls back to a portable `.zip` if `makensis` is absent.
+  Falls back to a portable `.zip` if `makensis` is absent. **Authenticode signing works the same
+  way as macOS — by splitting.** `boson compile` appends the PHAR after the PE stub; signing the
+  combined binary appends the certificate *past* the PHAR and corrupts its trailing signature, so
+  the app dies at startup on `Phar::mapPhar` ("grafida.exe has a broken signature"). So when the
+  patched SFX (`build/sfx/windows-x86_64.standard.sfx`) is present, `make-windows-installer.sh`
+  splits `grafida.exe` into a clean PE stub + sibling `grafida.phar` (offset from
+  `build/tasks/pe-sfxsize.php`, which replicates phpmicro's `max(PointerToRawData+SizeOfRawData)`
+  and asserts Boson's extra-ini magic `fd f6 69 e6` sits there), signs **only the stub** (Jsign/Azure
+  Trusted Signing via `scripts/sign-windows-exe.sh`, gated on `WINDOWS_SIGN_OP_ITEM`), and NSIS
+  ships both (`HAVE_PHAR`). `sign-windows-exe.sh` **refuses** to sign any PE still carrying a PHAR
+  overlay (runs `pe-sfxsize.php` as a tripwire), so the combined binary can never be signed by
+  accident; the installer `Setup.exe` (NSIS overlay, not a PHAR) signs fine. Without the patched
+  SFX the unsigned combined binary ships (it works); if signing is configured but the SFX is
+  missing, the script aborts rather than emit a broken signed binary. Docs:
+  `build/readme/04-exe-signing-on-macos.md`, `02-signing-architecture.md`.
 - PHAR: `scripts/make-phar-dist.sh` copies the compiler's `build/phar/grafida.phar` to `Grafida-<v>.phar`.
 
 **Binaries-only build (no packaging):** `build.xml` (root) is a **Phing** buildfile whose default

@@ -224,9 +224,33 @@ installer unsigned — the same "blank disables it" convention as the macOS
 `macos.sign.identity`/`macos.notary.profile` properties (see
 [`01-macos-signing.md`](01-macos-signing.md)).
 
-`scripts/make-windows-installer.sh` calls `sign-windows-exe.sh` twice: once on the freshly
-compiled `grafida.exe` (so both the NSIS installer and the portable `.zip` fallback carry a signed
-binary), then again on the finished `Setup.exe` installer itself.
+### You cannot sign the compiled `grafida.exe` directly — it must be split first
+
+`boson compile` produces `grafida.exe` as a **phpmicro self-executable**: a PE stub with the
+application PHAR appended after it. Authenticode writes its certificate into the PE's Attribute
+Certificate Table, which the PE spec requires to be the **last** thing in the file — so Jsign
+appends it *after* the PHAR. A PHAR stores its own signature as the last bytes of the file, and PHP
+verifies it by seeking to EOF; once the certificate sits past the PHAR, `Phar::mapPhar('grafida.phar')`
+reads the certificate where the PHAR trailer should be and the app **dies at startup with
+"grafida.exe has a broken signature"**. (The Authenticode signature itself is valid — it hashes the
+overlay too — but that does not help; nothing appendable can survive after a PHAR.)
+
+This is the same trailing-data problem macOS has, and it has the same cure (see
+[`02-signing-architecture.md`](02-signing-architecture.md)). When `grafida.exe` was compiled against
+the patched sibling-payload SFX (`build/sfx/windows-x86_64.standard.sfx`, from the
+`nikosdion/phpmicro` `sibling-phar` fork — fetched by `scripts/fetch-sfx.sh`),
+`scripts/make-windows-installer.sh` **splits** it into a clean PE stub (`grafida.exe`) plus a sibling
+`grafida.phar` — using the split offset from `build/tasks/pe-sfxsize.php` — exactly as
+`make-macos-app.sh` splits the `.app`. The patched stub loads `grafida.phar` from its own directory
+at run time.
+
+`make-windows-installer.sh` therefore calls `sign-windows-exe.sh` on the **split stub** (never the
+combined binary), then again on the finished `Setup.exe`. NSIS ships `grafida.phar` beside the stub
+(guarded by the `HAVE_PHAR` define). As a tripwire, `sign-windows-exe.sh` runs `pe-sfxsize.php` and
+**refuses** to sign any PE that still carries a PHAR overlay, so a combined binary can never be
+signed by accident. If the patched SFX is absent, the build ships the **unsigned** combined
+`grafida.exe` (which works); if signing is configured but the patched SFX is missing,
+`make-windows-installer.sh` aborts with an explanation rather than producing a broken signed binary.
 
 **Critical: signing must only run from packaging, never from a local compile.** Azure Artifact
 Signing's Basic tier is capped at **5,000 signatures/month**; burning that quota on every local dev

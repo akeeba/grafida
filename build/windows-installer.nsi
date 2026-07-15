@@ -57,6 +57,7 @@ Unicode true
 !define PUBLISHER  "Nicholas K. Dionysopoulos / Akeeba Ltd"
 !define APPURL     "https://github.com/akeeba/grafida"
 !define APPEXE     "grafida.exe"
+!define APPPHAR    "grafida.phar"
 !define APPDLL     "libboson-windows-x86_64.dll"
 !define APPICON    "Grafida.ico"
 !define REGUNINST  "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}"
@@ -104,6 +105,15 @@ Section "Install"
     File "${SRCDIR}/${APPDLL}"
     File "/oname=${APPICON}" "${ICONFILE}"
 
+    ; A code-signed build ships the app payload as a sibling PHAR beside the
+    ; signed stub (grafida.exe), rather than appended to it — Authenticode would
+    ; corrupt an appended PHAR's trailing signature. The patched phpmicro stub
+    ; loads "grafida.phar" from its own directory at run time. HAVE_PHAR is
+    ; passed by scripts/make-windows-installer.sh only when it split the binary.
+!ifdef HAVE_PHAR
+    File "${SRCDIR}/${APPPHAR}"
+!endif
+
     ; UI assets must sit next to the executable (the runtime mounts them
     ; relative to the binary; without them the app shows a 404).
     SetOutPath "$INSTDIR\assets"
@@ -132,6 +142,7 @@ SectionEnd
 ; ---- Uninstall -------------------------------------------------------------
 Section "Uninstall"
     Delete "$INSTDIR\${APPEXE}"
+    Delete "$INSTDIR\${APPPHAR}"
     Delete "$INSTDIR\${APPDLL}"
     Delete "$INSTDIR\${APPICON}"
     RMDir /r "$INSTDIR\assets"

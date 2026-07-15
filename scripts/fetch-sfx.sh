@@ -9,7 +9,10 @@
 # The binaries are built by GitHub Actions on the nikosdion/phpmicro fork
 # (branch sibling-phar, workflow build-sfx.yml) and published as assets of the
 # rolling "sfx-latest" release. With them in place, macOS builds become
-# Developer-ID signable/notarisable — see build/readme/01-macos-signing.md.
+# Developer-ID signable/notarisable and Windows builds become Authenticode
+# signable — the compiled binary is split into a clean, signable stub plus a
+# sibling <name>.phar payload (see build/readme/01-macos-signing.md and
+# build/readme/04-exe-signing-on-macos.md).
 #
 # Usage:  scripts/fetch-sfx.sh [--force]
 #   --force   re-download even when the file is already present
@@ -25,6 +28,7 @@ BASE_URL="https://github.com/nikosdion/phpmicro/releases/download/sfx-latest"
 ASSETS=(
   macos-aarch64.standard.sfx
   macos-x86_64.standard.sfx
+  windows-x86_64.standard.sfx
 )
 
 FORCE=0
