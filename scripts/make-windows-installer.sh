@@ -54,7 +54,7 @@ SIGNING=0
 PKG_DIR="$SRC_DIR"   # what we package; the split staging dir when applicable
 HAVE_PHAR=0
 
-if LC_ALL=C grep -q "next to this executable" "$WIN_BIN"; then
+if LC_ALL=C grep -aq "next to this executable" "$WIN_BIN"; then
   # Patched, sibling-capable stub: split at phpmicro's SFX size (the section
   # end; pe-sfxsize.php also asserts Boson's extra-ini magic sits there).
   SFXSIZE="$(php "$ROOT/build/tasks/pe-sfxsize.php" "$WIN_BIN")" || {

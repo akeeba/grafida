@@ -56,7 +56,7 @@ mkdir -p "$MACOS" "$RES"
 # to Resources too and the dylib (real file in MacOS, where signed code lives)
 # gets a symlink there.
 SIBLING_SFX=0
-if LC_ALL=C grep -q "next to this executable" "$BIN"; then
+if LC_ALL=C grep -aq "next to this executable" "$BIN"; then
   # The Mach-O image ends where its last segment ends — max(fileoff+filesize)
   # over every LC_SEGMENT_64 — and the appended PHP payload starts there. Do NOT
   # key off LC_CODE_SIGNATURE: only the arm64 SFX ships with an (ad-hoc)
