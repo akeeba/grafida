@@ -1,3 +1,10 @@
+Grafida 0.2
+================================================================================
+# [HIGH] Windows: the app crashed immediately on startup ("broken signature") because Authenticode signing corrupted the Boson-appended PHAR payload
+# [MEDIUM] Windows: the interface froze for several seconds whenever a stored secret was read, because the secret store spawned PowerShell; it now uses the DPAPI system call directly
+# [LOW] Windows: a command window no longer flashes (at startup, and when detecting the system light/dark theme)
++ Windows: the installer now bundles the required Visual C++ runtime DLLs, so the app runs on a clean Windows without a separate redistributable
+
 Grafida 0.1
 ================================================================================
 + First release
