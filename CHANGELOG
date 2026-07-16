@@ -18,6 +18,7 @@ Grafida 0.2
 # [HIGH] Windows: crash on startup ("broken signature") after Authenticode signing
 # [MEDIUM] Windows: multi-second freeze whenever a stored secret was read
 # [MEDIUM] The editor ignored your site's editor.css unless the site used the stock Cassiopeia template (gh-3)
+# [MEDIUM] The editor used the parent template's editor.css on a site running a child template (gh-3)
 # [MEDIUM] Media Manager: an edited image's thumbnail and preview still showed the picture as it was before the edit (gh-4)
 # [LOW] Windows: a command window flashed at startup and on theme detection
 # [LOW] AI panel: a second click on Send could fire a duplicate request

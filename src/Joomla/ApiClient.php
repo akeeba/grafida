@@ -258,6 +258,32 @@ final class ApiClient
     }
 
     /**
+     * Lists the site's template styles, each with `template` (the template's
+     * directory name), `title` and `home` — where `home = "1"` marks the site's
+     * default style and `home = "<lang tag>"` a language's home on a
+     * multilingual site.
+     *
+     * This is the only way to learn the name of a **child** template: Joomla
+     * resolves a child's assets against its parent whenever the child does not
+     * override them, so a child that only ships an `editor.css` (which the
+     * front-end never loads) leaves no trace on a rendered page for
+     * {@see \Grafida\Reference\TemplateDiscovery} to scan.
+     *
+     * The route is served by `plg_webservices_templates` (enabled out of the
+     * box) and needs `core.manage` on com_templates. Joomla only mints API
+     * tokens for Super Users by default, so that holds for a token we can use —
+     * but a site that widened the token plugin's allowed groups may still answer
+     * 403, so callers must treat a thrown {@see ApiException} as "unknown"
+     * rather than as a failure.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function listTemplateStyles(string $base, string $token): array
+    {
+        return $this->collection($base, $token, 'templates/styles/site', ['page[limit]' => 0]);
+    }
+
+    /**
      * Reads one key of the site's Global Configuration.
      *
      * `GET v1/config/application` serves `configuration.php` — including the

@@ -25,14 +25,16 @@ use Grafida\Site\Site;
 final class EditorCssService
 {
     /**
-     * Last-resort locations, tried only when the site's template could not be
-     * discovered. They cover a stock Cassiopeia (and Joomla's shared fallback);
-     * any other template is found through {@see TemplateDiscovery} instead.
+     * Last-resort locations, tried only after every template
+     * {@see TemplateDiscovery} found has been ruled out. They cover a stock
+     * Cassiopeia, then Joomla's own shared editor stylesheet — which is what a
+     * template without an `editor.css` of its own effectively falls back to, so
+     * it is the honest final answer rather than no styling at all.
      */
     private const CANDIDATE_PATHS = [
         '/media/templates/site/cassiopeia/css/editor.css',
         '/templates/cassiopeia/css/editor.css',
-        '/templates/system/css/editor.css',
+        '/media/system/css/editor.css',
     ];
 
     public function __construct(

@@ -12,10 +12,13 @@ declare(strict_types=1);
 namespace Grafida\Tests\Unit;
 
 use Grafida\Http\HttpResponse;
+use Grafida\Joomla\ApiClient;
 use Grafida\Reference\EditorCssService;
 use Grafida\Reference\ReferenceRepository;
 use Grafida\Reference\TemplateDiscovery;
 use Grafida\Site\Site;
+use Grafida\Site\SiteRepository;
+use Grafida\Site\SiteService;
 use Grafida\Tests\Support\TestDatabase;
 use Grafida\Tests\Unit\Support\FakeTransport;
 use Joomla\Database\DatabaseInterface;
@@ -43,8 +46,18 @@ final class EditorCssServiceTest extends TestCase
     private function service(FakeTransport $transport): EditorCssService
     {
         $repo = new ReferenceRepository($this->db);
+        $api  = new ApiClient($transport);
 
-        return new EditorCssService($repo, new TemplateDiscovery($repo, $transport), new \Grafida\Html\CssRebaser(), $transport);
+        // The site row carries no token, so discovery here rests on the home-page
+        // scan alone; the styles API has its own coverage in TemplateDiscoveryTest.
+        $discovery = new TemplateDiscovery(
+            $repo,
+            new SiteService(new SiteRepository($this->db), $api, null),
+            $api,
+            $transport,
+        );
+
+        return new EditorCssService($repo, $discovery, new \Grafida\Html\CssRebaser(), $transport);
     }
 
     /** The bug this fixes: a template that is not stock Cassiopeia was never found. */

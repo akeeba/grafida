@@ -92,7 +92,12 @@ final class SiteProvider implements ServiceProviderInterface
             /** @var Transport $http */
             $http = $c->get('http.short');
 
-            return new TemplateDiscovery($c->get(ReferenceRepository::class), $http);
+            return new TemplateDiscovery(
+                $c->get(ReferenceRepository::class),
+                $c->get(SiteService::class),
+                $c->get(ApiClient::class),
+                $http,
+            );
         });
 
         $container->share(EditorCssService::class, static function (Container $c): EditorCssService {

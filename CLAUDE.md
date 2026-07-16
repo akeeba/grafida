@@ -98,16 +98,30 @@ window-free in tests (a null dialog makes the endpoint return 503).
   the OS browser via `api.openUrl()`; like the favicon it only exists while a site is selected,
   and the collapsed icon rail hides it along with the whole `#site-selector`.
 - `src/Reference/` — cached categories/tags/levels/fields + `EditorCssService` (5s fetch, rebase, cache).
-  `EditorCssService` does **not** guess the template. `TemplateDiscovery` learns the active one by
-  scanning the site's **home page** for the asset paths Joomla renders — `/media/templates/site/<name>/`
-  (4.1+) or the legacy `/templates/<name>/` — because the Global Configuration `template` value needs
-  `core.admin`, which an article author's token lacks (see the Joomla API facts). It scans the raw HTML
-  rather than the DOM: the name appears in `<link>`/`<script>` attributes but equally inside inline
-  `@import`/`url()`, and each is an equally good witness. `system` is ignored (Joomla's shared assets,
-  not a template), and the discovered names are cached per site under the `template` kind so an
-  unreachable site still resolves its template. `EditorCssService::candidatesFor()` then tries, in
+  `EditorCssService` does **not** guess the template. `TemplateDiscovery` learns the names from **two
+  witnesses**, in order. First the **template styles API** (`ApiClient::listTemplateStyles()` →
+  `GET v1/templates/styles/site`), which names the template behind each style outright; only the site's
+  **home** styles are taken — `home = "1"` (the default) first, then any `home = "<lang tag>"`
+  (a multilingual site's per-language homes) — because a style bound to a menu item says nothing about
+  which item an article will render under, and an *unassigned* style names a merely-installed template
+  whose `editor.css` must never outrank the honest fallbacks. Second, it scans the site's **home page**
+  for the asset paths Joomla renders — `/media/templates/site/<name>/` (4.1+) or the legacy
+  `/templates/<name>/`. It scans the raw HTML rather than the DOM: the name appears in `<link>`/`<script>`
+  attributes but equally inside inline `@import`/`url()`, and each is an equally good witness. `system`
+  is ignored (Joomla's shared assets, not a template), and the merged names are cached per site under the
+  `template` kind so an unreachable site still resolves its template.
+  ⚠️ **The API is not an optimisation — it is the only thing that can see a child template** (gh-3).
+  Joomla resolves a child's assets against its parent whenever the child does not override them, so a
+  child that ships nothing but an `editor.css` (which the front-end never loads) renders no asset URL of
+  its own and is **structurally invisible** to any page scan — the home page names only the parent, whose
+  `editor.css` is a 200 and would win forever. Keeping the page scan as the second witness is what makes
+  that parent the *correct next candidate* when a child does inherit its parent's stylesheet.
+  `EditorCssService::candidatesFor()` then tries, in
   order: the site's **manual `editor_css_url` override**, each discovered template's
-  `css/editor.css` (media path then legacy), and finally the stock-Cassiopeia guesses. The override is
+  `css/editor.css` (media path then legacy), and finally the stock-Cassiopeia guesses, ending at
+  `/media/system/css/editor.css` — Joomla's own shared editor stylesheet, which is what a template
+  without an `editor.css` effectively falls back to. (The pre-5 `/templates/system/css/editor.css` is
+  **not** a candidate: it 404s on a modern Joomla, costing only a timeout.) The override is
   a per-site column (an absolute URL or a site-root-relative path) surfaced as the Sites form's
   "Editor CSS URL" field — it exists for templates that serve the stylesheet from an unconventional
   place, which no amount of sniffing can find. ⚠️ Unlike the API token, an empty override **clears**
@@ -674,6 +688,12 @@ map is for when the update mechanism itself is built.
   server rules. `ApiClient` normalises any pasted URL to the bare root and **probes** to find
   the working base, persisting it per site.
 - Auth header: `Authorization: Bearer <token>` (also sends `X-Joomla-Token`). User needs `core.login.api`.
+- **A token-bearing user is a Super User.** `plg_user_token`'s `allowedUserGroups` defaults to `"8"`
+  (Super Users), so Joomla only mints API tokens for Super Users out of the box — which is to say an
+  admin-only route is *not* out of reach, and a feature need not be designed around an author's
+  permissions. A site that widened that param is the exception, so an admin-only route should still
+  degrade rather than throw (see `listTemplateStyles()`), but it must not be treated as unavailable
+  by default.
 - Articles: `POST/PATCH /v1/content/articles[/{id}]`. **Write bodies are a flat
   top-level JSON object of field values** — Joomla's JSON:API `{data:{type,attributes}}`
   envelope is for *responses only*; wrapping a write makes Joomla bind nothing and
@@ -688,6 +708,13 @@ map is for when the update mechanism itself is built.
   Custom field values go under `com_fields`. Tags
   are an array of IDs. (`ApiClient::send()` posts the flat body; only responses are unwrapped.)
 - Media upload: `POST /v1/media/files` with `{path, content:<base64>}`; the response `url` is public.
+- Template styles: `GET /v1/templates/styles/site` (the `webservices/templates` plugin, **enabled out of
+  the box** — `base.sql`'s `plg_webservices_templates` row has `enabled = 1`). Needs `core.manage` on
+  com_templates, i.e. an admin — fine, since tokens are Super-User-only by default (above). The list view
+  renders `id`, `template`, `title`, `home`, `client_id`, …; `template` is the template's **directory
+  name** and `home` is `"1"` for the site default, a **language tag** for a multilingual site's
+  per-language home, and `"0"` otherwise. `page[limit]=0` means "all" here (unlike the config route).
+  This is the **only** way to learn a child template's name — see `src/Reference/`.
 - Global Configuration: `GET /v1/config/application` (the `webservices/config` plugin) needs
   **`core.admin`** — a plain author's token gets a 403, so treat it as optional. Its view does not
   serve one resource with all the settings: it emits **one single-attribute resource per key**, all
