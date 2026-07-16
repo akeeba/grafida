@@ -14,6 +14,7 @@ Grafida 0.2
 # [LOW] The collapsed sidebar's icons had no tooltip and no accessible name
 # [LOW] Dialogs closed when clicking outside them, discarding your input
 # [LOW] The site selector's "no sites yet" placeholder was truncated
+# [LOW] Media Manager: the header buttons were jammed against each other
 
 Grafida 0.1
 ================================================================================

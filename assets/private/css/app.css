@@ -491,6 +491,12 @@ nav#main-nav a .nav-icon {
     background: var(--color-surface-2);
 }
 
+.btn-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Forms                                                              */
 /* ------------------------------------------------------------------ */
@@ -1173,7 +1179,6 @@ input[type="color"].form-control {
 }
 
 #editor-toolbar .btn-group {
-    display: flex;
     gap: 4px;
     margin-left: auto;
 }
