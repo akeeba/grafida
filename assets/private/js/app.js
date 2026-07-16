@@ -2463,8 +2463,11 @@ async function initTinyMCE(draft) {
                             // TinyMCE icon whose "SVG" is really an <i> carrying the
                             // FA class (see faIconInlineStyle). Lazy + idempotent so
                             // it stays correct for custom tools / list changes.
+                            // Guard the (user-editable) icon name to a strict FA
+                            // slug before it reaches an HTML string, so a stray
+                            // value cannot inject markup into the TinyMCE UI.
                             let iconName;
-                            if (tool.icon) {
+                            if (tool.icon && /^[a-z0-9-]+$/i.test(tool.icon)) {
                                 iconName = 'grafida-fa-' + tool.icon;
                                 editor.ui.registry.addIcon(
                                     iconName,
