@@ -1881,6 +1881,37 @@ body.resizing-col {
     border-bottom-right-radius: 2px;
 }
 
+/* A writing tool's prompt, shown as the conversation's opening turn. It is
+   machinery the user did not type and it is long, so it is muted rather than
+   accented — the accent survives only as a stripe on the user's side of the
+   panel, which is what still reads it as "not the assistant talking". */
+.ai-bubble-instructions {
+    align-self: flex-end;
+    max-width: 100%;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-right: 3px solid var(--color-accent);
+    color: var(--color-text-muted);
+    border-bottom-right-radius: 2px;
+}
+
+.ai-bubble-instructions-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+}
+
+.ai-bubble-instructions-header .fa-solid {
+    color: var(--color-accent);
+    font-size: 11px;
+}
+
 .ai-bubble-assistant {
     align-self: flex-start;
     background: var(--color-surface-2);
@@ -1893,6 +1924,7 @@ body.resizing-col {
 /* Rendered (formatted) output: normalise whitespace and tame the margins of the
    HTML so both the model's reply and the user's Markdown prompt read as prose. */
 .ai-bubble-assistant .ai-bubble-text.ai-rich,
+.ai-bubble-instructions .ai-bubble-text.ai-rich,
 .ai-bubble-user .ai-bubble-text.ai-rich {
     white-space: normal;
 }

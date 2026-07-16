@@ -25,9 +25,12 @@
 
     /**
      * In-memory conversation history.
-     * Entries: { role: 'user' | 'assistant', content: string }
+     * Entries: { role: 'user' | 'assistant', content: string, tool?: boolean }
      * The document context is embedded inside the first user message's content
      * so it persists automatically across follow-up turns.
+     *
+     * `tool` marks a user turn that carries a writing tool's prompt rather than
+     * something the user typed; it is display-only and never sent to a provider.
      */
     let _history = [];
 
@@ -318,7 +321,7 @@
         }
 
         // Add the user turn and re-render so it appears immediately.
-        _history.push({ role: 'user', content: userContent });
+        _history.push({ role: 'user', content: userContent, tool: !!tool });
         _renderConversation();
 
         // Clear the textarea for manual (non-tool) messages.
@@ -332,7 +335,8 @@
         if (systemContent) {
             messages.push({ role: 'system', content: systemContent });
         }
-        messages.push(..._history);
+        // Only role + content go on the wire; `tool` is a display-only marker.
+        messages.push(..._history.map(m => ({ role: m.role, content: m.content })));
 
         // Respect the service's `stream` param (default: true).
         const svc = State.aiServices.find(s => s.id === serviceId);
@@ -487,13 +491,34 @@
 
         _history.forEach((msg) => {
             if (msg.role === 'user') {
-                conv.appendChild(_buildUserBubble(msg.content));
+                conv.appendChild(_buildUserBubble(msg.content, _isToolPrompt(msg)));
             } else if (msg.role === 'assistant') {
                 conv.appendChild(_buildAssistantBubble(msg.content));
             }
         });
 
         conv.scrollTop = conv.scrollHeight;
+    }
+
+    /**
+     * Whether a user turn carries a writing tool's prompt rather than something
+     * the user typed.
+     *
+     * The in-session marker set by `_sendMessage` is authoritative. A chat
+     * reloaded from the database has no marker (only role + content are stored),
+     * so fall back to matching the text against the configured tools' prompts —
+     * `openWithTool` sends a tool's prompt verbatim as the first user turn.
+     *
+     * @param {{content: string, tool?: boolean}} msg
+     * @returns {boolean}
+     */
+    function _isToolPrompt(msg) {
+        if (msg.tool) return true;
+
+        const text = _stripDocContext(msg.content || '').trim();
+        if (!text) return false;
+
+        return (State.aiAllTools || []).some(tool => (tool.prompt || '').trim() === text);
     }
 
     /**
@@ -504,11 +529,26 @@
      * (`_renderRichText`) rather than shown as raw Markdown. The embedded
      * document-context preamble is stripped first so only the actual query shows.
      *
-     * @param {string} content
+     * A tool's prompt is machinery the user did not write, and it is long — on
+     * the accent background it dominated the panel. It gets the muted
+     * "instructions" treatment plus a header naming what it is instead.
+     *
+     * @param {string}  content
+     * @param {boolean} isToolPrompt
      * @returns {HTMLElement}
      */
-    function _buildUserBubble(content) {
-        const bubble = el('div', 'ai-bubble ai-bubble-user');
+    function _buildUserBubble(content, isToolPrompt) {
+        const bubble = el('div', 'ai-bubble ' + (isToolPrompt ? 'ai-bubble-instructions' : 'ai-bubble-user'));
+
+        if (isToolPrompt) {
+            bubble.appendChild(el(
+                'div',
+                'ai-bubble-instructions-header',
+                icon('wand-magic-sparkles'),
+                txt(t('GRAFIDA_LBL_AI_INSTRUCTIONS'))
+            ));
+        }
+
         const textEl = el('div', 'ai-bubble-text');
         _renderRichText(textEl, _stripDocContext(content));
         bubble.appendChild(textEl);

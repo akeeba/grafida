@@ -95,6 +95,7 @@ I nomi propri non si traducono: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | max tokens | Token massimi | Numero massimo di token in risposta. |
 | streaming | Streaming | Mantenuto in inglese; risposta IA in flusso continuo. |
 | system prompt | Prompt di sistema | Istruzione di sistema per l'IA. |
+| instructions (AI panel) | Istruzioni | Intestazione del fumetto che contiene il prompt di uno strumento IA. Deliberatamente la parola comune, non «prompt». GRAFIDA_LBL_AI_INSTRUCTIONS. |
 | tool prompt | Prompt strumento | Prompt specifico per uno strumento IA. |
 | tone (AI) | tono | Registro stilistico della risposta IA (es. formale, informale). Etichetta: «Tono». |
 | service override | Servizio alternativo | Possibilità di usare un servizio IA diverso da quello predefinito per uno strumento specifico. Etichetta: «Servizio alternativo». |

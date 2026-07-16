@@ -102,6 +102,7 @@ Eigennamen (Grafida, Joomla!, API, Markdown, HTML, TinyMCE) werden nicht überse
 | endpoint | Endpunkt | API-Endpunkt; GRAFIDA_LBL_AI_ENDPOINT. |
 | model (AI) | Modell | KI-Modell; GRAFIDA_LBL_AI_MODEL. |
 | system prompt | Systemprompt | Als Kompositum geschrieben (kein Leerzeichen). GRAFIDA_LBL_AI_SYSTEM_PROMPT. |
+| instructions (AI panel) | Anweisungen | Kopfzeile der Blase mit dem Prompt eines KI-Werkzeugs im Chat. Bewusst das schlichte Wort, nicht „Prompt". GRAFIDA_LBL_AI_INSTRUCTIONS. |
 | temperature (AI param) | Temperatur | Modellparameter; GRAFIDA_LBL_AI_TEMPERATURE. |
 | streaming | Streaming | Antwort-Streaming; als Anglizismus beibehalten. GRAFIDA_LBL_AI_STREAM. |
 | tone (writing) | Ton | Schreibton eines KI-Werkzeugs; GRAFIDA_LBL_AI_TONE. |

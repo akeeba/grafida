@@ -746,7 +746,16 @@ map is for when the update mechanism itself is built.
   the transcript is saved. Saved chats appear in the panel's **AI Chats** banner (open/continue/rename/
   delete). Assistant replies are the model's HTML (or Markdown, for the Generate tool); the panel
   renders them as **formatted** text — **and so are user/tool prompt bubbles** (`_buildUserBubble()`),
-  since tool prompts and many typed prompts are Markdown. Because the output is untrusted, rendering is
+  since tool prompts and many typed prompts are Markdown. A **tool's prompt is styled apart from what
+  the user typed**: `openWithTool()` sends the tool's prompt verbatim as the first user turn, and on the
+  accent bubble that long instruction block dominated the panel (and read as shouting), so it renders as
+  `.ai-bubble-instructions` — muted surface, a thin accent stripe down its right edge, and a wand-icon
+  **“Instructions”** header (`GRAFIDA_LBL_AI_INSTRUCTIONS`) naming what it is; typed turns keep the accent
+  bubble. `_isToolPrompt()` decides: the `tool` flag `_sendMessage()` writes onto the `_history` entry is
+  authoritative, and since that flag is **display-only** it is stripped when the messages array is
+  assembled (`_history` is mapped to bare `{role, content}` — never send it to a provider) and is
+  therefore absent from a chat reloaded from the DB, where the fallback matches the text against the
+  configured tools' prompts instead. Because the output is untrusted, rendering is
   **sanitised server-side**: `panel.js`'s `_renderRichText()` shows the raw text as plain text first
   (always-safe placeholder) then calls `POST /api/ai/render`, which `Ai\AiRenderer` turns into safe
   HTML — auto-detecting Markdown vs HTML, converting Markdown via the existing CommonMark

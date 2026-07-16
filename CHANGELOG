@@ -6,6 +6,7 @@ Grafida 0.2
 + Ctrl/Cmd+, opens Settings from anywhere
 + Windows: the installer bundles the Visual C++ runtime DLLs
 ~ Article lists show the publish state as a colour-coded icon before the title
+~ AI panel: a tool's prompt is muted "Instructions" instead of a red bubble
 # [HIGH] Windows: crash on startup ("broken signature") after Authenticode signing
 # [MEDIUM] Windows: multi-second freeze whenever a stored secret was read
 # [LOW] Windows: a command window flashed at startup and on theme detection

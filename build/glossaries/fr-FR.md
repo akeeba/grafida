@@ -100,6 +100,7 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | tokens | tokens | AI token count (Max tokens = « Tokens max ») — keep in English as conventional in French software UIs. |
 | streaming | streaming | AI streamed response — keep in English. |
 | system prompt | prompt système | The system-level instruction given to the AI. |
+| instructions (AI panel) | Instructions | En-tête de la bulle contenant le prompt d'un outil IA. Le mot courant, délibérément pas « prompt ». GRAFIDA_LBL_AI_INSTRUCTIONS. |
 | prompt (AI) | prompt | AI prompt (tool prompt, system prompt) — « prompt » is the accepted French term in AI contexts. |
 | tone | ton | Writing tone for an AI tool. |
 | tool key | identifiant de l'outil | The unique key/slug identifying an AI tool. |
