@@ -998,6 +998,19 @@ function buildSiteFormBody(site = null) {
 
     const tokenGroup = el('div', 'form-group', tokenLabel, tokenInput);
 
+    // Editor CSS override — only needed when auto-discovery cannot find the
+    // template's editor.css.
+    const cssInput = document.createElement('input');
+    cssInput.id = 'modal-site-editor-css';
+    cssInput.type = 'text';
+    cssInput.className = 'form-control';
+    cssInput.autocomplete = 'off';
+    cssInput.placeholder = '/media/templates/site/cassiopeia/css/editor.css';
+    if (site) cssInput.value = site.editorCssUrl || '';
+
+    const cssGroup = formGroup(t('GRAFIDA_LBL_EDITOR_CSS_URL'), cssInput);
+    cssGroup.appendChild(el('div', 'form-hint', t('GRAFIDA_MSG_EDITOR_CSS_URL_HINT')));
+
     // Test connection row
     const testBtn = iconBtn('plug', t('GRAFIDA_BTN_TEST_CONNECTION'), 'btn', 'btn-secondary');
     testBtn.id = 'btn-test-connection';
@@ -1009,6 +1022,7 @@ function buildSiteFormBody(site = null) {
         formGroup(t('GRAFIDA_LBL_TITLE'), titleInput),
         formGroup(t('GRAFIDA_LBL_URL'), urlInput),
         tokenGroup,
+        cssGroup,
         testRow,
     ];
 }
@@ -1074,6 +1088,7 @@ async function saveSiteHandler(id) {
     const titleEl = document.getElementById('modal-site-title');
     const urlEl = document.getElementById('modal-site-url');
     const tokenEl = document.getElementById('modal-site-token');
+    const cssEl = document.getElementById('modal-site-editor-css');
     const title = titleEl ? titleEl.value.trim() : '';
     const url = urlEl ? urlEl.value.trim() : '';
     const token = tokenEl ? tokenEl.value.trim() : '';
@@ -1083,7 +1098,8 @@ async function saveSiteHandler(id) {
         return;
     }
 
-    const body = { title, url };
+    // Always sent: a cleared field clears the stored override.
+    const body = { title, url, editorCssUrl: cssEl ? cssEl.value.trim() : '' };
     if (token) body.token = token;
 
     try {

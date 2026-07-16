@@ -77,8 +77,13 @@ final class SiteService
      *                                         $allowInsecure is false.
      * @throws \Grafida\Joomla\ApiException    When the connection test fails.
      */
-    public function create(string $title, string $url, string $token, bool $allowInsecure = false): Site
-    {
+    public function create(
+        string $title,
+        string $url,
+        string $token,
+        bool $allowInsecure = false,
+        ?string $editorCssUrl = null,
+    ): Site {
         $root    = ApiClient::normaliseRoot($url);
         $apiBase = $this->testConnection($root, $token);
 
@@ -90,6 +95,7 @@ final class SiteService
             apiBase: $apiBase,
             secretRef: $secretRef,
             insecureToken: $insecureToken,
+            editorCssUrl: $editorCssUrl,
         );
 
         $site = $this->repository->find($id);
@@ -102,11 +108,20 @@ final class SiteService
      * Updates an existing site. A non-null $token replaces the stored token and
      * re-tests the connection.
      *
+     * $editorCssUrl is not treated like $token: it is written as given, so null
+     * clears the override rather than keeping the stored one.
+     *
      * @throws SecureStoreUnavailableException
      * @throws \Grafida\Joomla\ApiException
      */
-    public function update(int $id, string $title, string $url, ?string $token, bool $allowInsecure = false): Site
-    {
+    public function update(
+        int $id,
+        string $title,
+        string $url,
+        ?string $token,
+        bool $allowInsecure = false,
+        ?string $editorCssUrl = null,
+    ): Site {
         $existing = $this->repository->find($id);
 
         if ($existing === null) {
@@ -134,7 +149,16 @@ final class SiteService
             [$secretRef, $insecureToken] = $this->persistToken($token, $allowInsecure);
         }
 
-        $this->repository->update($id, $title !== '' ? $title : $root, $root, $apiBase, $secretRef, $insecureToken);
+        $this->repository->update(
+            id: $id,
+            title: $title !== '' ? $title : $root,
+            baseUrl: $root,
+            apiBase: $apiBase,
+            secretRef: $secretRef,
+            insecureToken: $insecureToken,
+            defaultLanguage: $existing->defaultLanguage,
+            editorCssUrl: $editorCssUrl,
+        );
 
         $site = $this->repository->find($id);
         \assert($site !== null);

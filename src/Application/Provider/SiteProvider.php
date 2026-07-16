@@ -22,6 +22,7 @@ use Grafida\Media\MediaRepository;
 use Grafida\Media\SiteImageFetcher;
 use Grafida\Publish\PublishService;
 use Grafida\Reference\EditorCssService;
+use Grafida\Reference\TemplateDiscovery;
 use Grafida\Reference\ReferenceRepository;
 use Grafida\Reference\ReferenceService;
 use Grafida\Http\Transport;
@@ -87,11 +88,23 @@ final class SiteProvider implements ServiceProviderInterface
             return new ReferenceService($c->get(ReferenceRepository::class), $c->get(SiteService::class), $api);
         });
 
+        $container->share(TemplateDiscovery::class, static function (Container $c): TemplateDiscovery {
+            /** @var Transport $http */
+            $http = $c->get('http.short');
+
+            return new TemplateDiscovery($c->get(ReferenceRepository::class), $http);
+        });
+
         $container->share(EditorCssService::class, static function (Container $c): EditorCssService {
             /** @var Transport $http */
             $http = $c->get('http.short');
 
-            return new EditorCssService($c->get(ReferenceRepository::class), new CssRebaser(), $http);
+            return new EditorCssService(
+                $c->get(ReferenceRepository::class),
+                $c->get(TemplateDiscovery::class),
+                new CssRebaser(),
+                $http,
+            );
         });
 
         $container->share(SiteContext::class, static function (Container $c): SiteContext {

@@ -9,6 +9,7 @@ Grafida 0.2
 + AI services: tell Grafida the model can see images, and the article's pictures are sent with its text
 + Local Articles can be sorted by date created or date modified, newest first by default
 + Visit site button under the sidebar favicon opens the active site in your browser
++ Editor CSS URL site setting, for a template whose editor.css cannot be found automatically
 ~ Article lists show the Joomla article ID before the title
 ~ Article lists show the publish state as a colour-coded icon before the title
 ~ AI panel: a tool's prompt is muted "Instructions" instead of a red bubble
@@ -16,6 +17,7 @@ Grafida 0.2
 # [LOW] The editor's Meta description, Keywords and unsupported-fields notice were always in English
 # [HIGH] Windows: crash on startup ("broken signature") after Authenticode signing
 # [MEDIUM] Windows: multi-second freeze whenever a stored secret was read
+# [MEDIUM] The editor ignored your site's editor.css unless the site used the stock Cassiopeia template (gh-3)
 # [LOW] Windows: a command window flashed at startup and on theme detection
 # [LOW] AI panel: a second click on Send could fire a duplicate request
 # [LOW] AI tool icons were blank in Settings and the editor's AI Tools menu

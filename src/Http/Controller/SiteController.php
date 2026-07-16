@@ -68,6 +68,7 @@ final class SiteController extends Controller
             $this->str($body, 'url'),
             $this->str($body, 'token'),
             is_bool($allowInsecureVal) ? $allowInsecureVal : (bool) $allowInsecureVal,
+            $this->editorCssUrlFrom($body),
         );
 
         // Warm the categories/tags/languages cache the moment a site is connected,
@@ -91,6 +92,7 @@ final class SiteController extends Controller
             $this->str($body, 'url'),
             $token,
             is_bool($allowInsecureVal) ? $allowInsecureVal : (bool) $allowInsecureVal,
+            $this->editorCssUrlFrom($body),
         );
 
         // Re-warm reference data in case the URL or token changed.
@@ -98,6 +100,19 @@ final class SiteController extends Controller
         $this->favicons->sync($site);
 
         return Json::ok($this->siteContext->siteArray($site));
+    }
+
+    /**
+     * The editor.css override as the form sends it: an empty field means "no
+     * override, discover it" rather than an empty URL.
+     *
+     * @param array<string, mixed> $body
+     */
+    private function editorCssUrlFrom(array $body): ?string
+    {
+        $value = $this->str($body, 'editorCssUrl');
+
+        return $value !== '' ? $value : null;
     }
 
     public function deleteSite(int $id): ResponseInterface

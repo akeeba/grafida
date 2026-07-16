@@ -127,3 +127,6 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | meta description | Μετα-περιγραφή | Joomla keeps the “Meta” prefix here (JFIELD_META_DESCRIPTION_LABEL), unlike keywords. GRAFIDA_LBL_METADESC. |
 | keywords | Λέξεις-κλειδιά | Joomla 4+ dropped the “Meta” prefix on this label (JFIELD_META_KEYWORDS_LABEL); Grafida follows suit. GRAFIDA_LBL_METAKEY. |
 | unsupported fields | μη υποστηριζόμενα πεδία | Custom-field types Grafida cannot edit; shown as a sidebar notice. GRAFIDA_MSG_UNSUPPORTED_FIELDS. |
+| template | πρότυπο | Joomla! term for the site template (JGLOBAL «Πρότυπο»). Plural: πρότυπα. |
+| stylesheet | φύλλο στυλ | A CSS file. Standard Greek rendering of "stylesheet". |
+| editor CSS | CSS του επεξεργαστή | The template's editor.css, which makes the editor look like the site. GRAFIDA_LBL_EDITOR_CSS_URL. |

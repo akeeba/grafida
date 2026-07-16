@@ -127,3 +127,6 @@ Eigennamen (Grafida, Joomla!, API, Markdown, HTML, TinyMCE) werden nicht überse
 | meta description | Meta-Beschreibung | Joomla keeps the “Meta” prefix here (JFIELD_META_DESCRIPTION_LABEL), unlike keywords. GRAFIDA_LBL_METADESC. |
 | keywords | Schlüsselwörter | Joomla 4+ dropped the “Meta” prefix on this label (JFIELD_META_KEYWORDS_LABEL); Grafida follows suit. GRAFIDA_LBL_METAKEY. |
 | unsupported fields | nicht unterstützte Felder | Custom-field types Grafida cannot edit; shown as a sidebar notice. GRAFIDA_MSG_UNSUPPORTED_FIELDS. |
+| template | Template | Joomla!-Begriff für das Website-Template; wird nicht übersetzt (nicht „Vorlage"). |
+| stylesheet | Stylesheet | CSS-Datei; gängiger Anglizismus, wie in der Joomla!-Doku. |
+| editor CSS | Editor-CSS | Die editor.css des Templates, die den Editor wie die Website aussehen lässt. GRAFIDA_LBL_EDITOR_CSS_URL. |

@@ -24,7 +24,11 @@ use Grafida\Site\Site;
  */
 final class EditorCssService
 {
-    /** Common locations a Joomla template exposes its editor stylesheet at. */
+    /**
+     * Last-resort locations, tried only when the site's template could not be
+     * discovered. They cover a stock Cassiopeia (and Joomla's shared fallback);
+     * any other template is found through {@see TemplateDiscovery} instead.
+     */
     private const CANDIDATE_PATHS = [
         '/media/templates/site/cassiopeia/css/editor.css',
         '/templates/cassiopeia/css/editor.css',
@@ -33,6 +37,7 @@ final class EditorCssService
 
     public function __construct(
         private readonly ReferenceRepository $repository,
+        private readonly TemplateDiscovery $templates,
         private readonly CssRebaser $rebaser = new CssRebaser(),
         private readonly Transport $http = new HttpClient(5),
     ) {}
@@ -40,13 +45,10 @@ final class EditorCssService
     /**
      * Returns the editor CSS for a site, refreshing from the network when
      * possible and otherwise serving the cached copy.
-     *
-     * @param list<string>|null $candidatePaths Override the default search paths
-     *                                          (e.g. when the template is known).
      */
-    public function load(Site $site, ?array $candidatePaths = null): ?string
+    public function load(Site $site): ?string
     {
-        $fresh = $this->fetch($site, $candidatePaths ?? self::CANDIDATE_PATHS);
+        $fresh = $this->fetch($this->candidatesFor($site));
 
         if ($fresh !== null && $site->id !== null) {
             $this->repository->putEditorCss($site->id, $fresh);
@@ -58,13 +60,50 @@ final class EditorCssService
     }
 
     /**
-     * @param list<string> $paths
+     * The ordered URLs to try for a site: the user's explicit override first (it
+     * exists precisely because the guesses were wrong), then the stylesheet of
+     * each discovered template, then the stock-Cassiopeia fallbacks.
+     *
+     * @return list<string>
      */
-    private function fetch(Site $site, array $paths): ?string
+    private function candidatesFor(Site $site): array
     {
-        foreach ($paths as $path) {
-            $url = $site->baseUrl . $path;
+        $paths = [];
 
+        foreach ($this->templates->templates($site) as $template) {
+            $paths[] = '/media/templates/site/' . $template . '/css/editor.css';
+            $paths[] = '/templates/' . $template . '/css/editor.css';
+        }
+
+        foreach (self::CANDIDATE_PATHS as $path) {
+            $paths[] = $path;
+        }
+
+        $urls = $site->editorCssUrl !== null ? [$this->absolute($site, $site->editorCssUrl)] : [];
+
+        foreach ($paths as $path) {
+            $urls[] = $site->baseUrl . $path;
+        }
+
+        return array_values(array_unique($urls));
+    }
+
+    /** Resolves the user's override, which may be an absolute URL or a site-root-relative path. */
+    private function absolute(Site $site, string $url): string
+    {
+        if (preg_match('#^[a-z][a-z0-9+.-]*://#i', $url) === 1) {
+            return $url;
+        }
+
+        return rtrim($site->baseUrl, '/') . '/' . ltrim($url, '/');
+    }
+
+    /**
+     * @param list<string> $urls
+     */
+    private function fetch(array $urls): ?string
+    {
+        foreach ($urls as $url) {
             try {
                 $response = $this->http->request('GET', $url);
             } catch (\Throwable) {

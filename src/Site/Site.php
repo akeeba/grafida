@@ -25,14 +25,18 @@ final readonly class Site
         public ?string $secretRef,
         public bool $hasInsecureToken,
         public string $defaultLanguage = '*',
+        public ?string $editorCssUrl = null,
     ) {}
 
     /**
      * @param array{id?: int|string|null, title: string, base_url: string, api_base: string|null,
-     *             secret_ref: string|null, insecure_token: string|int|null, default_language?: string} $row
+     *             secret_ref: string|null, insecure_token: string|int|null, default_language?: string,
+     *             editor_css_url?: string|null} $row
      */
     public static function fromRow(array $row): self
     {
+        $editorCssUrl = $row['editor_css_url'] ?? null;
+
         return new self(
             id: isset($row['id']) ? (int) $row['id'] : null,
             title: $row['title'],
@@ -41,6 +45,7 @@ final readonly class Site
             secretRef: $row['secret_ref'] !== null ? $row['secret_ref'] : null,
             hasInsecureToken: $row['insecure_token'] !== null && $row['insecure_token'] !== '' && $row['insecure_token'] !== 0,
             defaultLanguage: $row['default_language'] ?? '*',
+            editorCssUrl: $editorCssUrl !== '' ? $editorCssUrl : null,
         );
     }
 
@@ -59,6 +64,7 @@ final readonly class Site
             'baseUrl'         => $this->baseUrl,
             'apiBase'         => $this->apiBase,
             'defaultLanguage' => $this->defaultLanguage,
+            'editorCssUrl'    => $this->editorCssUrl,
             'insecure'        => $this->isInsecure(),
         ];
     }

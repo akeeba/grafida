@@ -98,6 +98,20 @@ window-free in tests (a null dialog makes the endpoint return 503).
   the OS browser via `api.openUrl()`; like the favicon it only exists while a site is selected,
   and the collapsed icon rail hides it along with the whole `#site-selector`.
 - `src/Reference/` — cached categories/tags/levels/fields + `EditorCssService` (5s fetch, rebase, cache).
+  `EditorCssService` does **not** guess the template. `TemplateDiscovery` learns the active one by
+  scanning the site's **home page** for the asset paths Joomla renders — `/media/templates/site/<name>/`
+  (4.1+) or the legacy `/templates/<name>/` — because the Global Configuration `template` value needs
+  `core.admin`, which an article author's token lacks (see the Joomla API facts). It scans the raw HTML
+  rather than the DOM: the name appears in `<link>`/`<script>` attributes but equally inside inline
+  `@import`/`url()`, and each is an equally good witness. `system` is ignored (Joomla's shared assets,
+  not a template), and the discovered names are cached per site under the `template` kind so an
+  unreachable site still resolves its template. `EditorCssService::candidatesFor()` then tries, in
+  order: the site's **manual `editor_css_url` override**, each discovered template's
+  `css/editor.css` (media path then legacy), and finally the stock-Cassiopeia guesses. The override is
+  a per-site column (an absolute URL or a site-root-relative path) surfaced as the Sites form's
+  "Editor CSS URL" field — it exists for templates that serve the stylesheet from an unconventional
+  place, which no amount of sniffing can find. ⚠️ Unlike the API token, an empty override **clears**
+  the stored value rather than keeping it (`SiteService::update()`), so the form always sends the field.
   `ReferenceService` uses a short-timeout (8s) API client; `sync()` warms the cache best-effort
   when a site is connected/updated, and opening the editor falls back to cache per-list (only the
   manual refresh button surfaces fetch errors).

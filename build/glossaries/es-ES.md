@@ -136,3 +136,6 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | meta description | Meta descripción | Joomla keeps the “Meta” prefix here (JFIELD_META_DESCRIPTION_LABEL), unlike keywords. GRAFIDA_LBL_METADESC. |
 | keywords | Palabras clave | Joomla 4+ dropped the “Meta” prefix on this label (JFIELD_META_KEYWORDS_LABEL); Grafida follows suit. GRAFIDA_LBL_METAKEY. |
 | unsupported fields | campos no compatibles | Custom-field types Grafida cannot edit; shown as a sidebar notice. GRAFIDA_MSG_UNSUPPORTED_FIELDS. |
+| template | plantilla | Joomla! term for the site template. Plural: plantillas. |
+| stylesheet | hoja de estilos | A CSS file. Standard Joomla! Spanish rendering. |
+| editor CSS | CSS del editor | The template's editor.css, which makes the editor look like the site. GRAFIDA_LBL_EDITOR_CSS_URL. |
