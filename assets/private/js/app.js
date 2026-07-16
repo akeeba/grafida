@@ -2569,6 +2569,8 @@ async function initTinyMCE(draft) {
             'anchor', 'searchreplace', 'visualblocks', 'fullscreen', 'accordion',
             'insertdatetime', 'media', 'table', 'help', 'wordcount', 'quickbars'
         ],
+        // Disable the quick insert toolbar that appears on a new line
+        quickbars_insert_toolbar: false,
         // Tools menu: our "sourcecode" item replaces the dropped "code" item.
         menu: {
             tools: { title: 'Tools', items: 'sourcecode wordcount' },
@@ -2580,6 +2582,8 @@ async function initTinyMCE(draft) {
         // Wrap the toolbar onto multiple rows so no button (notably "readmore")
         // is ever hidden inside the overflow menu on a narrow window.
         toolbar_mode: 'wrap',
+        // Adds the Image is decorative option to the Insert/Edit Image dialog,
+        a11y_advanced_options: true,
         // Make the read-more break clearly visible inside the editor: a thick
         // dashed coloured line that reads on both light and dark site CSS.
         // (::before/::after can't be used here — <hr> is a void element.)
