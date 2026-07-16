@@ -2036,7 +2036,7 @@ function renderEditorSidebar(draft) {
     if (refs.fields.unsupported && refs.fields.unsupported.length > 0) {
         const names = refs.fields.unsupported.map(f => f.label).join(', ');
         const notice = el('div', 'unsupported-fields-notice',
-            `Unsupported fields (not editable): ${names}`
+            ...formatNodes(t('GRAFIDA_MSG_UNSUPPORTED_FIELDS'), names)
         );
         sidebar.appendChild(notice);
     }
@@ -2047,15 +2047,15 @@ function renderEditorSidebar(draft) {
     metadescEl.className = 'form-control';
     metadescEl.rows = 3;
     metadescEl.value = draft.metadesc || '';
-    sidebar.appendChild(formGroup('Meta description', metadescEl));
+    sidebar.appendChild(formGroup(t('GRAFIDA_LBL_METADESC'), metadescEl));
 
-    // Meta keywords
+    // Keywords (Joomla 4+ dropped the "Meta" prefix on this label)
     const metakeyEl = document.createElement('input');
     metakeyEl.id = 'editor-metakey';
     metakeyEl.type = 'text';
     metakeyEl.className = 'form-control';
     metakeyEl.value = draft.metakey || '';
-    sidebar.appendChild(formGroup('Meta keywords', metakeyEl));
+    sidebar.appendChild(formGroup(t('GRAFIDA_LBL_METAKEY'), metakeyEl));
 
     // Intro / full-text article images (Joomla's "Images and Links" tab).
     sidebar.appendChild(renderImagesSection(draft.siteId));

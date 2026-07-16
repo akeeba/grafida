@@ -124,3 +124,6 @@ Eigennamen (Grafida, Joomla!, API, Markdown, HTML, TinyMCE) werden nicht überse
 | icon picker | Symbolauswahl | Searchable dropdown for the AI-tool icon. GRAFIDA_BTN_AI_TOOL_ICON_CHOOSE / GRAFIDA_PLACEHOLDER_AI_TOOL_ICON_SEARCH. „Symbol“ per the existing tool-icon entry. |
 | list site articles | Beiträge der Website anzeigen | Empty-state action that switches to the Remote Articles tab. GRAFIDA_BTN_LIST_SITE_ARTICLES. |
 | visit site | Website aufrufen | Sidebar button under the site favicon; opens the site in the OS browser. GRAFIDA_BTN_OPEN_SITE. |
+| meta description | Meta-Beschreibung | Joomla keeps the “Meta” prefix here (JFIELD_META_DESCRIPTION_LABEL), unlike keywords. GRAFIDA_LBL_METADESC. |
+| keywords | Schlüsselwörter | Joomla 4+ dropped the “Meta” prefix on this label (JFIELD_META_KEYWORDS_LABEL); Grafida follows suit. GRAFIDA_LBL_METAKEY. |
+| unsupported fields | nicht unterstützte Felder | Custom-field types Grafida cannot edit; shown as a sidebar notice. GRAFIDA_MSG_UNSUPPORTED_FIELDS. |

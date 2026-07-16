@@ -124,3 +124,6 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | icon picker | επιλογή εικονιδίου | Searchable dropdown for the AI-tool icon. GRAFIDA_BTN_AI_TOOL_ICON_CHOOSE / GRAFIDA_PLACEHOLDER_AI_TOOL_ICON_SEARCH. Uses «εικονίδιο» per the existing icon entry. |
 | list site articles | Προβολή άρθρων ιστοτόπου | Empty-state action that switches to the Remote Articles tab. GRAFIDA_BTN_LIST_SITE_ARTICLES. |
 | visit site | Επίσκεψη ιστοτόπου | Sidebar button under the site favicon; opens the site in the OS browser. GRAFIDA_BTN_OPEN_SITE. |
+| meta description | Μετα-περιγραφή | Joomla keeps the “Meta” prefix here (JFIELD_META_DESCRIPTION_LABEL), unlike keywords. GRAFIDA_LBL_METADESC. |
+| keywords | Λέξεις-κλειδιά | Joomla 4+ dropped the “Meta” prefix on this label (JFIELD_META_KEYWORDS_LABEL); Grafida follows suit. GRAFIDA_LBL_METAKEY. |
+| unsupported fields | μη υποστηριζόμενα πεδία | Custom-field types Grafida cannot edit; shown as a sidebar notice. GRAFIDA_MSG_UNSUPPORTED_FIELDS. |
