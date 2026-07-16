@@ -1321,18 +1321,27 @@ function applyArticlesTab() {
 
 // The columns the local-drafts list may be sorted by — only the fields a draft
 // actually carries (no hits/author/dates as Joomla's remote list has).
+// Deliberately NO id column, unlike ARTICLE_SORT_COLUMNS. The id a local row
+// shows is the Joomla id of the article it mirrors, which a draft only has once
+// it has been published — so ordering by it would sort half the list by a value
+// the other half does not have.
 const DRAFT_SORT_COLUMNS = [
-    ['id', 'GRAFIDA_SORT_ID'],
     ['title', 'GRAFIDA_SORT_TITLE'],
     ['category', 'GRAFIDA_SORT_CATEGORY'],
     ['language', 'GRAFIDA_SORT_LANGUAGE'],
     ['state', 'GRAFIDA_SORT_STATUS'],
 ];
 
-/** The default filter/sort/page state for the local-drafts list. */
+/**
+ * The default filter/sort/page state for the local-drafts list.
+ *
+ * Sorted by title, since the id this list used to default to is no longer one of
+ * the columns it offers (see DRAFT_SORT_COLUMNS) and the dropdown must show the
+ * ordering that is actually in effect.
+ */
 function defaultDraftQuery() {
     return {
-        search: '', ordering: 'id', direction: 'desc',
+        search: '', ordering: 'title', direction: 'asc',
         category: '', tag: '', language: '', state: '',
         limit: 20, page: 1,
     };
@@ -1438,7 +1447,8 @@ function compareDrafts(a, b, ordering) {
         case 'category': return (a.categoryTitle || '').localeCompare(b.categoryTitle || '');
         case 'language': return (a.language || '').localeCompare(b.language || '');
         case 'state':    return (Number(a.state) || 0) - (Number(b.state) || 0);
-        case 'id':
+        // Not user-selectable — just a stable fallback for an unrecognised
+        // ordering, by the local row key (i.e. creation order).
         default:         return (Number(a.id) || 0) - (Number(b.id) || 0);
     }
 }
@@ -1748,11 +1758,37 @@ function articleStateIcon(state) {
     return wrap;
 }
 
+/**
+ * The Joomla article ID a row stands for, or null when it has none.
+ *
+ * A remote row IS a Joomla article, so its own id is the answer. A local row is
+ * a draft, whose `id` is a key in our own `drafts` table — an internal number
+ * that means nothing on the site — so the article ID is the `remoteId` of the
+ * article it mirrors, and a draft that has never been published has no article
+ * ID at all.
+ */
+function articleJoomlaId(article, type) {
+    const id = type === 'remote' ? article.id : article.remoteId;
+
+    return id == null ? null : id;
+}
+
 function buildArticleItem(article, type) {
     const item = el('div', 'article-item');
 
     const titleDiv = el('div', 'article-item-title',
         articleStateIcon(article.state), article.title || '(Untitled)');
+
+    const joomlaId = articleJoomlaId(article, type);
+    if (joomlaId != null) {
+        const idEl = el('span', 'article-item-id', '#' + joomlaId);
+        idEl.title = t('GRAFIDA_LBL_ARTICLE_ID');
+        idEl.setAttribute('aria-label', t('GRAFIDA_LBL_ARTICLE_ID') + ' ' + joomlaId);
+        // After the state icon, before the title: the icon leads every row (a
+        // clean left rail of state glyphs), and the id belongs with the title
+        // it identifies rather than out on the margin.
+        titleDiv.insertBefore(idEl, titleDiv.childNodes[1] || null);
+    }
     const infoDiv = el('div', 'article-item-info', titleDiv);
     if (article.catid != null) {
         const label = article.categoryTitle

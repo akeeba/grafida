@@ -1069,6 +1069,15 @@ input[type="color"].form-control {
 .article-state-icon.state-archived    { color: var(--color-info); }
 .article-state-icon.state-trashed     { color: var(--color-text-muted); }
 
+/* The Joomla article id in an article row. Monospaced and muted so it reads as
+   an identifier the eye can skip, and never competes with the title. */
+.article-item-id {
+    font-family: var(--font-mono);
+    font-weight: 400;
+    color: var(--color-text-muted);
+    margin-right: 6px;
+}
+
 .article-item-category {
     font-size: 11px;
     color: var(--color-text-muted);

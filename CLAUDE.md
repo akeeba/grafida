@@ -139,9 +139,12 @@ window-free in tests (a null dialog makes the endpoint return 503).
   state/featured/checked-out dropdowns, per-page limit, clear-filters). The Local Drafts tab
   offers the same shape, but drafts are loaded in full per visit and **searched/sorted/filtered/
   paginated entirely client-side** (`filteredSortedDrafts()` / `renderDraftsTab()`); its toolbar
-  is the subset of fields a draft actually carries (search over title+alias; sort by id/title/
-  category/language/state; category/tag/language/state filters; per-page limit) — no
-  featured/checked-out/hits/author/date controls. Because drafts store tag *titles* (not ids),
+  is the subset of fields a draft actually carries (search over title+alias; sort by title/
+  category/language/state, defaulting to title asc; category/tag/language/state filters; per-page
+  limit) — no featured/checked-out/hits/author/date controls, and (unlike the remote tab)
+  **no id sort**: the id a local row shows is the *Joomla* id of the article it mirrors, which a
+  draft only has once published, so ordering by it would sort half the list by a value the other
+  half lacks. Because drafts store tag *titles* (not ids),
   the drafts tab's tag filter matches on title. The drafts tab's **empty state**
   (`buildDraftsEmptyState()`) is two-way: when the filters merely exclude everything it is the
   plain `GRAFIDA_MSG_NO_DRAFTS` line, but when there are **no drafts at all** it shows
@@ -156,7 +159,11 @@ window-free in tests (a null dialog makes the endpoint return 503).
   (`articleStateIcon()` / the `ARTICLE_STATE_ICONS` map): check/green published, xmark/red
   unpublished, box-archive/blue archived, trash/muted trashed. The colours follow Joomla's
   semantics; a distinct glyph per state (plus a `role="img"` + `aria-label`) is what carries the
-  meaning without them. The API only accepts a
+  meaning without them. Between that icon and the title sits the **Joomla article id**
+  (`articleJoomlaId()`, rendered as a muted monospace `#123`) — on a remote row its own `id`; on a
+  local row the `remoteId` of the article it mirrors, since a draft's `id` is a key in our own
+  `drafts` table and means nothing on the site. A draft that has never been published therefore
+  shows no id at all, which is exactly why the drafts tab offers no id sort. The API only accepts a
   **single** category/tag and an INT `state`, so there is no multi-select or "all states"; an
   author filter is omitted (no local user list).
   `DraftExportService` builds and consumes the portable **`.grafida`** file format (plain JSON
