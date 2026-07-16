@@ -117,3 +117,4 @@ Eigennamen (Grafida, Joomla!, API, Markdown, HTML, TinyMCE) werden nicht überse
 | article properties | Artikeleigenschaften | Title of the editor's metadata sidebar (status, category, access…). GRAFIDA_LBL_ARTICLE_PROPERTIES. |
 | sidebar | Seitenleiste | Collapsible navigation/metadata columns. GRAFIDA_BTN_TOGGLE_SIDEBAR. |
 | collapse or expand | ein- oder ausklappen | Toggling a sidebar's collapsed state. GRAFIDA_BTN_TOGGLE_SIDEBAR / GRAFIDA_BTN_TOGGLE_PROPERTIES. |
+| alias (URL slug) | Alias | The article's URL slug; kept as "Alias" (Joomla convention). GRAFIDA_LBL_ALIAS. |

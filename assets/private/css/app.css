@@ -1157,7 +1157,7 @@ input[type="color"].form-control {
 }
 
 #editor-title-bar {
-    padding: 10px 16px 0;
+    padding: 10px 16px 8px;
     background: var(--color-bg);
     flex-shrink: 0;
 }
@@ -1183,6 +1183,61 @@ input[type="color"].form-control {
 #editor-title-input::placeholder {
     color: var(--color-text-muted);
     font-weight: 400;
+}
+
+/* Alias (URL slug) field, styled as an input with an attached add-on button. */
+#editor-alias-group {
+    display: flex;
+    align-items: stretch;
+    margin-top: 6px;
+    max-width: 520px;
+}
+
+.editor-alias-input {
+    flex: 1;
+    min-width: 0;
+    background: var(--color-input-bg);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-input-border);
+    border-right: none;
+    border-radius: var(--radius) 0 0 var(--radius);
+    padding: 4px 8px;
+    font-family: var(--font-main);
+    font-size: 12px;
+    line-height: 1.5;
+    outline: none;
+    transition: border-color var(--transition), color var(--transition);
+}
+
+.editor-alias-input:focus {
+    border-color: var(--color-input-focus);
+    color: var(--color-text);
+}
+
+.editor-alias-input::placeholder {
+    color: var(--color-text-muted);
+}
+
+.editor-alias-addon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding: 0 10px;
+    font-size: 12px;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-input-border);
+}
+
+.editor-alias-btn {
+    border-radius: 0 var(--radius) var(--radius) 0;
+    color: var(--color-text);
+    cursor: pointer;
+    transition: background var(--transition);
+}
+
+.editor-alias-btn:hover {
+    background: var(--color-surface);
 }
 
 #tinymce-wrapper {

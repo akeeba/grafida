@@ -102,6 +102,14 @@ window-free in tests (a null dialog makes the endpoint return 503).
 - `src/Article/` — `Draft` entity + repository (local drafts). A draft remembers the
   `site_id` + `remote_id` it mirrors; `findByRemote()` locates an existing draft for a
   remote article and `update()` can re-point a draft at another site (which unlinks it).
+  The **alias (URL slug)** is an editable field in the editor, shown as an input with an
+  attached "regenerate" add-on button (`#editor-alias-input` / `#btn-regenerate-alias`)
+  directly below the title. The SPA's `makeAlias()` mirrors Joomla's
+  `ApplicationHelper::stringUrlSafe()` (NFKD transliteration → lowercase → whitespace-to-dash →
+  strip non-`[a-z0-9-]` → trim dashes; empty result falls back to a `Y-m-d-H-i-s` timestamp);
+  `regenerateAlias(force)` fills the alias from the title on the title's **blur** only when the
+  alias is empty (never clobbering a hand-edited one), while the button always regenerates.
+  Joomla re-slugifies whatever alias we send on publish, so this is a faithful preview.
   Editing a remote article fetches its full content via `GET /api/sites/{id}/articles/{articleId}`
   (body recovered by `ApiController::remoteArticleBody()`: it prefers discrete `introtext` /
   `fulltext` attributes if the API ever exposes them — a Joomla PR proposes this — otherwise it

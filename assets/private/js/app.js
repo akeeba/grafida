@@ -1644,6 +1644,10 @@ function renderEditorSidebar(draft) {
     const titleInput = document.getElementById('editor-title-input');
     if (titleInput) titleInput.value = draft.title || '';
 
+    // Alias (URL slug) directly below the title.
+    const aliasInput = document.getElementById('editor-alias-input');
+    if (aliasInput) aliasInput.value = draft.alias || '';
+
     // Site this draft belongs to. Re-pointing it at another site unlinks it from
     // any remote article (the user is warned first) — see changeEditorSite().
     sidebar.appendChild(formGroup(t('GRAFIDA_LBL_SITE'), buildSiteSelect(draft.siteId)));
@@ -3554,6 +3558,55 @@ function blobToBase64(blob) {
 }
 
 // --------------------------------------------------------
+//  Alias (URL slug)
+// --------------------------------------------------------
+
+/**
+ * Turn a string into a URL-safe alias, mirroring Joomla's
+ * ApplicationHelper::stringUrlSafe(): dashes become spaces, accented Latin
+ * letters are transliterated to ASCII (via Unicode NFKD decomposition +
+ * combining-mark stripping — a close approximation of Joomla's default
+ * transliterator), the result is lower-cased, every run of whitespace becomes a
+ * single dash, any remaining non-[a-z0-9-] character is dropped and leading /
+ * trailing dashes are trimmed. When nothing usable survives (e.g. an all
+ * non-Latin title), Joomla falls back to a timestamp — so do we, keeping the
+ * same Y-m-d-H-i-s shape. The published article is re-slugified by Joomla
+ * anyway, so this only needs to be a faithful preview of the result.
+ */
+function makeAlias(text) {
+    let str = String(text || '').replace(/-/g, ' ');
+    // Transliterate: decompose accented characters and strip the combining
+    // diacritical marks (Unicode U+0300–U+036F) that decomposition leaves behind.
+    str = str.normalize('NFKD').replace(/[̀-ͯ]/g, '');
+    str = str.trim().toLowerCase();
+    str = str.replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    str = str.replace(/^-+|-+$/g, '');
+
+    if (str === '') {
+        const d = new Date();
+        const p = (n) => String(n).padStart(2, '0');
+        str = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+            + `-${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}`;
+    }
+
+    return str;
+}
+
+/**
+ * Regenerate the alias field from the current title. When force is false (the
+ * title-blur path) the alias is only filled in if it is currently empty, so a
+ * hand-edited alias is never clobbered; the regenerate button passes force.
+ */
+function regenerateAlias(force) {
+    const titleInput = document.getElementById('editor-title-input');
+    const aliasInput = document.getElementById('editor-alias-input');
+    if (!titleInput || !aliasInput) return;
+    if (!force && aliasInput.value.trim() !== '') return;
+
+    aliasInput.value = makeAlias(titleInput.value);
+}
+
+// --------------------------------------------------------
 //  Save draft
 // --------------------------------------------------------
 
@@ -3590,9 +3643,11 @@ function collectDraftFormData() {
     const metadescEl = document.getElementById('editor-metadesc');
     const metakeyEl = document.getElementById('editor-metakey');
     const titleInputEl = document.getElementById('editor-title-input');
+    const aliasInputEl = document.getElementById('editor-alias-input');
 
     return {
         title: titleInputEl ? titleInputEl.value.trim() : '',
+        alias: aliasInputEl ? aliasInputEl.value.trim() : '',
         catid: catEl && catEl.value ? parseInt(catEl.value, 10) : null,
         access: accessEl ? parseInt(accessEl.value, 10) : 1,
         language: langEl ? langEl.value : '*',
@@ -3614,9 +3669,9 @@ function isEditorDirty() {
 }
 
 /**
- * Build the full save payload: the editable form plus the working draft's
- * site/remote link and the fields not exposed in the form (alias). The article
- * images are part of collectDraftFormData() (the editor's Images section).
+ * Build the full save payload: the editable form (which now includes the alias)
+ * plus the working draft's site/remote link. The article images are part of
+ * collectDraftFormData() (the editor's Images section).
  */
 function buildDraftSaveBody() {
     const draft = State.currentDraft || {};
@@ -3624,7 +3679,6 @@ function buildDraftSaveBody() {
         ...collectDraftFormData(),
         siteId: draft.siteId,
         remoteId: draft.remoteId ?? null,
-        alias: draft.alias || '',
     };
 }
 
@@ -4079,6 +4133,9 @@ function applyStrings() {
         const text = t(node.dataset.i18nTitle);
         node.title = text;
         node.setAttribute('aria-label', text);
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(node => {
+        node.placeholder = t(node.dataset.i18nPlaceholder);
     });
     renderSiteSelector();
     renderSettingsScreen();
@@ -5342,6 +5399,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnBack = document.getElementById('btn-back-to-articles');
     if (btnBack) {
         btnBack.addEventListener('click', () => { handleEditorBack(); });
+    }
+
+    // Auto-fill the alias from the title when focus leaves the title and the
+    // alias is still empty; the add-on button always regenerates from the title.
+    const editorTitleInput = document.getElementById('editor-title-input');
+    if (editorTitleInput) {
+        editorTitleInput.addEventListener('blur', () => regenerateAlias(false));
+    }
+    const btnRegenAlias = document.getElementById('btn-regenerate-alias');
+    if (btnRegenAlias) {
+        btnRegenAlias.addEventListener('click', () => regenerateAlias(true));
     }
 
     const langSel = document.getElementById('settings-language-select');

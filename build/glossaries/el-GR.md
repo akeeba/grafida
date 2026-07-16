@@ -117,3 +117,4 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | article properties | Ιδιότητες άρθρου | Title of the editor's metadata sidebar (status, category, access…). GRAFIDA_LBL_ARTICLE_PROPERTIES. |
 | sidebar | πλαϊνή στήλη | Collapsible navigation/metadata columns. GRAFIDA_BTN_TOGGLE_SIDEBAR. |
 | collapse or expand | σύμπτυξη ή ανάπτυξη | Toggling a sidebar's collapsed state. GRAFIDA_BTN_TOGGLE_SIDEBAR / GRAFIDA_BTN_TOGGLE_PROPERTIES. |
+| alias (URL slug) | Ψευδώνυμο | The article's URL slug; Joomla Greek uses "Ψευδώνυμο". GRAFIDA_LBL_ALIAS. |
