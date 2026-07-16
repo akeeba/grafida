@@ -275,6 +275,211 @@ function formGroup(labelText, inputEl) {
     return group;
 }
 
+/**
+ * The names of every FontAwesome icon we can render, discovered at runtime from
+ * the shipped stylesheet.
+ *
+ * FontAwesome is NPM-managed and gitignored, so a hard-coded list would rot on
+ * every version bump. Instead we read the icon-name -> glyph map straight out of
+ * `fontawesome.min.css`, where each icon is a `.fa-<name>{--fa:"\f0c5"}` rule.
+ * That file carries only the names we ship a webfont for (solid; brands and the
+ * other styles live in stylesheets we do not copy), so every discovered name is
+ * renderable as `fa-solid fa-<name>`.
+ *
+ * A rule may carry several comma-separated selectors, one per alias of the same
+ * glyph (`.fa-dollar-sign,.fa-usd{--fa:"\24"}`), so we take every name in the
+ * group. The aliases are worth keeping: they are what a user is likely to search
+ * for (`home` for `house`, `dollar-sign` for `usd`), and the alphabetical
+ * selector order gives no way to tell an alias from the canonical name anyway.
+ *
+ * @returns {Promise<string[]>} alphabetical icon names, without the `fa-` prefix
+ */
+let _iconCatalog = null;
+function iconCatalog() {
+    if (_iconCatalog) return _iconCatalog;
+    _iconCatalog = (async () => {
+        try {
+            const res = await fetch('/css/fontawesome.min.css');
+            if (!res.ok) return [];
+            const css = await res.text();
+            const names = new Set();
+            const re = /((?:\.fa-[a-z0-9-]+\s*,\s*)*\.fa-[a-z0-9-]+)\s*\{\s*--fa\s*:/g;
+            let m;
+            while ((m = re.exec(css)) !== null) {
+                m[1].split(',').forEach(sel => names.add(sel.trim().slice(4)));
+            }
+            return Array.from(names).sort();
+        } catch (err) {
+            return [];
+        }
+    })();
+    return _iconCatalog;
+}
+
+/**
+ * Build a searchable FontAwesome icon picker.
+ *
+ * Renders as a trigger button showing the current icon and its name; clicking it
+ * drops down a search box over a grid of every available icon. The selected name
+ * is kept in a hidden input carrying `inputId`, so callers read the value exactly
+ * as they would a plain text field.
+ *
+ * @param {string} inputId — id for the hidden value input
+ * @param {string} value — currently selected icon name (no `fa-` prefix)
+ * @returns {HTMLElement} the picker wrapper
+ */
+function iconPicker(inputId, value) {
+    const hidden = document.createElement('input');
+    hidden.type = 'hidden';
+    hidden.id = inputId;
+    hidden.value = value || '';
+
+    const preview = el('span', 'icon-picker-preview');
+    const label = el('span', 'icon-picker-label');
+
+    const trigger = el('button', 'form-control icon-picker-trigger',
+        preview, label, el('span', 'icon-picker-caret', icon('chevron-down')));
+    trigger.type = 'button';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+
+    const clearBtn = iconBtn('xmark', t('GRAFIDA_BTN_AI_TOOL_ICON_CLEAR'),
+        'btn', 'btn-sm', 'btn-secondary', 'icon-picker-clear');
+
+    const search = document.createElement('input');
+    search.type = 'search';
+    search.className = 'form-control icon-picker-search';
+    search.autocomplete = 'off';
+    search.placeholder = t('GRAFIDA_PLACEHOLDER_AI_TOOL_ICON_SEARCH');
+
+    const grid = el('div', 'icon-picker-grid');
+    grid.setAttribute('role', 'listbox');
+    const panel = el('div', 'icon-picker-panel hidden', search, grid);
+    const wrap = el('div', 'icon-picker', hidden, el('div', 'icon-picker-row', trigger, clearBtn), panel);
+
+    const syncTrigger = () => {
+        clearNode(preview);
+        const name = hidden.value;
+        if (name) preview.appendChild(icon(name));
+        label.textContent = name || t('GRAFIDA_BTN_AI_TOOL_ICON_CHOOSE');
+        label.classList.toggle('text-muted', !name);
+        clearBtn.classList.toggle('hidden', !name);
+    };
+
+    const select = (name) => {
+        hidden.value = name;
+        syncTrigger();
+        close();
+        trigger.focus();
+    };
+
+    const buildCell = (name) => {
+        const cell = el('button', 'icon-picker-cell', icon(name));
+        cell.type = 'button';
+        cell.title = name;
+        cell.setAttribute('aria-label', name);
+        cell.setAttribute('role', 'option');
+        if (name === hidden.value) {
+            cell.classList.add('selected');
+            cell.setAttribute('aria-selected', 'true');
+        }
+        cell.addEventListener('click', () => select(name));
+        return cell;
+    };
+
+    // FontAwesome ships ~2000 names, so the grid fills in pages as it scrolls
+    // rather than laying out every cell up front — otherwise each keystroke in
+    // the search box would re-render the whole catalogue.
+    const PAGE = 240;
+    let matches = [];
+    let shown = 0;
+
+    const renderPage = () => {
+        const frag = document.createDocumentFragment();
+        const upto = Math.min(shown + PAGE, matches.length);
+        for (; shown < upto; shown++) frag.appendChild(buildCell(matches[shown]));
+        grid.appendChild(frag);
+    };
+
+    const renderGrid = (names, query) => {
+        clearNode(grid);
+        shown = 0;
+        const q = query.trim().toLowerCase();
+        matches = q ? names.filter(n => n.includes(q)) : names;
+        if (!matches.length) {
+            grid.appendChild(el('p', 'text-muted icon-picker-empty', t('GRAFIDA_MSG_NO_AI_TOOL_ICONS')));
+            return;
+        }
+        renderPage();
+    };
+
+    grid.addEventListener('scroll', () => {
+        if (shown >= matches.length) return;
+        if (grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 80) renderPage();
+    });
+
+    function close() {
+        panel.classList.add('hidden');
+        trigger.setAttribute('aria-expanded', 'false');
+        document.removeEventListener('click', onDocClick, true);
+    }
+
+    function onDocClick(e) {
+        if (!wrap.contains(e.target)) close();
+    }
+
+    const open = async () => {
+        panel.classList.remove('hidden');
+        trigger.setAttribute('aria-expanded', 'true');
+        document.addEventListener('click', onDocClick, true);
+        const names = await iconCatalog();
+        renderGrid(names, search.value);
+        // Re-opening on an existing choice should show it: page in far enough to
+        // reach it (it may sit well past the first page), then scroll to it.
+        const at = hidden.value ? matches.indexOf(hidden.value) : -1;
+        if (at >= 0) {
+            while (shown <= at) renderPage();
+            const sel = grid.querySelector('.selected');
+            if (sel) sel.scrollIntoView({ block: 'center' });
+        }
+        search.focus();
+        search.select();
+    };
+
+    trigger.addEventListener('click', () => {
+        if (panel.classList.contains('hidden')) open(); else close();
+    });
+
+    clearBtn.addEventListener('click', () => {
+        hidden.value = '';
+        syncTrigger();
+        trigger.focus();
+    });
+
+    search.addEventListener('input', async () => renderGrid(await iconCatalog(), search.value));
+
+    // ESC closes the dropdown only — the modal's own ESC handler must not fire
+    // and take the whole dialog down with it.
+    wrap.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape' || panel.classList.contains('hidden')) return;
+        e.stopPropagation();
+        close();
+        trigger.focus();
+    });
+
+    // ENTER in the search box picks the first match — the common case when the
+    // user knows roughly what the icon is called.
+    search.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const first = grid.querySelector('.icon-picker-cell');
+        if (first) first.click();
+    });
+
+    syncTrigger();
+    return wrap;
+}
+
 /** Append multiple children to a parent. */
 function appendChildren(parent, ...children) {
     for (const child of children) {
@@ -4891,13 +5096,7 @@ function buildAiToolFormBody(tool) {
     if (tool) titleIn.value = tool.title || tool.toolKey || '';
 
     // Icon (FA solid icon name, without the "fa-" prefix)
-    const iconIn = document.createElement('input');
-    iconIn.id = 'modal-ai-tool-icon';
-    iconIn.type = 'text';
-    iconIn.className = 'form-control';
-    iconIn.autocomplete = 'off';
-    iconIn.placeholder = 'wand-magic-sparkles';
-    if (tool) iconIn.value = tool.icon || '';
+    const iconIn = iconPicker('modal-ai-tool-icon', tool ? (tool.icon || '') : '');
 
     // Prompt
     const promptTa = document.createElement('textarea');

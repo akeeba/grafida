@@ -117,3 +117,4 @@ I nomi propri non si traducono: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | sidebar | barra laterale | Collapsible navigation/metadata columns. GRAFIDA_BTN_TOGGLE_SIDEBAR. |
 | collapse or expand | comprimi o espandi | Toggling a sidebar's collapsed state. GRAFIDA_BTN_TOGGLE_SIDEBAR / GRAFIDA_BTN_TOGGLE_PROPERTIES. |
 | alias (URL slug) | Alias | The article's URL slug; kept as "Alias" (Joomla convention). GRAFIDA_LBL_ALIAS. |
+| icon picker | selettore di icone | Searchable dropdown for the AI-tool icon. GRAFIDA_BTN_AI_TOOL_ICON_CHOOSE / GRAFIDA_PLACEHOLDER_AI_TOOL_ICON_SEARCH. «icona» per GRAFIDA_LBL_AI_TOOL_ICON. |

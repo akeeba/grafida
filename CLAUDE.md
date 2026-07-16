@@ -697,7 +697,18 @@ map is for when the update mechanism itself is built.
   fa-…">`** (not an SVG) whose FA `font-family`/`font-weight` are harvested once at runtime from
   `::before` via `getComputedStyle` (`faIconInlineStyle()` in `app.js`) — the SVG-free webfont
   technique ported from AITiny. Tool `icon` values are stored **prefix-less** (`check`, not
-  `fa-check`) since the render sites prepend `fa-solid fa-`.
+  `fa-check`) since the render sites prepend `fa-solid fa-`. The Settings AI-Tools form picks the
+  icon with `iconPicker()` (`app.js`) — a searchable drop-down of every icon rendered as its glyph —
+  not a type-the-name text field; it keeps the chosen name in a hidden input, so callers read it like
+  a plain text field. Its catalogue comes from `iconCatalog()`, which **parses the shipped
+  `css/fontawesome.min.css` at runtime** (each icon is a `.fa-<name>{--fa:"\f0c5"}` rule) rather than
+  hard-coding a list — FontAwesome is NPM-managed and gitignored, so a bundled list would rot on
+  every version bump, and that stylesheet only carries names we ship a webfont for. A rule may group
+  several comma-separated alias selectors for one glyph (`.fa-dollar-sign,.fa-usd{…}`); **take every
+  name in the group** — matching only the last selector silently drops ~479 names (searching
+  "dollar" would find nothing), and the selector order is alphabetical, so it cannot tell an alias
+  from the canonical name. The grid renders in 240-cell pages as it scrolls, so a keystroke never
+  re-lays-out all ~2000 icons.
   **Both AI toolbar entries (`aitools aiassistant`) are only added to the editor toolbar when at least
   one AI service is configured** (`hasAiService` in `initTinyMCE()` gates the `aiToolbarSegment`
   appended to the `toolbar` string from `State.aiServices.length`): with no provider connection there

@@ -7,6 +7,7 @@ Grafida 0.2
 + Windows: the installer now bundles the required Visual C++ runtime DLLs, so the app runs on a clean Windows without a separate redistributable
 + The editor now shows the article alias (URL slug) below the title, auto-generated from the title using Joomla's conventions, with a button to regenerate it
 + Ctrl/Cmd+, now opens the Settings page from anywhere (prompting to save first when an article is open with unsaved changes)
++ An AI tool's icon is now chosen from a searchable drop-down showing each icon, instead of having to know and type its FontAwesome name
 
 Grafida 0.1
 ================================================================================

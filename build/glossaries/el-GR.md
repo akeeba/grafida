@@ -118,3 +118,4 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | sidebar | πλαϊνή στήλη | Collapsible navigation/metadata columns. GRAFIDA_BTN_TOGGLE_SIDEBAR. |
 | collapse or expand | σύμπτυξη ή ανάπτυξη | Toggling a sidebar's collapsed state. GRAFIDA_BTN_TOGGLE_SIDEBAR / GRAFIDA_BTN_TOGGLE_PROPERTIES. |
 | alias (URL slug) | Ψευδώνυμο | The article's URL slug; Joomla Greek uses "Ψευδώνυμο". GRAFIDA_LBL_ALIAS. |
+| icon picker | επιλογή εικονιδίου | Searchable dropdown for the AI-tool icon. GRAFIDA_BTN_AI_TOOL_ICON_CHOOSE / GRAFIDA_PLACEHOLDER_AI_TOOL_ICON_SEARCH. Uses «εικονίδιο» per the existing icon entry. |
