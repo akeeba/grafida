@@ -2569,7 +2569,10 @@ async function initTinyMCE(draft) {
             'anchor', 'searchreplace', 'visualblocks', 'fullscreen', 'accordion',
             'insertdatetime', 'media', 'table', 'help', 'wordcount', 'quickbars'
         ],
-        // Disable the quick insert toolbar that appears on a new line
+        // The quick insert toolbar (shown on every empty line) offers "quickimage",
+        // which clicks a plain <input type="file"> — dead in Boson's webview, like
+        // the image dialog's Upload tab disabled below. Drop the whole toolbar; the
+        // plugin stays for its selection and image context toolbars.
         quickbars_insert_toolbar: false,
         // Tools menu: our "sourcecode" item replaces the dropped "code" item.
         menu: {
@@ -2582,8 +2585,6 @@ async function initTinyMCE(draft) {
         // Wrap the toolbar onto multiple rows so no button (notably "readmore")
         // is ever hidden inside the overflow menu on a narrow window.
         toolbar_mode: 'wrap',
-        // Adds the Image is decorative option to the Insert/Edit Image dialog,
-        a11y_advanced_options: true,
         // Make the read-more break clearly visible inside the editor: a thick
         // dashed coloured line that reads on both light and dark site CSS.
         // (::before/::after can't be used here — <hr> is a void element.)
@@ -2906,6 +2907,10 @@ async function initTinyMCE(draft) {
         // so an image's properties can be edited after it is inserted.
         image_dimensions: true,
         image_advtab: true,
+        // Add the "Image is decorative" checkbox to the dialog, the way Joomla's
+        // own editor does: it empties the alt text and marks the image with an
+        // empty alt attribute, which is what a screen reader needs to skip it.
+        a11y_advanced_options: true,
         file_picker_types: 'image',
         file_picker_callback: (callback, _value, meta) => {
             if (meta.filetype !== 'image') return;

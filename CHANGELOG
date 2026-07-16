@@ -10,7 +10,9 @@ Grafida 0.2
 + Local Articles can be sorted by date created or date modified, newest first by default
 + Visit site button under the sidebar favicon opens the active site in your browser
 + Editor CSS URL site setting, for a template whose editor.css cannot be found automatically
++ Insert/Edit Image: mark an image as decorative, as in Joomla (gh-5)
 ~ Article lists show the Joomla article ID before the title
+~ The editor no longer pops up a quick insert toolbar on every empty line (gh-6)
 ~ Article lists show the publish state as a colour-coded icon before the title
 ~ AI panel: a tool's prompt is muted "Instructions" instead of a red bubble
 ~ The editor's Meta Keywords field is now called Keywords, as in Joomla 4 and later

@@ -284,8 +284,11 @@ window-free in tests (a null dialog makes the endpoint return 503).
   `file_picker_types: 'image'`) opens the media browser, with a "Choose file…" button for a local file.
   To **edit an already-inserted image** (dimensions, description, alignment, CSS), selecting it shows a
   floating context toolbar (`addContextToolbar('grafidaImageTools')`, predicate = `img`) whose **Image**
-  item re-opens that same dialog; the dialog carries the Dimensions fields (`image_dimensions`) and an
-  Advanced tab (`image_advtab`: inline style, border, spacing). Double-clicking the image or the
+  item re-opens that same dialog; the dialog carries the Dimensions fields (`image_dimensions`), an
+  Advanced tab (`image_advtab`: inline style, border, spacing) and — via `a11y_advanced_options: true`,
+  matching Joomla's own editor — an **"Image is decorative"** checkbox that empties the alt text and
+  marks the image with an empty `alt` so a screen reader skips it (gh-5). This is the inline-image
+  counterpart of the intro/full-text images' `image_*_alt_empty` toggle. Double-clicking the image or the
   toolbar/Insert-menu **Image** button work too. The same context toolbar's **CSS class…** item
   (`imageclass` button) opens a small prompt to set any free-text CSS class(es) on the image (the
   Insert/Edit Image dialog has no class field); it pre-fills the current `class` and writes it back in one
@@ -297,7 +300,10 @@ window-free in tests (a null dialog makes the endpoint return 503).
   TinyMCE's own **"Upload" tab is disabled** (`image_uploadtab: false`) because its "Browse for an image"
   dropzone creates a plain `<input type="file">` that Boson's webview never opens (see the native
   file-dialog note above) — so local uploads go exclusively through the Source-field "Choose file…",
-  which calls the native picker.
+  which calls the native picker. The **quickbars insert toolbar is disabled** for the same reason
+  (`quickbars_insert_toolbar: false`, gh-6): the toolbar it pops up on every empty line offers a
+  `quickimage` button that clicks that same dead `<input type="file">`. The `quickbars` plugin stays
+  loaded — its selection and image context toolbars are unaffected.
   a local pick is inserted as `<img src="data:…" data-grafida-media-id="N">` (`GRAFIDA_MEDIA_ATTR`,
   mirroring `InlineMedia::ATTRIBUTE`) so `PublishService` uploads it on publish; a site-media pick is
   inserted as its public URL. On publish, `InlineMedia::rewriteDataImages()` rewrites **every** inline
