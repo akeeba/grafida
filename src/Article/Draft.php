@@ -37,13 +37,16 @@ final class Draft
         public array $images = [],
         public string $metadesc = '',
         public string $metakey = '',
+        public ?string $createdAt = null,
+        public ?string $updatedAt = null,
     ) {}
 
     /**
      * @param array{id?: int|string|null, site_id: int|string, remote_id: int|string|null,
      *             title: string, alias: string, catid: int|string|null, access: int|string,
      *             language: string, state: int|string, html: string, fields_json: string,
-     *             tags_json: string, images_json: string, metadesc?: string, metakey?: string} $row
+     *             tags_json: string, images_json: string, metadesc?: string, metakey?: string,
+     *             created_at?: string|null, updated_at?: string|null} $row
      */
     public static function fromRow(array $row): self
     {
@@ -74,6 +77,8 @@ final class Draft
             images: $images,
             metadesc: $row['metadesc'] ?? '',
             metakey: $row['metakey'] ?? '',
+            createdAt: $row['created_at'] ?? null,
+            updatedAt: $row['updated_at'] ?? null,
         );
     }
 
@@ -96,6 +101,13 @@ final class Draft
             'images'    => $this->images,
             'metadesc'  => $this->metadesc,
             'metakey'   => $this->metakey,
+            // Naive UTC 'Y-m-d H:i:s', as stored. The SPA only ever sorts on
+            // these, and that format sorts lexicographically in chronological
+            // order — so it compares them as strings and never has to hand them
+            // to Date.parse(), which WKWebView does not handle reliably for the
+            // naive form (see the ai_chats.last_response_at note in CLAUDE.md).
+            'createdAt' => $this->createdAt,
+            'updatedAt' => $this->updatedAt,
         ];
     }
 }

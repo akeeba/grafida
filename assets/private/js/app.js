@@ -1326,6 +1326,8 @@ function applyArticlesTab() {
 // it has been published — so ordering by it would sort half the list by a value
 // the other half does not have.
 const DRAFT_SORT_COLUMNS = [
+    ['modified', 'GRAFIDA_SORT_MODIFIED'],
+    ['created', 'GRAFIDA_SORT_CREATED'],
     ['title', 'GRAFIDA_SORT_TITLE'],
     ['category', 'GRAFIDA_SORT_CATEGORY'],
     ['language', 'GRAFIDA_SORT_LANGUAGE'],
@@ -1335,13 +1337,13 @@ const DRAFT_SORT_COLUMNS = [
 /**
  * The default filter/sort/page state for the local-drafts list.
  *
- * Sorted by title, since the id this list used to default to is no longer one of
- * the columns it offers (see DRAFT_SORT_COLUMNS) and the dropdown must show the
- * ordering that is actually in effect.
+ * Most-recently-edited first: this is a working list, so what you touched last
+ * is what you are most likely to want again. It also matches the order
+ * `DraftRepository::listBySite()` already returns rows in (`updated_at DESC`).
  */
 function defaultDraftQuery() {
     return {
-        search: '', ordering: 'title', direction: 'asc',
+        search: '', ordering: 'modified', direction: 'desc',
         category: '', tag: '', language: '', state: '',
         limit: 20, page: 1,
     };
@@ -1443,6 +1445,11 @@ function filteredSortedDrafts() {
 /** Comparator for the local-drafts sort (ascending; caller flips for desc). */
 function compareDrafts(a, b, ordering) {
     switch (ordering) {
+        // The timestamps are naive UTC 'Y-m-d H:i:s', which sorts
+        // lexicographically in chronological order — so compare the strings and
+        // skip Date.parse() entirely, which WKWebView mishandles for this form.
+        case 'modified': return (a.updatedAt || '').localeCompare(b.updatedAt || '');
+        case 'created':  return (a.createdAt || '').localeCompare(b.createdAt || '');
         case 'title':    return (a.title || '').localeCompare(b.title || '');
         case 'category': return (a.categoryTitle || '').localeCompare(b.categoryTitle || '');
         case 'language': return (a.language || '').localeCompare(b.language || '');

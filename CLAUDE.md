@@ -139,12 +139,19 @@ window-free in tests (a null dialog makes the endpoint return 503).
   state/featured/checked-out dropdowns, per-page limit, clear-filters). The Local Drafts tab
   offers the same shape, but drafts are loaded in full per visit and **searched/sorted/filtered/
   paginated entirely client-side** (`filteredSortedDrafts()` / `renderDraftsTab()`); its toolbar
-  is the subset of fields a draft actually carries (search over title+alias; sort by title/
-  category/language/state, defaulting to title asc; category/tag/language/state filters; per-page
-  limit) — no featured/checked-out/hits/author/date controls, and (unlike the remote tab)
-  **no id sort**: the id a local row shows is the *Joomla* id of the article it mirrors, which a
-  draft only has once published, so ordering by it would sort half the list by a value the other
-  half lacks. Because drafts store tag *titles* (not ids),
+  is the subset of fields a draft actually carries (search over title+alias; sort by
+  modified/created/title/category/language/state, defaulting to **Date modified desc** — a working
+  list, so what you touched last comes first, matching the `updated_at DESC` order
+  `DraftRepository::listBySite()` already returns; category/tag/language/state filters; per-page
+  limit) — no featured/checked-out/hits/author controls, and (unlike the remote tab) **no id sort**:
+  the id a local row shows is the *Joomla* id of the article it mirrors, which a draft only has once
+  published, so ordering by it would sort half the list by a value the other half lacks. The two
+  date sorts run off `Draft::toArray()`'s `createdAt`/`updatedAt` — naive UTC `Y-m-d H:i:s` exactly
+  as stored, which the SPA compares **as strings** (that format sorts lexicographically in
+  chronological order), never via `Date.parse()`, which WKWebView mishandles for the naive form (the
+  same trap as `ai_chats.last_response_at`). `DraftExportService` enumerates its fields explicitly
+  rather than using `toArray()`, so the timestamps stay out of the `.grafida` format. Because drafts
+  store tag *titles* (not ids),
   the drafts tab's tag filter matches on title. The drafts tab's **empty state**
   (`buildDraftsEmptyState()`) is two-way: when the filters merely exclude everything it is the
   plain `GRAFIDA_MSG_NO_DRAFTS` line, but when there are **no drafts at all** it shows
