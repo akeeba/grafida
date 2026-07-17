@@ -2584,7 +2584,7 @@ function aiHelpTab() {
         // on macOS, which escaping would show literally.
         '<p>' + escapeHtmlText(t('GRAFIDA_MSG_HELP_AI_SEND'))
             .replace('%s', helpShortcutText('Meta + Enter')) + '</p>',
-        '<p><b>' + escapeHtmlText(t('GRAFIDA_LBL_HELP_AI_TOOLS')) + '</b></p>',
+        '<p><strong>' + escapeHtmlText(t('GRAFIDA_LBL_HELP_AI_TOOLS')) + '</strong></p>',
         '<p>' + escapeHtmlText(t('GRAFIDA_MSG_HELP_AI_TOOLS')) + '</p>',
     ];
     if (State.aiTools.length) {
