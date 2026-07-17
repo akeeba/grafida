@@ -1,5 +1,6 @@
 Grafida 0.2
 ================================================================================
++ Slash commands: type / in the editor for a filterable menu of headings, lists, images and more; switch it off in Settings (gh-9)
 + Editable article alias (URL slug) in the editor, auto-generated from the title
 + Created by Alias in the editor, to credit an author other than the publishing account (gh-8)
 + Searchable icon picker for AI tools
@@ -20,6 +21,7 @@ Grafida 0.2
 ~ AI panel: a tool's prompt is muted "Instructions" instead of a red bubble
 ~ The editor's Meta Keywords field is now called Keywords, as in Joomla 4 and later
 # [LOW] The editor's Meta description, Keywords and unsupported-fields notice were always in English
+# [LOW] The editor's "read more separator already exists" warning was always in English
 # [HIGH] Windows: crash on startup ("broken signature") after Authenticode signing
 # [MEDIUM] Windows: multi-second freeze whenever a stored secret was read
 # [MEDIUM] The editor ignored your site's editor.css unless the site used the stock Cassiopeia template (gh-3)

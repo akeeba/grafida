@@ -14,9 +14,9 @@ namespace Grafida\Http\Controller;
 /**
  * Shared, dependency-free request-parsing helpers for every domain controller.
  *
- * Deliberately thin: it holds only the two trivial body-array readers
- * (`str`/`int`) that every controller needs and that need no collaborator of
- * their own. The site-resolution helpers (`requireSite`, `connectedSite`,
+ * Deliberately thin: it holds only the trivial body-array readers
+ * (`str`/`int`/`bool`) that every controller needs and that need no collaborator
+ * of their own. The site-resolution helpers (`requireSite`, `connectedSite`,
  * `siteArray`, `relationshipIds`, `firstRelationshipId`, `withCategoryTitles`)
  * that used to live here moved to the injectable `Grafida\Http\SiteContext`
  * collaborator, and the `UI_KEYS` string list moved to
@@ -52,5 +52,25 @@ abstract class Controller
         $value = $body[$key] ?? null;
 
         return is_numeric($value) ? (int) $value : $default;
+    }
+
+    /**
+     * Safely reads a boolean value from a mixed-typed body map.
+     *
+     * A JSON body carries a real boolean, but a value that merely stands in for
+     * one (0/1, "0"/"1") is accepted too; anything absent or unusable yields the
+     * default, so an omitted key never reads as false by accident.
+     *
+     * @param array<string, mixed> $body
+     */
+    protected function bool(array $body, string $key, bool $default = false): bool
+    {
+        $value = $body[$key] ?? null;
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        return is_numeric($value) || is_string($value) ? (bool) $value : $default;
     }
 }

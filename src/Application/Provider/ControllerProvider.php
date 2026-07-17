@@ -22,6 +22,7 @@ use Grafida\Application\Container;
 use Grafida\Article\DraftExportService;
 use Grafida\Article\DraftRepository;
 use Grafida\Display\DisplayModeService;
+use Grafida\Editor\SlashToolsService;
 use Grafida\Field\FieldSupport;
 use Grafida\Http\ApiController;
 use Grafida\Http\Controller\AiChatController;
@@ -65,6 +66,7 @@ final class ControllerProvider implements ServiceProviderInterface
                 siteContext: $c->get(SiteContext::class),
                 language: $c->get(LanguageService::class),
                 displayMode: $c->get(DisplayModeService::class),
+                slashTools: $c->get(SlashToolsService::class),
                 aiDefaults: $c->get(Defaults::class),
                 aiServices: $c->get(AiServiceManager::class),
                 aiTools: $c->get(AiToolRepository::class),
@@ -133,6 +135,7 @@ final class ControllerProvider implements ServiceProviderInterface
                 markdown: $c->get(MarkdownService::class),
                 language: $c->get(LanguageService::class),
                 displayMode: $c->get(DisplayModeService::class),
+                slashTools: $c->get(SlashToolsService::class),
                 urlOpener: $c->get(UrlOpener::class),
                 updates: $c->get(UpdateService::class),
                 storage: $c->get(StorageService::class),

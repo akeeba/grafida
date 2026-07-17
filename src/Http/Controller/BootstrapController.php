@@ -16,6 +16,7 @@ use Grafida\Ai\AiServiceManager;
 use Grafida\Ai\AiToolRepository;
 use Grafida\Ai\Defaults;
 use Grafida\Display\DisplayModeService;
+use Grafida\Editor\SlashToolsService;
 use Grafida\Field\FieldSupport;
 use Grafida\Http\Json;
 use Grafida\Http\RouteContext;
@@ -34,6 +35,7 @@ final class BootstrapController extends Controller
         private readonly SiteContext $siteContext,
         private readonly LanguageService $language,
         private readonly DisplayModeService $displayMode,
+        private readonly SlashToolsService $slashTools,
         private readonly Defaults $aiDefaults,
         private readonly AiServiceManager $aiServices,
         private readonly AiToolRepository $aiTools,
@@ -58,6 +60,7 @@ final class BootstrapController extends Controller
             'availableLanguages'  => $this->language->available(),
             'displayMode'         => $this->displayMode->current(),
             'systemPrefersDark'   => $this->displayMode->systemPrefersDark(),
+            'slashTools'          => $this->slashTools->current(),
             'secureStore'         => $this->sites->hasSecureStore(),
             'supportedFieldTypes' => FieldSupport::SUPPORTED,
             'sites'               => array_map($this->siteContext->siteArray(...), $this->sites->list()),

@@ -138,6 +138,33 @@ final class ApiRoutingTest extends TestCase
         self::assertSame('light', $boot['data']['displayMode']);
     }
 
+    public function testSlashToolsDefaultsToEnabled(): void
+    {
+        [, $boot] = $this->call($this->kernel(), 'GET', '/api/bootstrap');
+
+        self::assertTrue($boot['data']['slashTools']);
+    }
+
+    public function testSlashToolsPersists(): void
+    {
+        $kernel = $this->kernel();
+
+        [$status, $json] = $this->call($kernel, 'POST', '/api/settings/slash-tools', json_encode(['enabled' => false]));
+
+        self::assertSame(200, $status);
+        self::assertFalse($json['data']['slashTools']);
+
+        [, $boot] = $this->call($kernel, 'GET', '/api/bootstrap');
+        self::assertFalse($boot['data']['slashTools']);
+
+        // Back on again — a stored "off" must not be sticky.
+        [, $json] = $this->call($kernel, 'POST', '/api/settings/slash-tools', json_encode(['enabled' => true]));
+        self::assertTrue($json['data']['slashTools']);
+
+        [, $boot] = $this->call($kernel, 'GET', '/api/bootstrap');
+        self::assertTrue($boot['data']['slashTools']);
+    }
+
     public function testStorageInfoReportsDatabasePath(): void
     {
         [$status, $json] = $this->call($this->kernel(), 'GET', '/api/settings/storage');

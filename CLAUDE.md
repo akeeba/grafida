@@ -362,6 +362,12 @@ window-free in tests (a null dialog makes the endpoint return 503).
   `<html data-theme="light|dark">`;
   TinyMCE follows the app theme (skin `oxide`/`oxide-dark`); its editing surface switches to
   the dark built-in content CSS only when the site supplies no `editor.css`.
+- `src/Editor/SlashToolsService.php` — persists whether the editor's slash-command menu is
+  enabled (`settings` key `slash_tools`, **default on**), sent to the SPA as the `bootstrap`
+  payload's `slashTools` key and written via `POST /api/settings/slash-tools`. Same shape as
+  `DisplayModeService` (the `settings` table is a generic key/value store, so a new preference
+  needs **no migration**); the boolean is encoded `'1'`/`'0'`. See the slash-commands note under
+  `assets/private/` for the feature itself.
 - `src/Markdown/`, `src/I18n/` — Markdown import; language service. `I18n\UiStrings::KEYS` is the
   canonical list of UI string keys shipped to the SPA (used by `BootstrapController` and
   `SettingsController`).
@@ -445,6 +451,41 @@ window-free in tests (a null dialog makes the endpoint return 503).
   `selector` format over common block/img/anchor tags — it never changes the tag). Each class is
   pre-registered as a `grafidaInline_N` / `grafidaBlock_N` format pair in the init `formats` option;
   menu items are toggles whose active state mirrors `editor.formatter.match()`.
+  **Slash commands** (`js/editor/slashtools.js`, `window.GrafidaSlashTools`, gh-9): typing `/` opens a
+  filterable command menu — headings, lists, dummy text, quote, read more, images, link, table,
+  source code, fullscreen. Ported from Brian Teeman's
+  [slashtools](https://github.com/brianteeman/slashtools) TinyMCE plugin (GPLv3), **not integrated**:
+  upstream ships as a Joomla extension wired up through TinyMCE's "External Plugin URLs" setting, and
+  neither half exists here — `js/tinymce/` is npm-vendored and **gitignored** (a plugin file dropped
+  in there would be untracked and wiped by the next `vendor:assets`) and Grafida sets no
+  `external_plugins`. So it is a plain IIFE loaded after `app.js`, calling
+  `editor.ui.registry.addAutocompleter` (the only one in the codebase) from `initTinyMCE()`'s `setup`.
+  Four things worth knowing:
+  - **The off switch is enforced in `fetch`, not at registration.** `fetchItems()` returns `[]` when
+    `State.slashTools` is false and an autocompleter with no results shows no popup, so toggling the
+    Settings option takes effect on an already-open editor — unlike the `hasAiService` toolbar gate,
+    which is baked in at init and needs a re-open.
+  - ⚠️ **The placeholder images are PNG, minted on a `<canvas>` — upstream's SVG would break a
+    publish.** `Html\InlineMedia::rewriteDataImages()` uploads *every* inline `data:` image to the
+    site's Media Manager, and Joomla rejects SVG by default, so an SVG placeholder left in an article
+    aborts the publish outright.
+  - **Labels are localised but filtering also matches English `keywords`**, so `/head` still finds the
+    headings on a translated UI. The label is `t(key)` resolved per `fetch`, so a language switch
+    needs no re-registration. A keyword matches only at the **start of one of its words**, not as a
+    substring: `/ordered` would otherwise surface the *bulleted* list first (its own keyword is
+    `unordered`) — and the first item is the one Enter picks.
+  - ⚠️ **A command inserts translated text, so it must escape it** — and *which* escaper depends on
+    the context. `escapeHtmlText()` serialises a text node, so it escapes `&`/`<`/`>` but leaves a
+    **double quote alone**: fine for element content (the headings, list item, quotation), useless for
+    an attribute value, where a quote in a translation closes the attribute early. The placeholder
+    `<img>` therefore goes through **`editor.dom.createHTML('img', {...})`**, which escapes attributes
+    properly.
+  - **TinyMCE 7 ships no `h1`/`h2`/`h3` icons** (upstream's heading items silently render a fallback
+    glyph), hence the `grafida-h1..3` `addIcon` calls; and upstream's "Ordered list" inserts a `<ul>`,
+    fixed here to `<ol>`.
+  `tests/js/slashtools.test.mjs` covers the filtering, separator collapse, off switch and what each
+  command inserts. The read-more item shares `app.js`'s `insertReadMore()` with the toolbar button
+  (which is what refuses a second separator).
   **The Help dialog is the only in-app editor documentation**, so `menu.tools.items` keeps the
   stock `help` item (the overridden Tools menu would otherwise drop it, leaving the dialog
   reachable by Alt+0 alone), and `help_tabs` (`editorHelpTabs()` in `app.js`) adds a **Grafida**
@@ -679,13 +720,17 @@ host fails with a clear message.
 `composer test` — the PHPUnit suites (unit + integration + feature) **and `test:js`**. `phpunit.xml`
 sets `failOnEmptyTestSuite="false"` because `tests/Integration/` was originally scaffolding only;
 without that flag PHPUnit fails the whole run on an empty suite before the feature suite executes.
-- **`composer test:js`** (`node --test 'tests/js/**/*.test.mjs'`) covers
-  `assets/private/js/ai/providers.js`, the AI transport. PHPUnit **cannot** reach it — the provider
-  call runs in the SPA (see the AI facts) — so this is its only automated coverage. It uses node's
-  built-in test runner and loads the browser IIFE in a `vm` context with a fake `window`/`fetch`/`api`;
-  no bundler and no new dependency (node is already a build prerequisite). Gotcha: providers.js
-  detects a CORS failure with `err instanceof TypeError`, so a stub must mint that error **inside the
-  sandbox realm** or the fallback never triggers.
+- **`composer test:js`** (`node --test 'tests/js/**/*.test.mjs'`) covers the SPA modules PHPUnit
+  **cannot** reach: `assets/private/js/ai/providers.js` (the AI transport — the provider call runs in
+  the SPA, see the AI facts) and `assets/private/js/editor/slashtools.js` (the slash-command menu).
+  For both it is the only automated coverage. It uses node's built-in test runner and loads the
+  browser IIFE in a `vm` context with fakes for the globals app.js supplies (`window`/`fetch`/`api`,
+  or `State`/`t`/`editor`); no bundler and no new dependency (node is already a build prerequisite).
+  ⚠️ **The sandbox is its own realm**, which bites twice: providers.js detects a CORS failure with
+  `err instanceof TypeError`, so a stub must mint that error **inside** the sandbox or the fallback
+  never triggers; and a value *returned* from the sandbox (slashtools' `fetchItems()` array) fails a
+  strict deep-equal against an outer-realm literal on the prototype alone, so re-home it first
+  (`Array.from()`) or compare field by field.
 - **`tests/Integration/Ai/ResponsesApiLiveTest.php`** talks to a **real** OpenAI *Responses API*
   server. It pins the wire-format assumptions providers.js is built on (the `output[]`→`output_text`
   shape, `instructions`, the typed SSE events with **no `[DONE]`**, and that a `previous_response_id`

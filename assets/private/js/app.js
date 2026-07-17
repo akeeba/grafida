@@ -33,6 +33,8 @@ const State = {
     // The concrete theme currently applied ('light' | 'dark') after resolving
     // 'auto' against the OS preference. Drives the TinyMCE skin/content CSS.
     resolvedTheme: 'dark',
+    // Whether typing "/" in the editor opens the slash-command menu (gh-9).
+    slashTools: true,
     secureStore: true,
     supportedFieldTypes: [],
     app: {},
@@ -584,6 +586,7 @@ const api = {
     setLanguage: (tag) => apiFetch('POST', '/api/settings/language', { tag }),
     setDisplayMode: (mode) => apiFetch('POST', '/api/settings/display-mode', { mode }),
     systemTheme: () => apiFetch('GET', '/api/settings/system-theme'),
+    setSlashTools: (enabled) => apiFetch('POST', '/api/settings/slash-tools', { enabled }),
     checkUpdate: () => apiFetch('GET', '/api/update'),
     getStorageInfo: () => apiFetch('GET', '/api/settings/storage'),
     openStorageFolder: () => apiFetch('POST', '/api/settings/storage/open'),
@@ -2559,14 +2562,28 @@ function grafidaHelpTab() {
         ['GRAFIDA_LBL_HELP_SC_PRE', 'Ctrl + Shift + P'],
         ['GRAFIDA_LBL_HELP_SC_QUOTE', 'Ctrl + Shift + Q'],
     ];
+    const items = [{
+        type: 'table',
+        header: [t('GRAFIDA_LBL_HELP_ACTION'), t('GRAFIDA_LBL_HELP_SHORTCUT')],
+        cells: rows.map(([key, spec]) => [escapeHtmlText(t(key)), helpShortcutText(spec)]),
+    }];
+
+    // Documented only while the menu is switched on — describing a feature the
+    // reader has turned off would just be confusing. An htmlpanel is set via
+    // innerHTML, hence the escaping.
+    if (State.slashTools !== false) {
+        items.push({
+            type: 'htmlpanel',
+            presets: 'document',
+            html: '<h2>' + escapeHtmlText(t('GRAFIDA_LBL_SLASH_TOOLS')) + '</h2>' +
+                '<p>' + escapeHtmlText(t('GRAFIDA_MSG_HELP_SLASH_TOOLS')) + '</p>',
+        });
+    }
+
     return {
         name: 'grafida',
         title: t('GRAFIDA_LBL_HELP_TAB_GRAFIDA'),
-        items: [{
-            type: 'table',
-            header: [t('GRAFIDA_LBL_HELP_ACTION'), t('GRAFIDA_LBL_HELP_SHORTCUT')],
-            cells: rows.map(([key, spec]) => [escapeHtmlText(t(key)), helpShortcutText(spec)]),
-        }],
+        items: items,
     };
 }
 
@@ -2607,6 +2624,25 @@ function editorHelpTabs(hasAiService) {
     const tabs = ['shortcuts', grafidaHelpTab()];
     if (hasAiService) tabs.push(aiHelpTab());
     return tabs.concat(['keyboardnav', 'plugins', 'versions']);
+}
+
+/**
+ * Inserts the "Read more" separator, refusing a second one — Joomla splits an
+ * article on the first separator, so a second is meaningless.
+ *
+ * Shared by the toolbar button and the slash-command menu.
+ */
+function insertReadMore(editor) {
+    if (editor.dom.select('hr.readmore').length >= 1) {
+        editor.notificationManager.open({
+            text: t('GRAFIDA_MSG_READMORE_EXISTS'),
+            type: 'warning',
+            timeout: 3000,
+        });
+        return;
+    }
+
+    editor.insertContent('<hr class="readmore">');
 }
 
 async function initTinyMCE(draft) {
@@ -2752,19 +2788,16 @@ async function initTinyMCE(draft) {
                 icon: 'readmore',
                 text: t('GRAFIDA_BTN_INSERT_READMORE'),
                 tooltip: t('GRAFIDA_BTN_INSERT_READMORE'),
-                onAction: () => {
-                    const existing = editor.dom.select('hr.readmore');
-                    if (existing.length >= 1) {
-                        editor.notificationManager.open({
-                            text: 'A "Read more" separator already exists in this article.',
-                            type: 'warning',
-                            timeout: 3000,
-                        });
-                        return;
-                    }
-                    editor.insertContent('<hr class="readmore">');
-                },
+                onAction: () => insertReadMore(editor),
             });
+
+            // Slash commands: type "/" for a filterable command menu (gh-9).
+            // Registered unconditionally — the Settings off switch is enforced
+            // inside the autocompleter's fetch, so toggling it takes effect at
+            // once rather than at the next editor open.
+            if (typeof GrafidaSlashTools !== 'undefined') {
+                GrafidaSlashTools.register(editor, { siteId: editorSiteId });
+            }
 
             // Source-code editing: a CodeMirror modal with HTML syntax
             // highlighting, replacing the stock "code" plugin's plain textarea.
@@ -4651,6 +4684,7 @@ function renderSettingsScreen() {
     });
 
     renderDisplayModeSetting();
+    renderSlashToolsSetting();
     renderStorageSettings();
     renderAiServicesCard();
     loadAiToolsData();
@@ -4673,6 +4707,21 @@ function renderDisplayModeSetting() {
         opt.value = mode;
         opt.textContent = t(key);
         if ((State.displayMode || 'auto') === mode) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
+
+/** Populates the slash-commands selector, reflecting the stored preference. */
+function renderSlashToolsSetting() {
+    const sel = document.getElementById('settings-slash-tools-select');
+    if (!sel) return;
+    clearNode(sel);
+
+    [['1', 'GRAFIDA_BTN_YES'], ['0', 'GRAFIDA_BTN_NO']].forEach(([value, key]) => {
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = t(key);
+        if ((State.slashTools !== false) === (value === '1')) opt.selected = true;
         sel.appendChild(opt);
     });
 }
@@ -5799,6 +5848,22 @@ async function applyDisplayModeChange(mode) {
     }
 }
 
+/**
+ * Persists the slash-commands preference. No editor re-init is needed: the
+ * autocompleter reads State.slashTools on every fetch, so an open editor honours
+ * the change immediately.
+ */
+async function applySlashToolsChange(enabled) {
+    try {
+        const result = await api.setSlashTools(enabled);
+        State.slashTools = result.slashTools !== false;
+        showToast(t('GRAFIDA_MSG_SAVED'), 'success');
+    } catch (err) {
+        showToast(err.message, 'error');
+        renderSlashToolsSetting();
+    }
+}
+
 // Keep "auto" mode in step with the OS as it changes at runtime.
 const onSystemThemeChange = () => {
     if ((State.displayMode || 'auto') === 'auto') applyTheme(true);
@@ -5845,6 +5910,7 @@ async function bootstrap() {
         State.systemPrefersDark = typeof data.systemPrefersDark === 'boolean'
             ? data.systemPrefersDark
             : null;
+        State.slashTools = data.slashTools !== false;
         State.secureStore = data.secureStore !== false;
         State.supportedFieldTypes = data.supportedFieldTypes || [];
         State.app = data.app || {};
@@ -6102,6 +6168,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const displayModeSel = document.getElementById('settings-display-mode-select');
     if (displayModeSel) {
         displayModeSel.addEventListener('change', () => applyDisplayModeChange(displayModeSel.value));
+    }
+
+    const slashToolsSel = document.getElementById('settings-slash-tools-select');
+    if (slashToolsSel) {
+        slashToolsSel.addEventListener('change', () => applySlashToolsChange(slashToolsSel.value === '1'));
     }
 
     const btnModalClose = document.getElementById('btn-modal-close');

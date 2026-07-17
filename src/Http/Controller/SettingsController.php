@@ -14,6 +14,7 @@ namespace Grafida\Http\Controller;
 use Boson\Api\Dialog\DialogApiInterface;
 use Boson\Contracts\Http\ResponseInterface;
 use Grafida\Display\DisplayModeService;
+use Grafida\Editor\SlashToolsService;
 use Grafida\Http\Json;
 use Grafida\Http\RouteContext;
 use Grafida\Http\Router;
@@ -26,8 +27,9 @@ use Grafida\Update\UpdateService;
 
 /**
  * Handles the miscellaneous settings/system endpoints: language, display
- * mode, storage maintenance, the update checker, Markdown conversion, the
- * native URL opener, and the native file/directory dialogs.
+ * mode, the editor's slash commands, storage maintenance, the update checker,
+ * Markdown conversion, the native URL opener, and the native file/directory
+ * dialogs.
  */
 final class SettingsController extends Controller
 {
@@ -35,6 +37,7 @@ final class SettingsController extends Controller
         private readonly MarkdownService $markdown,
         private readonly LanguageService $language,
         private readonly DisplayModeService $displayMode,
+        private readonly SlashToolsService $slashTools,
         private readonly UrlOpener $urlOpener,
         private readonly UpdateService $updates,
         private readonly StorageService $storage,
@@ -47,6 +50,7 @@ final class SettingsController extends Controller
         $router->add('POST', '/api/settings/language', fn (RouteContext $ctx): ResponseInterface => $this->setLanguage($ctx->body()));
         $router->add('POST', '/api/settings/display-mode', fn (RouteContext $ctx): ResponseInterface => $this->setDisplayMode($ctx->body()));
         $router->add('GET', '/api/settings/system-theme', fn (RouteContext $ctx): ResponseInterface => $this->systemTheme());
+        $router->add('POST', '/api/settings/slash-tools', fn (RouteContext $ctx): ResponseInterface => $this->setSlashTools($ctx->body()));
         $router->add('GET', '/api/update', fn (RouteContext $ctx): ResponseInterface => $this->updateStatus());
         $router->add('GET', '/api/settings/storage', fn (RouteContext $ctx): ResponseInterface => $this->storageInfo());
         $router->add('POST', '/api/settings/storage/open', fn (RouteContext $ctx): ResponseInterface => $this->openStorageFolder());
@@ -170,6 +174,14 @@ final class SettingsController extends Controller
         $mode = $this->displayMode->set($this->str($body, 'mode', DisplayModeService::AUTO));
 
         return Json::ok(['displayMode' => $mode]);
+    }
+
+    /** @param array<string, mixed> $body */
+    public function setSlashTools(array $body): ResponseInterface
+    {
+        $enabled = $this->slashTools->set($this->bool($body, 'enabled', true));
+
+        return Json::ok(['slashTools' => $enabled]);
     }
 
     /** Re-probes the OS light/dark preference so "auto" can follow it at runtime. */

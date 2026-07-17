@@ -15,6 +15,7 @@ use Boson\Component\Http\Static\StaticProviderInterface;
 use Grafida\Application\Container;
 use Grafida\Application\Kernel;
 use Grafida\Display\DisplayModeService;
+use Grafida\Editor\SlashToolsService;
 use Grafida\Field\FieldSupport;
 use Grafida\FrontController;
 use Grafida\Http\ApiController;
@@ -29,7 +30,7 @@ use Grafida\Update\UpdateService;
 use Joomla\DI\ServiceProviderInterface;
 
 /**
- * Registers the remaining application-level services — language/display
+ * Registers the remaining application-level services — language/display/editor
  * settings, Markdown, field support, the URL opener, the update checker —
  * and the entry points (`Kernel` and `FrontController`) built on top of the
  * `ApiController` that {@see ControllerProvider} assembles from the
@@ -49,6 +50,11 @@ final class AppProvider implements ServiceProviderInterface
         $container->share(
             DisplayModeService::class,
             static fn (Container $c): DisplayModeService => new DisplayModeService($c->get(SettingsRepository::class))
+        );
+
+        $container->share(
+            SlashToolsService::class,
+            static fn (Container $c): SlashToolsService => new SlashToolsService($c->get(SettingsRepository::class))
         );
 
         $container->share(MarkdownService::class, static fn (): MarkdownService => new MarkdownService());
