@@ -2570,7 +2570,7 @@ async function initTinyMCE(draft) {
         // Keep the offline-image tag (data-grafida-media-id) in the editor output
         // so it survives save/getContent and reaches PublishService.
         extended_valid_elements: 'img[src|alt|title|class|style|width|height|loading|data-path|data-grafida-media-id]',
-        menubar: 'file edit view insert format tools table',
+        menubar: 'file edit insert view format tools table',
         // The built-in "code" plugin opens raw HTML in a plain textarea; we
         // replace it with our own CodeMirror-backed "sourcecode" item (registered
         // in setup) for syntax highlighting, so the plugin is intentionally absent.
