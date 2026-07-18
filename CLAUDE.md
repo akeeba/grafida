@@ -4,7 +4,7 @@ Grafida is a cross-platform **desktop application** (macOS, Windows, Linux) for 
 and editing **Joomla! articles** through the Joomla Web Services (REST) API. It is built in
 **PHP 8.4** with [**Boson**](https://bosonphp.com), uses **SQLite** for all local storage
 (via **`joomla/database`**'s `SqliteDriver`, wired through a **`joomla/di`** container),
-and **TinyMCE 7** as the HTML editor. Licensed **GNU GPL v3 or later**. Dev happens on macOS.
+and **TinyMCE 8** as the HTML editor. Licensed **GNU GPL v3 or later**. Dev happens on macOS.
 
 ## Scope (what we deliberately do NOT support)
 
@@ -431,7 +431,7 @@ window-free in tests (a null dialog makes the endpoint return 503).
   (opens an external http(s) URL in the OS default browser; backs `POST /api/open-url`).
   The sidebar footer shows the version and opens an About dialog using this metadata.
 - `assets/private/` — SPA (`view/index.html`, `css/`, `js/`, `js/tinymce/`).
-  **The three front-end libraries — TinyMCE 7, CodeMirror 5, FontAwesome 7 Free — are
+  **The three front-end libraries — TinyMCE 8, CodeMirror 5, FontAwesome 7 Free — are
   NPM-managed, not committed.** Their pinned versions live in `package.json`; running
   `composer run-script vendor:assets` (also fired automatically by `composer install`/`update`
   via `post-install-cmd`/`post-update-cmd`) does `npm install` then copies the prescribed subset
@@ -443,6 +443,9 @@ window-free in tests (a null dialog makes the endpoint return 503).
   version in `package.json` and re-run `vendor:assets`. (`node`+`npm` are now build prerequisites;
   `scripts/build-all.sh` runs `vendor:assets` before `boson compile` because `boson.json` bundles
   `assets/private` at compile time.)
+  ⚠️ **TinyMCE 8 requires a license key or it starts read-only** (v7 only warned when the key was
+  absent). Grafida is a GPL build, so `tinymce.init()` passes `license_key: 'gpl'` (in `app.js`,
+  beside `promotion`/`branding`); dropping it silently disables editing.
   UI icons use the **FontAwesome 7 Free** solid font (`css/fontawesome.min.css`
   + `css/solid.min.css` + `webfonts/fa-solid-900.woff2`) — never images/emoji. Action
   buttons carry a leading `<i class="fa-solid fa-…" aria-hidden="true">` before the label;
@@ -492,7 +495,7 @@ window-free in tests (a null dialog makes the endpoint return 503).
     an attribute value, where a quote in a translation closes the attribute early. The placeholder
     `<img>` therefore goes through **`editor.dom.createHTML('img', {...})`**, which escapes attributes
     properly.
-  - **TinyMCE 7 ships no `h1`/`h2`/`h3` icons** (upstream's heading items silently render a fallback
+  - **TinyMCE ships no `h1`/`h2`/`h3` icons** (upstream's heading items silently render a fallback
     glyph), hence the `grafida-h1..3` `addIcon` calls; and upstream's "Ordered list" inserts a `<ul>`,
     fixed here to `<ol>`.
   `tests/js/slashtools.test.mjs` covers the filtering, separator collapse, off switch and what each
@@ -530,8 +533,10 @@ window-free in tests (a null dialog makes the endpoint return 503).
   spell-check configuration. This is a documented limitation, not a bug.
   **The editor UI language follows the interface language.** `tinymce.init()` is given a
   `language` + `language_url` (`editorLanguage()` / the `TINYMCE_LANGS` map in `app.js`) pointing
-  at the matching pack vendored under `js/tinymce/langs/` (`el`, `fr_FR`, `de`, `es`, `it`,
-  `pt_PT` — sourced from the `tinymce-i18n` packs for TinyMCE 7). **en-GB has no pack** — TinyMCE's
+  at the matching pack vendored under `js/tinymce/langs/` (`el`, `fr-FR`, `de`, `es`, `it`,
+  `pt-PT` — sourced from the `tinymce-i18n` `langs8/` packs for TinyMCE 8, whose two-part tags use
+  RFC5646 hyphenated filenames, `fr-FR.js`/`pt-PT.js`, not the v7 underscore form). **en-GB has no
+  pack** — TinyMCE's
   built-in UI is English — so it (and any unmapped tag) falls through to the English default with no
   `language` set. `language_url` is an absolute `/js/tinymce/langs/<code>.js` path because the init's
   `document_base_url` is the *site* URL, which would otherwise mis-resolve a relative path. Adding a

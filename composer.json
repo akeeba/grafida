@@ -144,9 +144,9 @@
             {
                 "type": "folder",
                 "clean": true,
-                "from": "node_modules/tinymce-i18n/langs7",
+                "from": "node_modules/tinymce-i18n/langs8",
                 "to": "assets/private/js/tinymce/langs",
-                "names": ["de.js", "el.js", "es.js", "fr_FR.js", "it.js", "pt_PT.js"]
+                "names": ["de.js", "el.js", "es.js", "fr-FR.js", "it.js", "pt-PT.js"]
             },
             {
                 "type": "file",

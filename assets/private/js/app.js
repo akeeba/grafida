@@ -2704,6 +2704,9 @@ async function initTinyMCE(draft) {
         resize: false,
         promotion: false,
         branding: false,
+        // TinyMCE 8 sets the editor read-only without a license key (v7 only
+        // warned). Grafida is a GPL build, so the self-hosted GPL key applies.
+        license_key: 'gpl',
         skin: editorSkin(),
         // The editor UI follows the interface language: load the matching pack
         // from js/tinymce/langs/ (en-GB has none — TinyMCE's default UI is English).
@@ -5825,11 +5828,11 @@ function editorContentCss() {
 // built-in UI is English — so it is intentionally absent (returns null → default).
 const TINYMCE_LANGS = {
     'el-GR': 'el',
-    'fr-FR': 'fr_FR',
+    'fr-FR': 'fr-FR',
     'de-DE': 'de',
     'es-ES': 'es',
     'it-IT': 'it',
-    'pt-PT': 'pt_PT',
+    'pt-PT': 'pt-PT',
 };
 
 /** Returns the TinyMCE language code matching the interface language, or null for the English default. */
