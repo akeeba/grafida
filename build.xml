@@ -264,7 +264,7 @@
 			description="Compile the binary for THIS host and launch it">
 		<fail unless="run.compile.target"
 			  message="Unsupported host for 'run' (OS/arch not recognised). Supported: macOS &amp; Linux on arm64/x86_64, Windows on x86_64." />
-		<echo>Host: ${run.label} — compiling (${run.compile.target}) then launching ${run.bindir}/${run.binname}</echo>
+		<echo>Host: ${run.label} compiling (${run.compile.target}) then launching ${run.bindir}/${run.binname}</echo>
 		<phingcall target="${run.compile.target}" />
 		<exec executable="${run.exec}" dir="${run.bindir}" passthru="true" checkreturn="true" />
 	</target>
