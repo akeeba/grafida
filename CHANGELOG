@@ -5,7 +5,7 @@ Grafida 0.2
 + Created by Alias in the editor, to credit an author other than the publishing account (gh-8)
 + Searchable icon picker for AI tools
 + Empty Local Articles tab offers New Article and List Site Articles
-+ Ctrl/Cmd+comman opens Settings from anywhere
++ Ctrl/Cmd+comma opens Settings from anywhere
 + Windows: the installer bundles the Visual C++ runtime DLLs
 + AI panel: live "Thinking…" indicator for reasoning models, click it to inspect the thinking
 + AI services: tell Grafida the model can see images, and the article's pictures are sent with its text
