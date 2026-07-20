@@ -9,6 +9,16 @@ Grafida is a cross-platform desktop application for creating and editing [Joomla
 
 Grafida uses the Joomla Web Services (REST) API. It's built with [Boson](https://bosonphp.com) (PHP on the desktop) and runs natively on **macOS, Windows, and Linux**. It _does not_ use Electron; Boson uses the resource-efficient WebView provided by your Operating System.
 
+## This software does not work on Windows Home
+
+New installations of Windows enable [Smart App Control (SAC)](https://windowsforum.com/threads/windows-11-sac-toggle-new-option-lets-you-turn-smart-app-control-on-or-off-without-reinstall.393866/) by default. On Windows _Home_ edition (and _only_ the Home edition) this has a rather concerning side effect: it will block a _signed_ application from executing if Microsoft's cloud does not positively report the application as known safe. On the Pro and Enterprise versions of Windows it will allow execution unless the app is positively reported by Microsoft's cloud as malicious.
+
+Windows blocks execution in an objectively misleading manner. It reports that the application failed to load its DLL file. This disingenuously frames the problem as an application error when, in fact, it is Windows itself prohibiting execution for no good reason! To make things worse, there is no obvious error message and no obvious GUI element to allow execution.
+
+If that wasn't bad enough, us developers have no way to rectify this situation. It can only be rectified by having several hundred thousand people using our application… which is, of course, made impossible by the fact that Windows blocks execution and the niche nature of this software.
+
+As per the information in the article linked above, the only way you can use this software on Windows Home is by disabling SAC. We cannot and will not ask users to do that on their machines. Instead, we explicitly mark Windows Home as incompatible and will refuse to respond to any support requests concerning this Operating System as there is no action possible on our end. 
+
 ## Key Features
 
 - **Multiple sites**. Connect to several Joomla sites. You can even publish the same content on multiple sites without leaving the editor screen.
