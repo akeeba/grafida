@@ -735,7 +735,9 @@ window-free in tests (a null dialog makes the endpoint return 503).
   not an always-present link — so `renderSidebarNav()` toggles its `hidden` attribute and, because
   hiding or showing an item changes which labels the collapsed rail has to mirror, **must also
   re-run `syncSidebarTooltips()`** itself rather than waiting for one of that function's other
-  three triggers to fire on its own.
+  three triggers to fire on its own. ⚠️ The `hidden` attribute alone does **not** hide it: the UA's
+  `[hidden] { display: none }` loses to `app.css`'s `nav#main-nav a { display: flex }`, so the rule
+  is restated as `nav#main-nav a[hidden]` — without it the item shows even with the setting off.
 - `language/<tag>/<tag>.ini` — translations, one file per language (e.g. `language/de-DE/de-DE.ini`).
   (There is **no** Joomla `.sys.ini` or `language/grafida.xml` manifest, and the files are **not**
   named `<tag>.com_grafida.ini` — Grafida is a desktop app, not a Joomla component. `LanguageService`

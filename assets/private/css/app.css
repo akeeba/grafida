@@ -280,6 +280,15 @@ nav#main-nav a {
     cursor: pointer;
 }
 
+/*
+ * The Request Log item is hidden by the `hidden` attribute (renderSidebarNav()),
+ * but the UA's `[hidden] { display: none }` loses to the `display: flex` above,
+ * so it has to be restated here or the item shows with the setting off.
+ */
+nav#main-nav a[hidden] {
+    display: none;
+}
+
 nav#main-nav a:hover {
     color: var(--color-text);
     background: var(--color-surface-2);
