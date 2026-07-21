@@ -833,6 +833,13 @@ window-free in tests (a null dialog makes the endpoint return 503).
   defined and a previously remembered last active site is still in the list — the remembered id
   is read *before* `renderSiteSelector()` writes its first-site fallback, so a freshly added but
   never-selected site does not trigger the Articles default.
+  ⚠️ **A category drop-down's tree indent is Joomla's `- ` prefix, never leading spaces**
+  (gh-40): `categoryTreeOptions()` is the single place both the editor sidebar's Category
+  select and the Articles screen's category filters get their `[id, label]` pairs, ordered
+  by `lft` and indented by `level` relative to the shallowest category present (never by
+  `parent_id` — the hidden ROOT node's id must not be assumed). The indent characters are
+  load-bearing: HTML collapses leading whitespace in an `<option>`, so the space-padded
+  labels this replaced rendered as a flat list.
   **`State.references` is tagged with the site it belongs to** (`State.referencesSiteId`, gh-42):
   it is a single slot shared by every screen (the editor sidebar, `makeAlias()`'s alias preview,
   `collectDraftFormData()`'s custom fields), so nothing may read it directly — every reader goes

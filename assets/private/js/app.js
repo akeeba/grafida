@@ -2009,7 +2009,7 @@ function buildDraftFilterBar() {
     // store tag *titles*, so the tag filter matches on title rather than id.
     const refs = State.articleListRefs || { categories: [], tags: [], languages: [] };
     bar.appendChild(filterSelect('GRAFIDA_FILTER_CATEGORY_ANY',
-        categoryFilterOptions(refs.categories), q.category, true,
+        categoryTreeOptions(refs.categories), q.category, true,
         (v) => setDraftQuery({ category: v })));
     bar.appendChild(filterSelect('GRAFIDA_FILTER_TAG_ANY',
         (refs.tags || []).map(tg => [tg.title, tg.title]), q.tag, true,
@@ -2195,7 +2195,7 @@ function buildArticleFilterBar() {
     // Category / Tag / Language filters from the cached reference data.
     const refs = State.articleListRefs || { categories: [], tags: [], languages: [] };
     bar.appendChild(filterSelect('GRAFIDA_FILTER_CATEGORY_ANY',
-        categoryFilterOptions(refs.categories), q.category, true,
+        categoryTreeOptions(refs.categories), q.category, true,
         (v) => setArticleQuery({ category: v })));
     bar.appendChild(filterSelect('GRAFIDA_FILTER_TAG_ANY',
         (refs.tags || []).map(tg => [String(tg.id), tg.title]), q.tag, true,
@@ -2269,17 +2269,34 @@ function filterSelect(anyKey, options, selected, withAny, onChange) {
     return wrap;
 }
 
-/** Flattened, indented [id, label] category options (mirrors buildCategorySelect). */
-function categoryFilterOptions(categories) {
-    if (!categories.length) return [];
-    if (categories[0].level === undefined) {
-        return categories.map(c => [String(c.id), c.title]);
-    }
-    const ordered = categories.slice().sort((a, b) => (Number(a.lft) || 0) - (Number(b.lft) || 0));
+/**
+ * Flattens a site's categories into tree-ordered `[id, label]` option pairs.
+ *
+ * Joomla returns each category's nested-set position: `lft` gives the tree order and
+ * `level` its depth. We don't know (and must not assume) the hidden ROOT node's id, so we
+ * never look at `parent_id` — sorting by `lft` and indenting by `level` relative to the
+ * shallowest category in the list reproduces the tree whatever the root id happens to be.
+ *
+ * The indent is Joomla's own `- ` prefix (see CategoryeditField), NOT leading spaces:
+ * HTML collapses leading whitespace in an <option>, so a space indent renders flat (gh-40).
+ *
+ * @param   {Array<Object>}  categories  Category records from the references payload.
+ * @returns {Array<[string, string]>}    `[id, label]` pairs in tree order.
+ */
+function categoryTreeOptions(categories) {
+    const list = categories || [];
+    if (!list.length) return [];
+
+    // A site whose cached categories predate level/lft, or an API that stopped sending
+    // them, still gets a usable (flat) list rather than a broken one.
+    if (list[0].level === undefined) return list.map(c => [String(c.id), c.title]);
+
+    const ordered  = list.slice().sort((a, b) => (Number(a.lft) || 0) - (Number(b.lft) || 0));
     const minLevel = Math.min(...ordered.map(c => Number(c.level) || 0));
+
     return ordered.map(c => {
-        const depth = (Number(c.level) || 0) - minLevel;
-        return [String(c.id), ' '.repeat(depth * 4) + c.title];
+        const depth = Math.max(0, (Number(c.level) || 0) - minLevel);
+        return [String(c.id), '- '.repeat(depth) + c.title];
     });
 }
 
@@ -2797,31 +2814,14 @@ function buildCategorySelect(categories, selectedCatid) {
     none.textContent = '— None —';
     sel.appendChild(none);
 
-    if (categories.length > 0 && categories[0].level !== undefined) {
-        // Joomla returns each category's nested-set position: `lft` gives the
-        // tree order and `level` its depth. We don't know (and must not assume)
-        // the hidden ROOT node's id, so we never look at parent_id — sorting by
-        // `lft` and indenting by `level` (relative to the shallowest category in
-        // the list) reproduces the tree regardless of what the root id is.
-        const ordered = categories.slice().sort((a, b) => (Number(a.lft) || 0) - (Number(b.lft) || 0));
-        const minLevel = Math.min(...ordered.map(c => Number(c.level) || 0));
-        ordered.forEach(cat => {
-            const opt = document.createElement('option');
-            opt.value = cat.id;
-            const depth = (Number(cat.level) || 0) - minLevel;
-            opt.textContent = ' '.repeat(depth * 4) + cat.title;
-            if (cat.id == selectedCatid) opt.selected = true;
-            sel.appendChild(opt);
-        });
-    } else {
-        categories.forEach(cat => {
-            const opt = document.createElement('option');
-            opt.value = cat.id;
-            opt.textContent = cat.title;
-            if (cat.id == selectedCatid) opt.selected = true;
-            sel.appendChild(opt);
-        });
-    }
+    categoryTreeOptions(categories).forEach(([id, label]) => {
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = label;
+        if (String(id) === String(selectedCatid)) opt.selected = true;
+        sel.appendChild(opt);
+    });
+
     return sel;
 }
 

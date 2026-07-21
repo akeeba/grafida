@@ -13,6 +13,7 @@ Grafida 0.3
 # [HIGH] Editor content stuck in dark mode when the site's editor.css switches on prefers-color-scheme (gh-38)
 # [MEDIUM] The webview could cache Grafida's own API responses, showing stale data even after a restart (gh-35)
 # [MEDIUM] The Articles list's category, tag and language filters never picked up reloaded site metadata (gh-42)
+# [LOW] The Category drop-downs showed a flat list instead of the category tree (gh-40)
 
 Grafida 0.2
 ================================================================================
