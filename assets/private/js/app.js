@@ -6073,6 +6073,11 @@ function applyStrings() {
         node.title = text;
         node.setAttribute('aria-label', text);
     });
+    // aria-label only — for a container that needs an accessible name but must
+    // not sprout a hover tooltip of its own (the display-mode group, gh-41).
+    document.querySelectorAll('[data-i18n-aria]').forEach(node => {
+        node.setAttribute('aria-label', t(node.dataset.i18nAria));
+    });
     document.querySelectorAll('[data-i18n-placeholder]').forEach(node => {
         node.placeholder = t(node.dataset.i18nPlaceholder);
     });
@@ -6081,6 +6086,7 @@ function applyStrings() {
     renderSettingsScreen();
     renderSidebarFooter();
     renderUpdateNotice();
+    renderThemeSwitch();
 }
 
 // ============================================================
@@ -7216,14 +7222,26 @@ function editorLanguage() {
     return TINYMCE_LANGS[State.language] || null;
 }
 
-async function applyDisplayModeChange(mode) {
+/**
+ * Persists the display-mode preference and applies it immediately — applyTheme(true)
+ * re-creates an open TinyMCE from its current content, so an open article follows the
+ * new theme without being reloaded (gh-41). Both controls that can change this — the
+ * Settings select and the sidebar tri-state — are re-rendered, so they never disagree.
+ *
+ * `silent` suppresses the success toast: the sidebar tri-state's effect is the visible
+ * confirmation, and a toast per click would be noise.
+ */
+async function applyDisplayModeChange(mode, { silent = false } = {}) {
     try {
         const result = await api.setDisplayMode(mode);
         State.displayMode = result.displayMode || mode;
         applyTheme(true);
-        showToast(t('GRAFIDA_MSG_SAVED'), 'success');
+        renderThemeSwitch();
+        renderDisplayModeSetting();
+        if (!silent) showToast(t('GRAFIDA_MSG_SAVED'), 'success');
     } catch (err) {
         showToast(err.message, 'error');
+        renderThemeSwitch();
     }
 }
 
@@ -7447,6 +7465,23 @@ function setupCollapsible(asideId, toggleId, storageKey, onChange) {
 }
 
 /**
+ * Reflects State.displayMode on the sidebar's display-mode tri-state (gh-41).
+ * The buttons are static markup; this only flips the active class and aria-pressed,
+ * so it is safe to call as often as needed.
+ */
+function renderThemeSwitch() {
+    const group = document.getElementById('theme-switch');
+    if (!group) return;
+
+    const mode = State.displayMode || 'auto';
+    group.querySelectorAll('.theme-switch-btn').forEach(btn => {
+        const on = btn.dataset.mode === mode;
+        btn.classList.toggle('active', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+}
+
+/**
  * Shows/hides the Request Log sidebar item to match the Debug setting (gh-37):
  * unlike the always-present nav links, this one only exists while the opt-in
  * Request Log is on. Re-syncs the collapsed rail's tooltips afterwards, since
@@ -7540,6 +7575,17 @@ function initLayoutControls() {
     setupCollapsible('sidebar', 'sidebar-toggle', SIDEBAR_COLLAPSED_KEY, syncSidebarTooltips);
     setupCollapsible('editor-sidebar', 'editor-sidebar-toggle', PROPS_COLLAPSED_KEY);
     setupAiPanelResize();
+
+    // Display-mode tri-state (gh-41): persist + apply without leaving the editor.
+    const themeSwitch = document.getElementById('theme-switch');
+    if (themeSwitch) {
+        themeSwitch.addEventListener('click', event => {
+            const btn = event.target.closest('.theme-switch-btn');
+            if (!btn || !themeSwitch.contains(btn)) return;
+            if (btn.dataset.mode === (State.displayMode || 'auto')) return;
+            applyDisplayModeChange(btn.dataset.mode, { silent: true });
+        });
+    }
 }
 
 // ============================================================

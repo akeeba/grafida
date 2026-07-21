@@ -38,6 +38,26 @@
             <div id="sidebar-site-favicon"></div>
         </div>
 
+        <!--
+            Display-mode tri-state (gh-41). Static markup so applyStrings()'s
+            data-i18n-title pass localises the tooltips/aria-labels on a language
+            switch; app.js only ever flips .active / aria-pressed on these.
+        -->
+        <div id="theme-switch" role="group" data-i18n-aria="GRAFIDA_LBL_DISPLAY_MODE">
+            <button type="button" class="theme-switch-btn" data-mode="light"
+                    aria-pressed="false" data-i18n-title="GRAFIDA_OPT_DISPLAY_LIGHT">
+                <i class="fa-solid fa-sun" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="theme-switch-btn" data-mode="dark"
+                    aria-pressed="false" data-i18n-title="GRAFIDA_OPT_DISPLAY_DARK">
+                <i class="fa-solid fa-moon" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="theme-switch-btn" data-mode="auto"
+                    aria-pressed="false" data-i18n-title="GRAFIDA_OPT_DISPLAY_AUTO">
+                <i class="fa-solid fa-display" aria-hidden="true"></i>
+            </button>
+        </div>
+
         <nav id="main-nav" aria-label="Main navigation">
             <a data-screen="sites" href="#" role="menuitem">
                 <i class="nav-icon fa-solid fa-globe" aria-hidden="true"></i>

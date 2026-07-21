@@ -548,6 +548,20 @@ window-free in tests (a null dialog makes the endpoint return 503).
   `<html data-theme="light|dark">`;
   TinyMCE follows the app theme (skin `oxide`/`oxide-dark`); its editing surface switches to
   the dark built-in content CSS only when the site supplies no `editor.css`.
+  The preference has **two** controls (gh-41): the Settings screen's select and a
+  tri-state button group in the sidebar (`#theme-switch`, `fa-sun`/`fa-moon`/
+  `fa-display`, above the nav and separated from it by a rule), so the theme can be
+  changed without leaving an open article. Both go through
+  `applyDisplayModeChange(mode, {silent})` and both are re-rendered by it, so they
+  can never disagree; the sidebar one passes `silent` because its effect *is* the
+  confirmation. Applying to an open editor needs nothing new — `applyTheme(true)`
+  already re-creates TinyMCE from `getContent()`, so the article survives the switch.
+  The buttons are `aria-pressed` toggles rather than a `role="radiogroup"` (which
+  would oblige us to implement roving arrow-key focus for no gain), and they are
+  **static markup** so `applyStrings()` localises their tooltips via the existing
+  `data-i18n-title` pass — `renderThemeSwitch()` only flips `.active`/`aria-pressed`.
+  `applyStrings()` also honours **`data-i18n-aria`** — aria-label only, for a
+  container that needs an accessible name but must not sprout a hover tooltip.
 - `src/Editor/SlashToolsService.php` — persists whether the editor's slash-command menu is
   enabled (`settings` key `slash_tools`, **default on**), sent to the SPA as the `bootstrap`
   payload's `slashTools` key and written via `POST /api/settings/slash-tools`. Same shape as

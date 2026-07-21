@@ -260,6 +260,100 @@ html, body {
     font-size: 26px;
 }
 
+/* ---- Display-mode tri-state (gh-41) ---- */
+/*
+ * A segmented button group: three icon-only buttons sharing one rounded outline,
+ * modelled on Bootstrap's radio button group. It sits between the site selector
+ * and the nav, with its own bottom rule (matching #site-selector's) separating
+ * it from the nav items.
+ */
+#theme-switch {
+    display: flex;
+    gap: 0;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.theme-switch-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 0;
+    font-size: 14px;
+    background: var(--color-input-bg);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-input-border);
+    border-right-width: 0;
+    cursor: pointer;
+    transition: color var(--transition), background var(--transition);
+}
+
+.theme-switch-btn:first-child {
+    border-top-left-radius: var(--radius);
+    border-bottom-left-radius: var(--radius);
+}
+
+.theme-switch-btn:last-child {
+    border-right-width: 1px;
+    border-top-right-radius: var(--radius);
+    border-bottom-right-radius: var(--radius);
+}
+
+.theme-switch-btn:hover {
+    color: var(--color-text);
+    background: var(--color-surface-2);
+}
+
+.theme-switch-btn:focus-visible {
+    outline: 2px solid var(--color-input-focus);
+    outline-offset: -2px;
+}
+
+/*
+ * The selected mode. Colour alone is not an accessible state cue, which is why the
+ * buttons also carry aria-pressed (set in renderThemeSwitch()).
+ */
+.theme-switch-btn.active {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: #fff;
+}
+
+.theme-switch-btn.active + .theme-switch-btn {
+    border-left-color: var(--color-accent);
+}
+
+/*
+ * The 56px rail cannot hold three buttons side by side, so the group stacks
+ * vertically there and the shared outline runs top-to-bottom instead.
+ */
+#sidebar.collapsed #theme-switch {
+    flex-direction: column;
+    padding: 10px 8px;
+}
+
+#sidebar.collapsed .theme-switch-btn {
+    border-right-width: 1px;
+    border-bottom-width: 0;
+    border-radius: 0;
+}
+
+#sidebar.collapsed .theme-switch-btn:first-child {
+    border-top-left-radius: var(--radius);
+    border-top-right-radius: var(--radius);
+}
+
+#sidebar.collapsed .theme-switch-btn:last-child {
+    border-bottom-width: 1px;
+    border-bottom-left-radius: var(--radius);
+    border-bottom-right-radius: var(--radius);
+}
+
+#sidebar.collapsed .theme-switch-btn.active + .theme-switch-btn {
+    border-top-color: var(--color-accent);
+}
+
 nav#main-nav {
     flex: 1;
     overflow-y: auto;

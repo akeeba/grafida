@@ -5,6 +5,7 @@ Grafida 0.3
 + Optional Request Log: record the last 20 requests to the site, with JSON export (gh-37)
 + Reload metadata button on the Articles page, keeping your filters (gh-42)
 + Settings: how long site metadata is cached, and whether to reload it on startup (gh-42)
++ Light / dark / follow-system switch in the sidebar, so you can change it without leaving the open article (gh-41)
 ~ Pasted and dropped images are stored locally and referenced, not embedded in the article; existing articles are converted when first opened (gh-36)
 ~ Image editor: pressing Crop now visibly arms the tool, and the crop selection's size is shown as you drag (gh-31)
 ~ Site metadata is refreshed automatically once it goes stale, not only when you press Reload metadata (gh-42)
