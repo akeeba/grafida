@@ -19,6 +19,7 @@ use Grafida\Http\Json;
 use Grafida\Http\RouteContext;
 use Grafida\Http\Router;
 use Grafida\Http\SiteContext;
+use Grafida\Media\InlineImageExtractor;
 use Grafida\Publish\PublishService;
 
 /**
@@ -33,6 +34,7 @@ final class DraftController extends Controller
         private readonly DraftRepository $drafts,
         private readonly DraftExportService $draftExport,
         private readonly PublishService $publish,
+        private readonly InlineImageExtractor $inlineImages,
     ) {}
 
     public function registerRoutes(Router $router): void
@@ -62,7 +64,27 @@ final class DraftController extends Controller
     {
         $draft = $this->drafts->find($id);
 
-        return $draft === null ? Json::error('Draft not found', 404) : Json::ok($draft->toArray());
+        if ($draft === null) {
+            return Json::error('Draft not found', 404);
+        }
+
+        // One-time legacy migration (gh-36): a draft saved before local media
+        // references existed may still carry inline base64 <img src="data:…">.
+        // Convert it to fast boson://…/raw references and persist the result so
+        // this only ever runs once per draft. A brand-new draft opened straight
+        // from the "New article" flow has no id yet — nothing to persist, and
+        // nothing to convert either (it starts empty).
+        $converted = $this->inlineImages->extract($draft->html, $draft->siteId, $draft->id);
+
+        if ($converted !== $draft->html) {
+            $draft->html = $converted;
+
+            if ($draft->id !== null) {
+                $this->drafts->update($draft);
+            }
+        }
+
+        return Json::ok($draft->toArray());
     }
 
     /** @param array<string, mixed> $body */

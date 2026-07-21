@@ -259,9 +259,21 @@ window-free in tests (a null dialog makes the endpoint return 503).
   `ai_services` row ids (those are local-install specifics with no portable meaning). A
   `grafida-media://N` sentinel in `images.image_intro`/`image_fulltext` is resolved to an
   embedded base64 blob under `offlineMedia`, keyed by an export-local ref (`grafida-media://
-  export:mN` — the `m` prefix stops PHP auto-casting a numeric-looking key to an int); inline
-  `<img data-grafida-media-id>`/pasted images need no such handling since their `data:` URI is
-  already embedded in `html`. Boson has **no native "Save As" dialog** (`DialogApiInterface`
+  export:mN` — the `m` prefix stops PHP auto-casting a numeric-looking key to an int). **Inline
+  body images went through the same treatment in gh-36**: an `<img>` referencing a local blob is
+  now a `boson://app/api/media/{id}/raw` reference, not a self-carrying `data:` URI, so
+  `exportHtml()` walks the body for that prefix (via `InlineMedia::idFromLocalUrl()`, public for
+  exactly this reuse) and embeds each referenced blob under `offlineMedia` too — deduped by blob
+  id within one export, so two `<img>` tags pointing at the same picture embed it once. Import's
+  `importHtml()` mirrors this: it rematerialises each ref as a **fresh** blob (sharing the same
+  `$resolvedRefs`/dedup map the intro/full-text loop uses, so a ref reused by both a subfield and
+  the body still becomes one new row) and points the rewritten `<img>` at the new blob's
+  `LocalMediaUrl`. A **legacy** export (from before gh-36, still carrying real `data:` URIs in
+  `html`) is handled too: import finishes by running `InlineImageExtractor::extract()` over the
+  result, the same conversion a legacy *draft* gets on open (see `src/Media/` below), so an old
+  `.grafida` file still ends up with local-URL references. `FORMAT_VERSION` is `2` (informational
+  only — nothing gates on it; the importer handles both shapes unconditionally). Boson has
+  **no native "Save As" dialog** (`DialogApiInterface`
   only offers open-file/open-directory pickers), so export asks for a destination **folder**
   (`POST /api/dialog/select-directory` → `selectDirectory()`) and writes `<alias-or-title>
   .grafida` into it server-side; import reuses the existing open-file dialog with a new
@@ -306,8 +318,55 @@ window-free in tests (a null dialog makes the endpoint return 503).
   site's Media Manager (`GET /v1/media/files`); `ApiController` exposes it as
   `GET /api/sites/{id}/media?path=…` and serves an offline blob's data: URI back to the SPA
   via `GET /api/media/{id}` (to preview a not-yet-published intro/full-text image).
-  **Media Manager screen** — a full online manager for the site's Media Manager (a sidebar
-  item `data-screen="media"`; works only while the site is connected). The SPA
+  ⚠️ **A pasted/dropped/picked image is no longer inlined as a `data:` URI in the article body**
+  (gh-36): `MediaRepository` still stores the bytes in `media_blobs` (now also carrying
+  `updated_at`/`width`/`height`/`size`, added by `storage/migrations/07_media_blobs_local.sql` —
+  not re-runnable, following the `04_ai_chat_response_chain.sql` pattern), but the editor
+  references it by a **local URL the Boson kernel itself serves**:
+  `boson://app/api/media/{id}/raw?rev=<token>` (`MediaController::mediaBlobRaw()`, ~60 bytes
+  regardless of image size, vs. a 2.3 MiB screenshot's ~3.1 MiB of base64 previously sitting in
+  the editor DOM, `State` *and* the `drafts.html` column — which is what made the CodeMirror
+  source editor freeze for seconds on a couple of pasted screenshots). `rev` is this endpoint's
+  analogue of `mediaDisplayUrl()`'s `grafida_rev` (gh-4): a blob's bytes can be replaced in place
+  by the Local Media tab's image editor, so the URL must change on every edit or the webview's
+  disk cache paints the old picture — except here the token is derived
+  (`Grafida\Media\LocalMediaUrl::token()`, `sha1($revisedAt . '|' . $id)` truncated to 8 chars,
+  `$revisedAt` = `updated_at ?? created_at`) rather than looked up from Joomla's own metadata,
+  since there is no Joomla record yet. `LocalMediaUrl::build(id, revisedAt)` is the **only** place
+  either PHP or JS should construct this URL — mirrored byte-for-byte in JS by
+  `assets/private/js/editor/localmedia.js`'s `window.GrafidaLocalMedia` (its own from-scratch
+  synchronous SHA-1, since `window.crypto.subtle` is Promise-only and this runs inside a
+  synchronous TinyMCE hook), an IIFE loaded in `index.html` right after `app.js` alongside
+  `slashtools.js`/`csstheme.js`. The endpoint answers **raw bytes, not JSON** — the only route in
+  the app that does — with `Content-Type` restricted to a small allow-list
+  (`MediaController::ALLOWED_RAW_MIME_TYPES`), `Content-Disposition: inline`,
+  `X-Content-Type-Options: nosniff` and, like every other internal-API response (gh-35),
+  `Cache-Control: no-store`. `GET /api/media/{id}` (the JSON data:-URI form above) still exists
+  for the AI panel's per-image fetch and the intro/full-text preview cache — only the *article
+  body* stopped using it. A **Local Media tab** on the Media Manager screen
+  (`GET /api/sites/{id}/local-media`, works offline) lists every not-yet-published blob — filename,
+  dimensions, size, which local draft (if any) uses it, and a "Published" badge once `remote_url`
+  is set — and offers the same in-app crop/resize/rotate/flip editor the Site Media tab's entries
+  get (`openImageEditor()` now takes a small `{name, mime, loadDataUri(), save()}` descriptor so
+  one implementation serves both tabs), plus rename, save-to-disk
+  (`POST /api/media/{id}/save-to-disk`, folder picker + server write, since Boson has no Save-As
+  dialog) and delete. Editing a Local Media entry's bytes calls
+  `refreshLocalMediaReferences(id, newUrl)`, the one chokepoint that rewrites any matching
+  `<img data-grafida-media-id>` in an already-open editor and refreshes the intro/full-text
+  preview cache, so a crop is visible without reopening the article.
+  **Legacy drafts** (saved before gh-36, still carrying real `data:` images in `html`) are
+  converted the first time they are opened: `DraftController::getDraft()` runs
+  `Grafida\Media\InlineImageExtractor::extract()`, which decodes each `data:` image into a fresh
+  `media_blobs` row and rewrites the `<img>` to the local URL (persisted back to the draft only
+  when it already has an id — an unsaved draft stays unsaved, matching the rest of the editor's
+  save model). `InlineImageExtractor::storeDataUri()` is the shared decode-and-store primitive;
+  `PublishService`'s own untagged-`data:`-image path (see below) calls the same method rather than
+  duplicating it.
+  **Media Manager screen** — a sidebar item (`data-screen="media"`) split into two tabs, modelled
+  on the Articles screen's tab strip: **Site Media** (below) and **Local Media** (above). Site
+  Media is the full online manager for the site's Media Manager and works only while the site is
+  connected — that "not connected" guard is now scoped to its own tab panel rather than blanking
+  the whole screen, since Local Media works offline regardless. The SPA
   (`loadMediaScreen()` in `app.js`) seeds the root from `GET /api/sites/{id}/media/adapters`
   (the first adapter is the default filesystem; its `path` like `local-images:/` is the root),
   browses folders with the existing `browseMedia`, and renders a card grid (folders + **all**
@@ -383,14 +442,29 @@ window-free in tests (a null dialog makes the endpoint return 503).
   (`quickbars_insert_toolbar: false`, gh-6): the toolbar it pops up on every empty line offers a
   `quickimage` button that clicks that same dead `<input type="file">`. The `quickbars` plugin stays
   loaded — its selection and image context toolbars are unaffected.
-  a local pick is inserted as `<img src="data:…" data-grafida-media-id="N">` (`GRAFIDA_MEDIA_ATTR`,
-  mirroring `InlineMedia::ATTRIBUTE`) so `PublishService` uploads it on publish; a site-media pick is
-  inserted as its public URL. On publish, `InlineMedia::rewriteDataImages()` rewrites **every** inline
-  `data:` image — not just tagged ones: an image **pasted or dropped straight into the editor** (e.g. from
-  a web page or another app) never passes through the in-editor upload handler, so it carries no
-  `data-grafida-media-id`; `PublishService::uploadInlineImage()` decodes and stores such an untagged data:
-  URI on the fly so it is uploaded too, instead of leaking a giant broken inline blob into the published
-  HTML. A media upload that fails (or returns no usable result) aborts the publish with a clear error.
+  a local pick is inserted as `<img src="boson://app/api/media/{id}/raw?rev=…"
+  data-grafida-media-id="N">` (`GRAFIDA_MEDIA_ATTR`, mirroring `InlineMedia::ATTRIBUTE`) — **not**
+  a `data:` URI (gh-36, see `src/Media/` above) — so `PublishService` uploads the referenced blob
+  on publish; a site-media pick is inserted as its public URL. The tagging attribute is
+  self-healing rather than trusted blindly: a `SetContent`/`NodeChange` hook derives the id from
+  the `<img>`'s own `src` first (`localMediaIdFromUrl()`, parsing the local URL — this is what
+  survives a save/reload/import) and only falls back to a same-session `State.inlineMediaByUri`
+  map for a `data:` image that has not been tagged yet, so the attribute is never the *only* place
+  the id is remembered. On publish, `InlineMedia::rewriteOfflineImages()` rewrites **every**
+  offline image, in **either** form — local-URL or `data:` — not just tagged ones: an image
+  **pasted or dropped straight into the editor** on a platform/path that still lands as a bare
+  `<img src="data:...">` with no tag (or a draft saved before gh-36) never passes through the
+  in-editor upload handler, so it carries no `data-grafida-media-id`;
+  `PublishService::uploadInlineImage()` decodes and stores such an untagged `data:` URI on the fly
+  (via `InlineImageExtractor::storeDataUri()`, the same primitive the legacy-draft migration uses)
+  so it is uploaded too, instead of leaking a giant broken inline blob into the published HTML. A
+  local-URL image whose blob has since been **deleted** (Local Media tab, or the DB was reset) is
+  a distinct failure from an untagged `data:` image: there is no fallback data to fall back to, so
+  it aborts the publish with a dedicated `ApiException` — a plain-English literal like every other
+  message in this class (none of them run through `LanguageService::translateIn()`, which is
+  reserved for site-facing strings like `version_note`) — rather than publishing a broken
+  `boson://` src that resolves to nothing on the live site. Any other media upload that fails (or
+  returns no usable result) aborts the publish with a clear error too.
   Each uploaded image is rebuilt as the **same `<img>` Joomla's own media field emits** —
   `<img src="images/…" width=… height=… loading="lazy" data-path="local-images:/…">` (`mediaInfo()`): a
   site-root-relative `src`, the intrinsic `width`/`height`, and the `data-path` adapter linkage to the
@@ -581,9 +655,9 @@ window-free in tests (a null dialog makes the endpoint return 503).
     Settings option takes effect on an already-open editor — unlike the `hasAiService` toolbar gate,
     which is baked in at init and needs a re-open.
   - ⚠️ **The placeholder images are PNG, minted on a `<canvas>` — upstream's SVG would break a
-    publish.** `Html\InlineMedia::rewriteDataImages()` uploads *every* inline `data:` image to the
-    site's Media Manager, and Joomla rejects SVG by default, so an SVG placeholder left in an article
-    aborts the publish outright.
+    publish.** `Html\InlineMedia::rewriteOfflineImages()` uploads *every* offline image (local-URL
+    or legacy `data:`, see `src/Media/`) to the site's Media Manager, and Joomla rejects SVG by
+    default, so an SVG placeholder left in an article aborts the publish outright.
   - **Labels are localised but filtering also matches English `keywords`**, so `/head` still finds the
     headings on a translated UI. The label is `t(key)` resolved per `fetch`, so a language switch
     needs no re-registration. A keyword matches only at the **start of one of its words**, not as a
@@ -924,9 +998,11 @@ sets `failOnEmptyTestSuite="false"` because `tests/Integration/` was originally 
 without that flag PHPUnit fails the whole run on an empty suite before the feature suite executes.
 - **`composer test:js`** (`node --test 'tests/js/**/*.test.mjs'`) covers the SPA modules PHPUnit
   **cannot** reach: `assets/private/js/ai/providers.js` (the AI transport — the provider call runs in
-  the SPA, see the AI facts), `assets/private/js/editor/slashtools.js` (the slash-command menu), and
-  `assets/private/js/editor/csstheme.js` (the editor colour-scheme rewriter, gh-38). For all three it
-  is the only automated coverage. It uses node's built-in test runner and loads the
+  the SPA, see the AI facts), `assets/private/js/editor/slashtools.js` (the slash-command menu),
+  `assets/private/js/editor/csstheme.js` (the editor colour-scheme rewriter, gh-38), and
+  `assets/private/js/editor/localmedia.js` (the `boson://app/api/media/{id}/raw?rev=…` URL
+  builder/parser, gh-36 — its own synchronous SHA-1 is what the rev token is verified against).
+  For all four it is the only automated coverage. It uses node's built-in test runner and loads the
   browser IIFE in a `vm` context with fakes for the globals app.js supplies (`window`/`fetch`/`api`,
   or `State`/`t`/`editor`); no bundler and no new dependency (node is already a build prerequisite).
   ⚠️ **The sandbox is its own realm**, which bites twice: providers.js detects a CORS failure with
@@ -1110,11 +1186,16 @@ map is for when the update mechanism itself is built.
   with a remembered chat — the pictures belong to the article, which is re-read on every fresh
   conversation. Chaining is unaffected: images ride with the doc context, which only ever goes in the
   first turn.
-- **The article's images are collected through three different paths** (`_collectDocumentImages()` in
-  `panel.js`, walking the editor body in document order). Only a `data:` URI (pasted, or picked from a
-  local file) arrives with its bytes in hand; a `data-grafida-media-id` blob comes from
-  `GET /api/media/{id}`; and an **already-published** image is a plain URL the webview **cannot fetch
-  itself** — the same CORS/ATS wall the AI transport hits — so `GET /api/sites/{id}/image?url=…`
+- **The article's images are collected through three different paths** (`_resolveImageSource()` in
+  `panel.js`, called by `_collectDocumentImages()` as it walks the editor body in document order).
+  A tagged `data-grafida-media-id` image — which since gh-36 is how a pasted/dropped/picked local
+  image is inserted (`boson://app/api/media/{id}/raw?rev=…` `src`, not a `data:` URI; see
+  `src/Media/`) — is fetched by id via `GET /api/media/{id}`, the same JSON data:-URI endpoint the
+  intro/full-text preview uses, so this path is unaffected by *how* the blob is referenced; a bare
+  `data:` URI with no tag (still possible for a paste that has not run the tagging hook yet, or an
+  as-yet-unmigrated legacy draft body) is used as-is; and an **already-published** image is a plain
+  URL the webview **cannot fetch itself** — the same CORS/ATS wall the AI transport hits — so
+  `GET /api/sites/{id}/image?url=…`
   (`MediaController::siteImage()` → **`Media\SiteImageFetcher`**) pulls the bytes server-side and
   returns a data: URI. That fetcher mirrors `AiProxy`'s allowlist: the resolved URL's host must equal
   the site's own, so an image on a CDN or a hotlinked third party is **refused and skipped**, not

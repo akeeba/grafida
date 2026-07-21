@@ -18,6 +18,8 @@ use Grafida\Html\ContentSplitter;
 use Grafida\Html\InlineMedia;
 use Grafida\I18n\LanguageService;
 use Grafida\Joomla\ApiClient;
+use Grafida\Media\ImageInfo;
+use Grafida\Media\InlineImageExtractor;
 use Grafida\Media\MediaRepository;
 use Grafida\Reference\ReferenceService;
 use Grafida\Site\Site;
@@ -29,7 +31,7 @@ use Grafida\Support\App;
  *
  * Pipeline:
  *   1. Block if the site requires unsupported custom field types.
- *   2. Upload offline images and swap their data: URIs for public URLs.
+ *   2. Upload offline images and swap their local (boson://) or data: URI src for public URLs.
  *   3. Create any tags that do not yet exist and resolve all tags to IDs.
  *   4. Split the HTML into introtext / fulltext on the read-more marker.
  *   5. Map supported custom-field values into `com_fields`.
@@ -53,6 +55,7 @@ final class PublishService
         private readonly DraftRepository $drafts,
         private readonly MediaRepository $media,
         private readonly LanguageService $language,
+        private readonly InlineImageExtractor $inlineImages,
         private readonly FieldSupport $fields = new FieldSupport(),
         private readonly ContentSplitter $splitter = new ContentSplitter(),
         private readonly InlineMedia $inlineMedia = new InlineMedia(),
@@ -249,9 +252,9 @@ final class PublishService
 
     private function uploadOfflineMedia(Draft $draft, Site $site, string $base, string $token): string
     {
-        return $this->inlineMedia->rewriteDataImages(
+        return $this->inlineMedia->rewriteOfflineImages(
             $draft->html,
-            fn (?int $mediaId, string $dataUri): array =>
+            fn (?int $mediaId, ?string $dataUri): array =>
                 $this->uploadInlineImage($draft, $site, $base, $token, $mediaId, $dataUri),
         );
     }
@@ -260,21 +263,44 @@ final class PublishService
      * Uploads a single inline editor image to the site's Media Manager and
      * returns the details needed to rebuild it as a Joomla media-field <img>.
      *
-     * A tagged image resolves to its stored offline blob. An *untagged* data:
-     * image — pasted or dropped straight into the editor, so it never passed
-     * through the in-editor upload handler — is decoded and stored on the fly so
-     * it is uploaded too, rather than leaking a raw data: URI into the published
-     * article. A failure to upload aborts the publish with a clear error instead
-     * of silently leaving a broken image.
+     * Three cases, per `InlineMedia::rewriteOfflineImages()`'s contract:
+     *   - A `boson://` local-media reference (`$mediaId` set, `$dataUri` null):
+     *     resolves to its stored offline blob — the common gh-36 path.
+     *   - A tagged/untagged `data:` image (`$dataUri` set): the legacy inline
+     *     path — a not-yet-migrated draft, or an image that somehow escaped
+     *     the upload handler — decoded and stored on the fly so it is
+     *     uploaded too, rather than leaking a raw data: URI into the
+     *     published article.
+     *   - A `boson://` reference whose blob has been deleted from the Local
+     *     Media tab, with no data: fallback to fall back on: publishing must
+     *     refuse rather than silently emit a broken `boson://` src that
+     *     resolves to nothing on the live site.
+     * A failure to upload aborts the publish with a clear error instead of
+     * silently leaving a broken image.
      *
      * @return array{src: string, dataPath: ?string, width: ?int, height: ?int}
      *
      * @throws \Grafida\Joomla\ApiException When the image cannot be uploaded.
      */
-    private function uploadInlineImage(Draft $draft, Site $site, string $base, string $token, ?int $mediaId, string $dataUri): array
+    private function uploadInlineImage(Draft $draft, Site $site, string $base, string $token, ?int $mediaId, ?string $dataUri): array
     {
-        if ($mediaId === null || $this->media->find($mediaId) === null) {
-            $mediaId = $this->storeInlineDataUri($draft, $site, $dataUri);
+        if ($mediaId !== null && $this->media->find($mediaId) === null) {
+            if ($dataUri === null) {
+                throw new \Grafida\Joomla\ApiException(
+                    'The article refers to a local image that no longer exists (it was likely deleted from '
+                    . 'the Local Media tab), so the article was not published. Re-insert the image and try again.'
+                );
+            }
+
+            $mediaId = null;
+        }
+
+        if ($mediaId === null && $dataUri !== null) {
+            // Untagged data: image (pasted/dropped straight in, or a not-yet-migrated
+            // legacy draft's fallback path) — decode and store it as a fresh offline
+            // blob. Shared with the legacy-draft migration, which hits the identical
+            // "decode this data: URI into media_blobs" case (see InlineImageExtractor).
+            $mediaId = $this->inlineImages->storeDataUri($site->id ?? 0, $draft->id, $dataUri);
         }
 
         $info = $mediaId !== null ? $this->uploadBlob($mediaId, $site, $base, $token) : null;
@@ -287,41 +313,6 @@ final class PublishService
         }
 
         return $info;
-    }
-
-    /**
-     * Decodes a `data:` URI image and stores it as a new offline blob, returning
-     * its id (or null when the URI cannot be parsed into image bytes).
-     */
-    private function storeInlineDataUri(Draft $draft, Site $site, string $dataUri): ?int
-    {
-        if (preg_match('#^data:([^;,]*)(;base64)?,(.*)$#s', $dataUri, $m) !== 1) {
-            return null;
-        }
-
-        $mime = $m[1] !== '' ? $m[1] : 'image/png';
-        $raw  = $m[2] !== '' ? base64_decode($m[3], true) : rawurldecode($m[3]);
-
-        if (!is_string($raw) || $raw === '') {
-            return null;
-        }
-
-        $filename = 'inline-image.' . $this->extensionForMime($mime);
-
-        return $this->media->store($site->id ?? 0, $draft->id, $filename, $mime, $raw);
-    }
-
-    private function extensionForMime(string $mime): string
-    {
-        return match (strtolower(trim($mime))) {
-            'image/jpeg', 'image/jpg' => 'jpg',
-            'image/gif'               => 'gif',
-            'image/webp'              => 'webp',
-            'image/svg+xml'           => 'svg',
-            'image/avif'              => 'avif',
-            'image/bmp'               => 'bmp',
-            default                   => 'png',
-        };
     }
 
     /**
@@ -345,7 +336,7 @@ final class PublishService
             return null;
         }
 
-        [$width, $height] = $this->imageSize($blob['data']);
+        [$width, $height] = ImageInfo::dimensions($blob['data']);
 
         if ($blob['remote_url'] !== null && $blob['remote_url'] !== '') {
             return [
@@ -421,22 +412,6 @@ final class PublishService
         }
 
         return ltrim($url, '/');
-    }
-
-    /**
-     * Intrinsic pixel dimensions of raw image bytes, or [null, null] if undecodable.
-     *
-     * @return array{0: ?int, 1: ?int}
-     */
-    private function imageSize(string $data): array
-    {
-        $info = @getimagesizefromstring($data);
-
-        if ($info === false) {
-            return [null, null];
-        }
-
-        return [$info[0], $info[1]];
     }
 
     private function intOrNull(mixed $value): ?int

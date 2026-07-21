@@ -1713,6 +1713,25 @@ input[type="color"].form-control {
     min-height: 14px;
 }
 
+/* Local Media tab: "used by <article>" line and the "published" badge. */
+.media-mgr-used-by {
+    font-size: 11px;
+    font-style: italic;
+    color: var(--color-text-muted);
+}
+
+.media-mgr-badge {
+    align-self: flex-start;
+    padding: 1px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--color-success);
+    background: color-mix(in srgb, var(--color-success) 14%, transparent);
+    border-radius: 999px;
+}
+
 .media-mgr-actions {
     display: flex;
     gap: 4px;

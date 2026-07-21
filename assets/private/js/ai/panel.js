@@ -86,10 +86,23 @@
      *
      * An article image comes in three flavours and only the first arrives with
      * its bytes in hand:
-     *   - a data: URI          — pasted, or picked from a local file; use as-is;
-     *   - data-grafida-media-id — an offline blob; GET /api/media/{id};
+     *   - a data: URI          — pasted in a build before gh-36, or otherwise
+     *                            embedded; use as-is;
+     *   - an offline blob      — a local, not-yet-published image, referenced by
+     *                            its boson://app/api/media/{id}/raw URL and
+     *                            normally also tagged data-grafida-media-id;
+     *                            GET /api/media/{id} for the bytes as a data: URI;
      *   - a plain URL           — already published; the webview cannot fetch it
      *                             (CORS / macOS ATS), so PHP does it for us.
+     *
+     * The blob branch reads the attribute first but falls back to parsing the id
+     * out of the URL: the attribute is applied by app.js's SetContent/NodeChange
+     * hook, so HTML set programmatically can reach here before that hook has run,
+     * and the URL is the thing that actually rendered. This fallback also keeps a
+     * local URL out of the published-image branch below — GET /api/sites/{id}/image
+     * would rightly refuse a boson:// URL (SiteImageFetcher only fetches from the
+     * site's own host), but asking costs a round trip through the single-threaded
+     * boson:// kernel, per image, for a guaranteed refusal.
      *
      * @param {HTMLImageElement} img
      * @param {number|null} siteId
@@ -102,16 +115,22 @@
             return src.startsWith('data:image/') ? src : null;
         }
 
-        const mediaId = img.getAttribute('data-grafida-media-id');
+        const local = window.GrafidaLocalMedia || null;
+        const tagged = img.getAttribute('data-grafida-media-id');
+        const mediaId = tagged ? parseInt(tagged, 10) : (local ? local.idFromUrl(src) : null);
 
         if (mediaId) {
             try {
-                const res = await api.getMediaBlob(parseInt(mediaId, 10));
+                const res = await api.getMediaBlob(mediaId);
                 return res.dataUri || null;
             } catch (e) {
                 return null;
             }
         }
+
+        // An untagged, unparseable local URL: there is nothing to fetch and the
+        // site-image branch cannot help, so stop here rather than round-tripping.
+        if (local && src.startsWith(local.PREFIX)) return null;
 
         if (!src || siteId == null) return null;
 

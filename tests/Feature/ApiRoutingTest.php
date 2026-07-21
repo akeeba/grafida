@@ -470,7 +470,7 @@ final class ApiRoutingTest extends TestCase
         self::assertFileExists($exported['data']['path']);
 
         $payload = json_decode((string) file_get_contents($exported['data']['path']), true);
-        self::assertSame(1, $payload['grafidaExport']);
+        self::assertSame(2, $payload['grafidaExport']);
         self::assertSame('Hello', $payload['draft']['title']);
         self::assertArrayNotHasKey('siteId', $payload['draft']);
 

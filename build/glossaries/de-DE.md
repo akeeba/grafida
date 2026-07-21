@@ -148,3 +148,8 @@ Eigennamen (Grafida, Joomla!, API, Markdown, HTML, TinyMCE) werden nicht überse
 | redacted (token) | geschwärzt | API-Token werden im Anfrageprotokoll geschwärzt, nicht im Klartext angezeigt. |
 | diagnose connection | Verbindung diagnostizieren | Schaltfläche, die jede versuchte API-Basis-URL mit vollständigem Anfrage-/Antwort-Protokoll meldet (gh-37). |
 | attempt (diagnose) | Versuch | Ein einzelner Diagnoseversuch mit einer Kandidaten-API-Basis-URL. |
+| local media / local image | lokale Medien / lokales Bild | Ein in `media_blobs` gespeichertes, noch nicht auf der Website veröffentlichtes Bild (gh-36); Tab-Beschriftung „Lokale Medien (noch nicht hochgeladen)". |
+| not yet published/uploaded | noch nicht hochgeladen / noch nicht veröffentlicht | Zustand eines lokalen Bildes bzw. Artikels, der der Website noch nicht bekannt ist. |
+| save to disk | Auf Datenträger speichern | Aktion, die die Bytes eines lokalen Medienobjekts über den nativen Ordnerdialog auf die Festplatte schreibt (kein Save-As-Dialog in Boson). GRAFIDA_BTN_SAVE_TO_DISK. |
+| used by (article) | Verwendet von „%s" | Zeigt an, welcher lokale Artikel ein lokales Bild referenziert. GRAFIDA_LBL_MEDIA_USED_BY. |
+| revision (of a local image) | (kein eigener Begriff) | Die interne Revisionskennung in der lokalen Bild-URL (`rev`-Parameter); erscheint nicht im UI-Text. |

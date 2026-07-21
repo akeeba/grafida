@@ -141,3 +141,8 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | redacted (token) | ocultado | API tokens are hidden/redacted in the request log, never shown in the clear. |
 | diagnose connection | Diagnosticar ligação | Button that reports every candidate API base URL tried, with the full request/response exchange (gh-37). |
 | attempt (diagnose) | Tentativa | A single diagnose attempt against one candidate API base URL. |
+| local media / local image | Multimédia local / imagem local | An image stored in `media_blobs`, not yet published to the site (gh-36); tab label "Multimédia local (ainda não carregada)". |
+| not yet published/uploaded | ainda não carregado/a / ainda não publicado/a | State of a local image or article the site does not yet know about. |
+| save to disk | Guardar no disco | Writes a local media blob's bytes to disk via the native folder picker (Boson has no Save-As dialog). GRAFIDA_BTN_SAVE_TO_DISK. |
+| used by (article) | Usada por «%s» | Shows which local article references a local image. GRAFIDA_LBL_MEDIA_USED_BY. |
+| revision (of a local image) | (sem termo dedicado) | The internal revision token in the local media URL (`rev` parameter); never appears in UI text. |

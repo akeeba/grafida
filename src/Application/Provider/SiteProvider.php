@@ -19,6 +19,7 @@ use Grafida\Html\CssRebaser;
 use Grafida\Http\SiteContext;
 use Grafida\I18n\LanguageService;
 use Grafida\Joomla\ApiClient;
+use Grafida\Media\InlineImageExtractor;
 use Grafida\Media\MediaRepository;
 use Grafida\Media\SiteImageFetcher;
 use Grafida\Publish\PublishService;
@@ -129,6 +130,11 @@ final class SiteProvider implements ServiceProviderInterface
             );
         });
 
+        $container->share(
+            InlineImageExtractor::class,
+            static fn (Container $c): InlineImageExtractor => new InlineImageExtractor($c->get(MediaRepository::class))
+        );
+
         $container->share(PublishService::class, static function (Container $c): PublishService {
             return new PublishService(
                 sites: $c->get(SiteService::class),
@@ -137,6 +143,7 @@ final class SiteProvider implements ServiceProviderInterface
                 drafts: $c->get(DraftRepository::class),
                 media: $c->get(MediaRepository::class),
                 language: $c->get(LanguageService::class),
+                inlineImages: $c->get(InlineImageExtractor::class),
             );
         });
 
@@ -145,6 +152,7 @@ final class SiteProvider implements ServiceProviderInterface
                 $c->get(DraftRepository::class),
                 $c->get(MediaRepository::class),
                 $c->get(AiChatRepository::class),
+                $c->get(InlineImageExtractor::class),
             );
         });
     }

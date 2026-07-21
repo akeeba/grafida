@@ -17,6 +17,9 @@ use Grafida\Ai\AiMessage;
 use Grafida\Article\Draft;
 use Grafida\Article\DraftExportService;
 use Grafida\Article\DraftRepository;
+use Grafida\Html\InlineMedia;
+use Grafida\Media\InlineImageExtractor;
+use Grafida\Media\LocalMediaUrl;
 use Grafida\Media\MediaRepository;
 use Grafida\Tests\Support\TestDatabase;
 use Joomla\Database\DatabaseInterface;
@@ -45,7 +48,12 @@ final class DraftExportServiceTest extends TestCase
         $this->drafts = new DraftRepository($this->db);
         $this->media  = new MediaRepository($this->db);
         $this->chats  = new AiChatRepository($this->db);
-        $this->export = new DraftExportService($this->drafts, $this->media, $this->chats);
+        $this->export = new DraftExportService(
+            $this->drafts,
+            $this->media,
+            $this->chats,
+            new InlineImageExtractor($this->media),
+        );
     }
 
     private function draftWithMediaAndChat(): int
@@ -93,7 +101,7 @@ final class DraftExportServiceTest extends TestCase
 
         $payload = $this->export->export($draftId);
 
-        self::assertSame(1, $payload['grafidaExport']);
+        self::assertSame(2, $payload['grafidaExport']);
         self::assertArrayNotHasKey('siteId', $payload['draft']);
         self::assertArrayNotHasKey('remoteId', $payload['draft']);
         self::assertArrayNotHasKey('id', $payload['draft']);
@@ -192,5 +200,111 @@ final class DraftExportServiceTest extends TestCase
         $imported = $this->export->importAsNewDraft(2, $payload);
 
         self::assertSame('', $imported->createdByAlias);
+    }
+
+    /**
+     * gh-36: a body image is a `boson://app/api/media/{id}/raw` reference, not
+     * self-carrying `data:` bytes, so it must ride under `offlineMedia` too —
+     * and importing must materialise a fresh blob (never point back at the
+     * exporting install's row), sharing a ref with the intro image if the same
+     * ref happens to be used twice.
+     */
+    public function testExportEmbedsBodyImagesAndImportRematerialisesThemAsFreshBlobs(): void
+    {
+        $introId = $this->media->store(1, null, 'intro.png', 'image/png', 'intro-bytes');
+        $bodyId  = $this->media->store(1, null, 'body.png', 'image/png', 'body-bytes');
+        $meta    = $this->media->findMeta($bodyId);
+        self::assertNotNull($meta);
+        $bodyUrl = LocalMediaUrl::build($bodyId, $meta['updated_at'] ?? $meta['created_at']);
+
+        $draft = new Draft(
+            id: null,
+            siteId: 1,
+            remoteId: null,
+            title: 'With body image',
+            alias: 'with-body-image',
+            catid: null,
+            access: 1,
+            language: '*',
+            state: 1,
+            html: '<p>Before</p><img src="' . $bodyUrl . '" data-grafida-media-id="' . $bodyId . '">'
+                . '<p>After <img src="' . $bodyUrl . '"></p>',
+            fields: [],
+            tags: [],
+            images: ['image_intro' => 'grafida-media://' . $introId, 'image_fulltext' => ''],
+            metadesc: '',
+            metakey: '',
+        );
+        $draftId = $this->drafts->insert($draft);
+
+        $payload = $this->export->export($draftId);
+
+        // Two distinct local-URL <img> elements referencing the SAME blob
+        // must collapse onto one offlineMedia entry, alongside the intro
+        // image's own entry — never three.
+        self::assertCount(2, $payload['offlineMedia']);
+        self::assertStringNotContainsString('boson://', $payload['draft']['html']);
+        self::assertStringNotContainsString(InlineMedia::ATTRIBUTE, $payload['draft']['html']);
+        preg_match_all('/grafida-media:\/\/export:(m\d+)/', $payload['draft']['html'], $matches);
+        self::assertCount(2, $matches[1]);
+        self::assertSame($matches[1][0], $matches[1][1], 'both <img> tags reference the same blob and must share one ref');
+
+        $imported = $this->export->importAsNewDraft(2, $payload);
+
+        self::assertStringNotContainsString('grafida-media://export:', $imported->html);
+        preg_match_all('/boson:\/\/app\/api\/media\/(\d+)\/raw/', $imported->html, $urlMatches);
+        self::assertCount(2, $urlMatches[1]);
+        self::assertSame($urlMatches[1][0], $urlMatches[1][1], 'both rewritten <img> tags must point at the same freshly-stored blob');
+
+        $newBodyId = (int) $urlMatches[1][0];
+        self::assertNotSame($bodyId, $newBodyId, 'import must never alias the exporting install\'s own blob row');
+        $newBlob = $this->media->find($newBodyId);
+        self::assertNotNull($newBlob);
+        self::assertSame('body-bytes', $newBlob['data']);
+    }
+
+    /**
+     * A `.grafida` written by a pre-gh-36 Grafida (or one whose body image was
+     * never touched by the on-open legacy migration) carries the image
+     * self-embedded as a `data:` URI in `html`, not under `offlineMedia`.
+     * Importing it must still end up with a `media_blobs` row and a rewritten
+     * `boson://` reference — {@see DraftExportService::importAsNewDraft()}
+     * runs {@see InlineImageExtractor} over the imported HTML for exactly
+     * this reason.
+     */
+    public function testLegacyExportWithInlineBase64BodyImageImportsIntoABlob(): void
+    {
+        $b64 = base64_encode('legacy-inline-bytes');
+
+        $payload = [
+            'grafidaExport' => 1,
+            'draft'         => [
+                'title'    => 'Legacy export',
+                'alias'    => 'legacy-export',
+                'catid'    => null,
+                'access'   => 1,
+                'language' => '*',
+                'state'    => 1,
+                'html'     => '<p><img src="data:image/png;base64,' . $b64 . '"></p>',
+                'fields'   => [],
+                'tags'     => [],
+                'images'   => [],
+                'metadesc' => '',
+                'metakey'  => '',
+            ],
+            'offlineMedia' => [],
+            'aiChats'      => [],
+        ];
+
+        $imported = $this->export->importAsNewDraft(1, $payload);
+
+        self::assertStringNotContainsString('data:image', $imported->html);
+        self::assertStringContainsString(InlineMedia::LOCAL_URL_PREFIX, $imported->html);
+
+        preg_match('#boson://app/api/media/(\d+)/raw#', $imported->html, $m);
+        self::assertNotEmpty($m);
+        $blob = $this->media->find((int) $m[1]);
+        self::assertNotNull($blob);
+        self::assertSame('legacy-inline-bytes', $blob['data']);
     }
 }

@@ -14,6 +14,10 @@ namespace Grafida\Article;
 use Grafida\Ai\AiChat;
 use Grafida\Ai\AiChatRepository;
 use Grafida\Ai\AiMessage;
+use Grafida\Html\HtmlDocument;
+use Grafida\Html\InlineMedia;
+use Grafida\Media\InlineImageExtractor;
+use Grafida\Media\LocalMediaUrl;
 use Grafida\Media\MediaRepository;
 use Grafida\Support\App;
 
@@ -24,10 +28,30 @@ use Grafida\Support\App;
  * locally-picked (not-yet-published) images, embedded as base64. It never
  * carries `site_id` / `remote_id` (those are local-install specifics), nor
  * the local `media_blobs` / `ai_services` row ids (also local-install only).
+ *
+ * Since gh-36 an inline body image is no longer self-carrying — it is a
+ * `boson://app/api/media/{id}/raw` reference to a row that means nothing on
+ * another install — so `exportHtml()`/`importMedia()` give the body the same
+ * `offlineMedia` embed-and-rematerialise treatment `exportImages()` already
+ * gave the intro/full-text `grafida-media://N` sentinels, sharing the very
+ * same `$offlineMedia` map and `mN` ref counter so refs stay unique across
+ * both. A **legacy** inline `data:` image (self-carrying, pre-dating gh-36)
+ * is left exactly as it was: it survives the export/import round-trip on its
+ * own and {@see \Grafida\Media\InlineImageExtractor} converts it to a blob on
+ * the importing install, same as it does for a legacy draft that is merely
+ * opened rather than exported.
  */
 final class DraftExportService
 {
-    private const FORMAT_VERSION = 1;
+    // Bumped for gh-36: a body image is now embedded under `offlineMedia`
+    // (via a `grafida-media://export:mN` sentinel) rather than being
+    // self-carrying `data:` bytes inside `html`. Purely informational today —
+    // nothing here gates on it, since the importer already handles both an
+    // old file's inline `data:` images (left untouched by exportHtml() below,
+    // converted by InlineImageExtractor on import) and a new file's refs
+    // unconditionally — but a future version-aware importer has something to
+    // check against.
+    private const FORMAT_VERSION = 2;
 
     /** @var list<string> Draft `images` subfields that may hold a `grafida-media://` sentinel. */
     private const IMAGE_MEDIA_KEYS = ['image_intro', 'image_fulltext'];
@@ -40,6 +64,8 @@ final class DraftExportService
         private readonly DraftRepository $drafts,
         private readonly MediaRepository $media,
         private readonly AiChatRepository $aiChats,
+        private readonly InlineImageExtractor $inlineImages,
+        private readonly InlineMedia $inlineMedia = new InlineMedia(),
     ) {}
 
     /**
@@ -53,7 +79,13 @@ final class DraftExportService
             throw new \RuntimeException('Draft not found');
         }
 
-        [$images, $offlineMedia] = $this->exportImages($draft->images);
+        /** @var array<string, array<string, mixed>> $offlineMedia */
+        $offlineMedia = [];
+        $images       = $this->exportImages($draft->images, $offlineMedia);
+        // Shares $offlineMedia (and its mN ref counter) with exportImages()
+        // above so a body image and an intro/full-text image never collide
+        // on the same ref.
+        $html = $this->exportHtml($draft->html, $offlineMedia);
 
         return [
             'grafidaExport' => self::FORMAT_VERSION,
@@ -66,7 +98,7 @@ final class DraftExportService
                 'access'         => $draft->access,
                 'language'       => $draft->language,
                 'state'          => $draft->state,
-                'html'           => $draft->html,
+                'html'           => $html,
                 'fields'         => $draft->fields,
                 'tags'           => $draft->tags,
                 'images'         => $images,
@@ -166,13 +198,14 @@ final class DraftExportService
 
     /**
      * @param array<string, mixed> $images
-     * @return array{0: array<string, mixed>, 1: array<string, array<string, mixed>>}
+     * @param array<string, array<string, mixed>> $offlineMedia written into by
+     *        reference so {@see exportHtml()} continues the same `mN` ref
+     *        counter rather than restarting it and colliding with these refs
+     * @return array<string, mixed>
      */
-    private function exportImages(array $images): array
+    private function exportImages(array $images, array &$offlineMedia): array
     {
-        /** @var array<string, array<string, mixed>> $offlineMedia */
-        $offlineMedia = [];
-        $out          = $images;
+        $out = $images;
 
         foreach (self::IMAGE_MEDIA_KEYS as $key) {
             $value = $images[$key] ?? null;
@@ -199,7 +232,78 @@ final class DraftExportService
             $out[$key] = self::EXPORT_REF_PREFIX . $ref;
         }
 
-        return [$out, $offlineMedia];
+        return $out;
+    }
+
+    /**
+     * Embeds every body `<img>` that references a local media blob
+     * (`boson://app/api/media/{id}/raw…`, see {@see \Grafida\Html\InlineMedia})
+     * into `$offlineMedia` the same way {@see exportImages()} embeds the
+     * intro/full-text images, and rewrites its `src` to the matching
+     * `grafida-media://export:mN` sentinel. A **legacy** inline `data:` image
+     * is left completely untouched — it is already self-carrying, and
+     * {@see \Grafida\Media\InlineImageExtractor} converts it to a blob on the
+     * importing install regardless of whether it arrived via export/import or
+     * a plain draft open. A local-URL image whose blob has since been deleted
+     * (e.g. from the Local Media tab) is also left as-is — a broken image in
+     * the export is a far better outcome than a failed export.
+     *
+     * @param array<string, array<string, mixed>> $offlineMedia written into by
+     *        reference, continuing {@see exportImages()}'s ref counter
+     */
+    private function exportHtml(string $html, array &$offlineMedia): string
+    {
+        if (trim($html) === '' || !str_contains($html, InlineMedia::LOCAL_URL_PREFIX)) {
+            return $html;
+        }
+
+        $dom     = HtmlDocument::load($html);
+        $changed = false;
+
+        // The same picture is commonly referenced by more than one <img> in
+        // one article body (a thumbnail repeated further down, say) — track
+        // which ref a blob id already got so a repeat reuses it instead of
+        // embedding the same bytes a second time.
+        /** @var array<int, string> $refsByMediaId */
+        $refsByMediaId = [];
+
+        foreach ($dom->getElementsByTagName('img') as $img) {
+            $src = $img->getAttribute('src');
+
+            if (!str_starts_with($src, InlineMedia::LOCAL_URL_PREFIX)) {
+                continue;
+            }
+
+            $id = $this->inlineMedia->idFromLocalUrl($src);
+
+            if ($id === null) {
+                continue;
+            }
+
+            $ref = $refsByMediaId[$id] ?? null;
+
+            if ($ref === null) {
+                $blob = $this->media->find($id);
+
+                if ($blob === null) {
+                    continue;
+                }
+
+                $ref                = 'm' . \count($offlineMedia);
+                $offlineMedia[$ref] = [
+                    'filename'   => $blob['filename'],
+                    'mime'       => $blob['mime'],
+                    'dataBase64' => base64_encode($blob['data']),
+                ];
+                $refsByMediaId[$id] = $ref;
+            }
+
+            $img->setAttribute('src', self::EXPORT_REF_PREFIX . $ref);
+            $img->removeAttribute(InlineMedia::ATTRIBUTE);
+            $changed = true;
+        }
+
+        return $changed ? HtmlDocument::innerHtml($dom) : $html;
     }
 
     /**
@@ -280,8 +384,19 @@ final class DraftExportService
     }
 
     /**
-     * Re-materialises any embedded offline media as fresh local blobs and
-     * rewrites the `grafida-media://export:N` sentinels to point at them.
+     * Re-materialises any embedded offline media as fresh **new** local blobs
+     * (never aliasing the exporting install's originals — that is what makes
+     * importing the same file twice, or importing into the same install it
+     * came from, produce two independently-editable copies) and rewrites the
+     * `grafida-media://export:mN` sentinels — in both the intro/full-text
+     * `images` subfields and the body's `<img>` elements — to point at them.
+     * A ref used more than once (the same picture set as both the intro image
+     * and inline in the body, say) is stored exactly once; see
+     * {@see materializeRef()}. Finally runs {@see \Grafida\Media\InlineImageExtractor}
+     * over the body so a **legacy** export's self-carrying inline `data:`
+     * images — which never went through the `offlineMedia` embed at all,
+     * since they predate gh-36 — are converted to blobs on this install too,
+     * exactly as opening an old already-saved draft would.
      *
      * @param array<string, mixed> $images
      * @param array<string, mixed> $payload
@@ -289,10 +404,14 @@ final class DraftExportService
     private function importMedia(int $draftId, int $siteId, array $images, array $payload): void
     {
         $offlineMediaRaw = $payload['offlineMedia'] ?? [];
-        $offlineMedia    = is_array($offlineMediaRaw) ? $offlineMediaRaw : [];
+        /** @var array<string, mixed> $offlineMedia */
+        $offlineMedia = is_array($offlineMediaRaw) ? $offlineMediaRaw : [];
 
-        $resolved = $images;
-        $changed  = false;
+        /** @var array<string, int> $resolvedRefs ref => newly stored blob id, shared across the images subfields and the body */
+        $resolvedRefs = [];
+
+        $resolvedImages = $images;
+        $imagesChanged  = false;
 
         foreach (self::IMAGE_MEDIA_KEYS as $key) {
             $value = $images[$key] ?? null;
@@ -301,34 +420,20 @@ final class DraftExportService
                 continue;
             }
 
-            $ref   = substr($value, \strlen(self::EXPORT_REF_PREFIX));
-            $entry = $offlineMedia[$ref] ?? null;
-
-            if (!is_array($entry)) {
-                continue;
-            }
-
-            $dataBase64 = $entry['dataBase64'] ?? '';
-            $data       = base64_decode(is_string($dataBase64) ? $dataBase64 : '', true);
-
-            if ($data === false) {
-                continue;
-            }
-
-            $mediaId = $this->media->store(
+            $mediaId = $this->materializeRef(
+                substr($value, \strlen(self::EXPORT_REF_PREFIX)),
+                $offlineMedia,
+                $resolvedRefs,
                 $siteId,
                 $draftId,
-                is_string($entry['filename'] ?? null) ? $entry['filename'] : 'image.png',
-                is_string($entry['mime'] ?? null) ? $entry['mime'] : 'image/png',
-                $data,
             );
 
-            $resolved[$key] = self::MEDIA_REF_PREFIX . $mediaId;
-            $changed        = true;
-        }
+            if ($mediaId === null) {
+                continue;
+            }
 
-        if (!$changed) {
-            return;
+            $resolvedImages[$key] = self::MEDIA_REF_PREFIX . $mediaId;
+            $imagesChanged        = true;
         }
 
         $draft = $this->drafts->find($draftId);
@@ -337,8 +442,122 @@ final class DraftExportService
             return;
         }
 
-        $draft->images = $resolved;
-        $this->drafts->update($draft);
+        $originalHtml = $draft->html;
+        $html         = $this->importHtml($originalHtml, $offlineMedia, $resolvedRefs, $siteId, $draftId);
+        $html         = $this->inlineImages->extract($html, $siteId, $draftId);
+
+        if ($imagesChanged) {
+            $draft->images = $resolvedImages;
+        }
+
+        if ($html !== $originalHtml) {
+            $draft->html = $html;
+        }
+
+        if ($imagesChanged || $html !== $originalHtml) {
+            $this->drafts->update($draft);
+        }
+    }
+
+    /**
+     * Rewrites every `<img src="grafida-media://export:mN">` in an imported
+     * body to the freshly stored blob's local URL (re-adding
+     * `data-grafida-media-id`, mirroring what the editor itself inserts). A
+     * ref with no matching `offlineMedia` entry, or one whose blob failed to
+     * store, is left exactly as it was — it renders broken, which is honest,
+     * rather than failing the whole import.
+     *
+     * @param array<string, mixed> $offlineMedia
+     * @param array<string, int> $resolvedRefs
+     */
+    private function importHtml(
+        string $html,
+        array $offlineMedia,
+        array &$resolvedRefs,
+        int $siteId,
+        int $draftId,
+    ): string {
+        if (trim($html) === '' || !str_contains($html, self::EXPORT_REF_PREFIX)) {
+            return $html;
+        }
+
+        $dom     = HtmlDocument::load($html);
+        $changed = false;
+
+        foreach ($dom->getElementsByTagName('img') as $img) {
+            $src = $img->getAttribute('src');
+
+            if (!str_starts_with($src, self::EXPORT_REF_PREFIX)) {
+                continue;
+            }
+
+            $mediaId = $this->materializeRef(
+                substr($src, \strlen(self::EXPORT_REF_PREFIX)),
+                $offlineMedia,
+                $resolvedRefs,
+                $siteId,
+                $draftId,
+            );
+            $meta = $mediaId !== null ? $this->media->findMeta($mediaId) : null;
+
+            if ($meta === null) {
+                continue;
+            }
+
+            $img->setAttribute('src', LocalMediaUrl::build($mediaId, $meta['updated_at'] ?? $meta['created_at']));
+            $img->setAttribute(InlineMedia::ATTRIBUTE, (string) $mediaId);
+            $changed = true;
+        }
+
+        return $changed ? HtmlDocument::innerHtml($dom) : $html;
+    }
+
+    /**
+     * Stores an `offlineMedia` entry as a fresh blob, or returns the id
+     * already stored for the same `$ref` earlier in this same import — the
+     * same ref can legitimately appear twice (e.g. as both an intro image and
+     * an inline body image), and it must resolve to one blob, not two.
+     * Returns null when the ref has no matching entry or its `dataBase64`
+     * cannot be decoded.
+     *
+     * @param array<string, mixed> $offlineMedia
+     * @param array<string, int> $resolvedRefs
+     */
+    private function materializeRef(
+        string $ref,
+        array $offlineMedia,
+        array &$resolvedRefs,
+        int $siteId,
+        int $draftId,
+    ): ?int {
+        if (isset($resolvedRefs[$ref])) {
+            return $resolvedRefs[$ref];
+        }
+
+        $entry = $offlineMedia[$ref] ?? null;
+
+        if (!is_array($entry)) {
+            return null;
+        }
+
+        $dataBase64 = $entry['dataBase64'] ?? '';
+        $data       = base64_decode(is_string($dataBase64) ? $dataBase64 : '', true);
+
+        if ($data === false) {
+            return null;
+        }
+
+        $mediaId = $this->media->store(
+            $siteId,
+            $draftId,
+            is_string($entry['filename'] ?? null) ? $entry['filename'] : 'image.png',
+            is_string($entry['mime'] ?? null) ? $entry['mime'] : 'image/png',
+            $data,
+        );
+
+        $resolvedRefs[$ref] = $mediaId;
+
+        return $mediaId;
     }
 
     /** @param array<string, mixed> $payload */

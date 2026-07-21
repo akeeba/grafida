@@ -1,7 +1,10 @@
 Grafida 0.3
 ================================================================================
++ Media Manager: new Local Media tab to crop, resize, rename and delete images before they are published (gh-36)
 + Diagnose Connection: see the exact request and response when a site connection fails (gh-37)
 + Optional Request Log: record the last 20 requests to the site, with JSON export (gh-37)
+~ Pasted and dropped images are stored locally and referenced, not embedded in the article; existing articles are converted when first opened (gh-36)
+# [HIGH] Severe editor lag, and a frozen source code editor, after pasting a large image (gh-36)
 # [HIGH] Editor content stuck in dark mode when the site's editor.css switches on prefers-color-scheme (gh-38)
 # [MEDIUM] The webview could cache Grafida's own API responses, showing stale data even after a restart (gh-35)
 

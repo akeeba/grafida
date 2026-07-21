@@ -94,8 +94,9 @@ const State = {
     // Working copy of the open draft's article images (intro + full text), the
     // single source of truth for the editor's Images section. See collectImages().
     editorImages: {},
-    // Cache of preview data: URIs for offline image blobs, keyed by their
-    // `grafida-media://N` reference, so re-renders don't re-fetch.
+    // Cache of preview URLs (boson://…/media/{id}/raw, not data: URIs — see
+    // localMediaUrl(), gh-36) for offline image blobs, keyed by their
+    // `grafida-media://N` reference, so a re-render doesn't re-derive them.
     mediaPreviews: {},
     // Maps a data: URI inserted into TinyMCE this session to the offline blob id
     // it came from, so inline images get tagged with data-grafida-media-id and
@@ -108,6 +109,11 @@ const State = {
     mediaAdapters: null,
     mediaPath: '',
     mediaEntries: [],
+    // Which Media Manager tab is showing: 'site' (the online Joomla Media
+    // Manager) or 'local' (offline media_blobs, gh-36). The Local tab's last
+    // loaded entries are cached here too (renderLocalMediaGrid()'s source).
+    mediaTab: 'site',
+    localMediaEntries: [],
     // Display→source scale of the canvas in the open image editor, used to map a
     // crop selection (display pixels) back to source pixels.
     imgEditorScale: 1,
@@ -605,6 +611,11 @@ const api = {
     renameMedia: (siteId, body) => apiFetch('POST', `/api/sites/${siteId}/media/rename`, body),
     updateMediaContent: (siteId, body) => apiFetch('POST', `/api/sites/${siteId}/media/content`, body),
     deleteSiteMedia: (siteId, path) => apiFetch('DELETE', `/api/sites/${siteId}/media?path=${encodeURIComponent(path)}`),
+    getLocalMedia: (siteId) => apiFetch('GET', `/api/sites/${siteId}/local-media`),
+    renameLocalMedia: (id, filename) => apiFetch('POST', `/api/media/${id}/rename`, { filename }),
+    updateLocalMediaContent: (id, dataBase64) => apiFetch('POST', `/api/media/${id}/content`, { dataBase64 }),
+    deleteLocalMedia: (id) => apiFetch('DELETE', `/api/media/${id}`),
+    saveLocalMediaToDisk: (id, directory) => apiFetch('POST', `/api/media/${id}/save-to-disk`, { directory }),
     convertMarkdown: (markdown) => apiFetch('POST', '/api/markdown', { markdown }),
     setLanguage: (tag) => apiFetch('POST', '/api/settings/language', { tag }),
     setDisplayMode: (mode) => apiFetch('POST', '/api/settings/display-mode', { mode }),
@@ -3377,19 +3388,34 @@ async function initTinyMCE(draft) {
                 editor.setContent(draft.html || '');
             });
 
-            // Tag offline images (data: URIs uploaded this session) with their
-            // blob id so PublishService uploads them and rewrites the src. Runs
-            // after the picker inserts, after paste/drag, and after setContent.
+            // Tag offline images with their blob id so PublishService uploads
+            // them and rewrites the src. Runs after the picker inserts, after
+            // paste/drag, and after setContent. The id is derived from the
+            // src itself (a boson://…/media/{id}/raw local URL parses the id
+            // straight out of its path; a legacy data: URI still falls back
+            // to the session-only inlineMediaByUri map) rather than trusted
+            // from a previous run of this same tag, which is what makes it
+            // self-healing across saves, reloads and imports: the attribute
+            // is never the only place the id is remembered (gh-36).
             editor.on('SetContent NodeChange', () => {
-                editor.dom.select('img[src^="data:"]').forEach(img => {
+                editor.dom.select('img[src]').forEach(img => {
                     if (img.getAttribute(GRAFIDA_MEDIA_ATTR)) return;
-                    const id = State.inlineMediaByUri[img.getAttribute('src')];
+                    const src = img.getAttribute('src');
+                    const id = localMediaIdFromUrl(src) || State.inlineMediaByUri[src];
                     if (id) editor.dom.setAttrib(img, GRAFIDA_MEDIA_ATTR, String(id));
                 });
             });
         },
-        // Pasted / dragged images: store offline and remember the blob id so the
-        // inserted <img data:…> gets tagged for upload on publish.
+        // Pasted / dragged images: store offline and insert the local URL the
+        // Boson kernel serves the blob's bytes back from
+        // (boson://app/api/media/{id}/raw?rev=…, see MediaController::mediaBlobRaw)
+        // rather than the data: URI this used to return. A 2.3 MiB screenshot
+        // used to become ~3.1 MiB of base64 sitting in the editor DOM, State
+        // and the drafts.html column; the local URL is ~60 bytes regardless of
+        // the image size (gh-36). inlineMediaByUri is kept as a same-session
+        // fallback for the tagging hook above — the id is normally recovered
+        // from the URL itself (localMediaIdFromUrl), which is what survives a
+        // reload/import that this in-memory map does not.
         images_upload_handler: async (blobInfo) => {
             const filename = blobInfo.filename() || 'image.png';
             const mime = blobInfo.blob().type || 'image/png';
@@ -3398,8 +3424,8 @@ async function initTinyMCE(draft) {
                 const result = await api.uploadMedia(editorSiteId, {
                     filename, mime, dataBase64, draftId: State.currentDraftId,
                 });
-                State.inlineMediaByUri[result.dataUri] = result.id;
-                return result.dataUri;
+                State.inlineMediaByUri[result.url] = result.id;
+                return result.url;
             } catch (err) {
                 throw new Error(err.message);
             }
@@ -3424,6 +3450,12 @@ async function initTinyMCE(draft) {
         file_picker_types: 'image',
         file_picker_callback: (callback, _value, meta) => {
             if (meta.filetype !== 'image') return;
+            // entry.url is either a site Media-Manager URL (browsed) or the
+            // boson://…/media/{id}/raw local URL (uploaded via "Choose
+            // file…" -> uploadLocalImage(), which now gets it straight from
+            // api.uploadMedia()'s response) — either way it is inserted as-is;
+            // the local case is recognised by the tagging hook above from the
+            // URL itself, inlineMediaByUri is only a same-session backstop.
             openMediaBrowser(editorSiteId, { allowUpload: true }).then(entry => {
                 if (!entry || typeof entry.url !== 'string') return;
                 if (entry.mediaId) {
@@ -3454,6 +3486,32 @@ const MEDIA_REF_PREFIX = 'grafida-media://';
 // Attribute tagging an inline (in-article) offline image with its blob id; must
 // match InlineMedia::ATTRIBUTE on the PHP side. PublishService uploads these.
 const GRAFIDA_MEDIA_ATTR = 'data-grafida-media-id';
+
+// Local (not yet published) images are referenced by a URL the Boson kernel
+// serves (src/Http/Controller/MediaController::mediaBlobRaw), NOT an inline
+// data: URI — a 2 MiB screenshot became 3 MiB of base64 in the editor DOM, in
+// the draft HTML and in the source-code editor, which is what made the app
+// crawl (gh-36). The URL shape/parsing logic itself lives in
+// js/editor/localmedia.js (window.GrafidaLocalMedia), shared with
+// tests/js/localmedia.test.mjs, so it is defined once rather than re-derived
+// here and in the Local Media tab.
+function localMediaIdFromUrl(src) {
+    return window.GrafidaLocalMedia ? window.GrafidaLocalMedia.idFromUrl(src) : null;
+}
+
+/**
+ * Build the local boson://…/media/{id}/raw URL for an offline blob.
+ * `revisedAt` is the blob's `updated_at` (falling back to `created_at`) when
+ * known; pass null when it isn't (e.g. a freshly-loaded draft whose blob
+ * metadata was never fetched) — the `rev` token is a display-only cache
+ * buster the server never validates (see MediaController::mediaBlobRaw), so
+ * a stale/absent token only means a freshly-loaded page (which has no stale
+ * cached copy to bust in the first place) may not get a distinct URL per
+ * revision until the image is touched again in this session.
+ */
+function localMediaUrl(id, revisedAt) {
+    return window.GrafidaLocalMedia ? window.GrafidaLocalMedia.url(id, String(revisedAt)) : null;
+}
 
 const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'avif', 'bmp'];
 
@@ -3583,12 +3641,15 @@ function buildImageBlock(kind, siteId) {
     if (url) {
         showPreview(url);
     } else if (value && value.startsWith(MEDIA_REF_PREFIX)) {
-        // Offline blob whose preview is not cached yet — fetch then fill in.
-        showPreview(null);
+        // Offline blob whose preview URL is not cached yet (e.g. a reloaded
+        // draft) — mint the local raw URL straight off the sentinel's id, no
+        // fetch and no base64 in JS (gh-36). There is no known `updated_at`
+        // here, but the `rev` token is only a cache buster the server never
+        // validates (see localMediaUrl()'s doc comment), so this is safe.
         const id = parseInt(value.slice(MEDIA_REF_PREFIX.length), 10);
-        api.getMediaBlob(id)
-            .then(r => { State.mediaPreviews[value] = r.dataUri; showPreview(r.dataUri); })
-            .catch(() => {});
+        const raw = localMediaUrl(id, null);
+        State.mediaPreviews[value] = raw;
+        showPreview(raw);
     } else {
         showPreview(null);
     }
@@ -3665,9 +3726,11 @@ function boundImageInput(key) {
 }
 
 /**
- * Prompt for a local image file, store it as an offline blob, and call back with
- * `{url: <dataUri>, name, mediaId}` (or null on cancel/failure). Shared by the
- * intro/full-text picker and the in-editor image picker.
+ * Prompt for a local image file, store it as an offline blob, and call back
+ * with `{url, name, mediaId}` — `url` is the local
+ * boson://…/media/{id}/raw URL the blob is served back from, not a data:
+ * URI (gh-36). Shared by the intro/full-text picker and the in-editor image
+ * picker.
  */
 async function uploadLocalImage(siteId, cb) {
     let picked;
@@ -3684,7 +3747,7 @@ async function uploadLocalImage(siteId, cb) {
             filename: picked.name, mime: picked.mime || 'image/png',
             dataBase64: picked.dataBase64, draftId: State.currentDraftId,
         });
-        cb({ url: result.dataUri, name: picked.name, mediaId: result.id });
+        cb({ url: result.url, name: picked.name, mediaId: result.id });
     } catch (err) {
         showToast(err.message, 'error');
         cb(null);
@@ -3852,8 +3915,9 @@ function openSourceCodeEditor(editor) {
  * entry, or null if the user cancels / closes the dialog.
  *
  * With `opts.allowUpload`, a "Choose file…" button uploads a local image as an
- * offline blob and resolves with a synthetic entry `{url: <dataUri>, name,
- * mediaId}` — the caller tags it so it is uploaded to the site on publish.
+ * offline blob and resolves with a synthetic entry `{url, name, mediaId}` —
+ * `url` is the local boson://…/media/{id}/raw URL, not a data: URI (gh-36) —
+ * the caller tags it so it is uploaded to the site on publish.
  */
 function openMediaBrowser(siteId, opts = {}) {
     return new Promise(resolve => {
@@ -4015,34 +4079,112 @@ function promptText(title, label, initial = '') {
     });
 }
 
-/** Entry point for the Media Manager screen (nav click / site change). */
+/**
+ * Entry point for the Media Manager screen (nav click / site change).
+ *
+ * Two tabs (gh-36): **Site Media** is the existing online Joomla Media
+ * Manager, which needs a connected site; **Local Media** lists offline
+ * `media_blobs` and works whether or not the site is reachable — it reads
+ * nothing but local SQLite. The "select a site" guard therefore stays at
+ * the screen level (a site still has to be *chosen*), but the "site is not
+ * connected" failure that used to blank the whole screen now only happens
+ * inside the Site Media tab's own panel (loadSiteMediaTab()); the sidebar
+ * Media nav item itself is never disabled for a disconnected site.
+ */
 async function loadMediaScreen() {
     const container = document.getElementById('media-container');
     if (!container) return;
-    renderMediaHeaderActions();
 
     if (!State.currentSiteId) {
+        renderMediaHeaderActions();
         clearNode(container);
         container.appendChild(el('div', 'empty-state', el('p', null, t('GRAFIDA_MSG_SELECT_SITE'))));
         return;
     }
 
-    // (Re)load the site's adapters when the active site changed. The first adapter
-    // is the default filesystem; its `path` (e.g. "local-images:/") is the root.
-    if (State.mediaSiteId !== State.currentSiteId || !State.mediaAdapters) {
-        const siteId = State.currentSiteId;
-        State.mediaSiteId = siteId;
+    // A site change invalidates the Site tab's cached adapter/path state, so
+    // it is re-probed on next visit (mirrors the pre-tabs behaviour).
+    if (State.mediaSiteId !== State.currentSiteId) {
+        State.mediaSiteId = State.currentSiteId;
         State.mediaAdapters = null;
-        clearNode(container);
-        container.appendChild(el('div', 'loading-row', el('div', 'spinner'), txt(' ' + t('GRAFIDA_MSG_LOADING'))));
+    }
+
+    clearNode(container);
+    container.appendChild(buildMediaTabs());
+    const sitePanel = el('div', 'media-tab-panel');
+    sitePanel.id = 'media-tab-site';
+    container.appendChild(sitePanel);
+    const localPanel = el('div', 'media-tab-panel');
+    localPanel.id = 'media-tab-local';
+    container.appendChild(localPanel);
+    applyMediaTab();
+    renderMediaHeaderActions();
+
+    if (State.mediaTab === 'local') {
+        await loadLocalMediaTab();
+    } else {
+        await loadSiteMediaTab();
+    }
+}
+
+/** Builds the Site Media / Local Media tab strip, following the Articles page's tab pattern. */
+function buildMediaTabs() {
+    const tabs = el('div', 'articles-tabs');
+    const mk = (id, key) => {
+        const b = el('button', 'articles-tab', t(key));
+        b.type = 'button';
+        b.dataset.tab = id;
+        if (State.mediaTab === id) b.classList.add('active');
+        b.addEventListener('click', () => {
+            if (State.mediaTab === id) return;
+            State.mediaTab = id;
+            applyMediaTab();
+            renderMediaHeaderActions();
+            if (id === 'local') loadLocalMediaTab();
+            else loadSiteMediaTab();
+        });
+        return b;
+    };
+    tabs.appendChild(mk('site', 'GRAFIDA_TAB_SITE_MEDIA'));
+    tabs.appendChild(mk('local', 'GRAFIDA_TAB_LOCAL_MEDIA'));
+    return tabs;
+}
+
+/** Shows the active Media Manager tab's panel and highlights its button. */
+function applyMediaTab() {
+    const active = State.mediaTab;
+    const sitePanel = document.getElementById('media-tab-site');
+    const localPanel = document.getElementById('media-tab-local');
+    if (sitePanel) sitePanel.classList.toggle('hidden', active !== 'site');
+    if (localPanel) localPanel.classList.toggle('hidden', active !== 'local');
+    document.querySelectorAll('#media-container .articles-tabs .articles-tab').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === active);
+    });
+}
+
+/**
+ * Loads the Site Media tab (the online Joomla Media Manager) into its panel.
+ * A "not connected" fetch failure is scoped to this panel — it must never
+ * blank the Local Media tab beside it.
+ */
+async function loadSiteMediaTab() {
+    const panel = document.getElementById('media-tab-site');
+    if (!panel) return;
+
+    // (Re)load the site's adapters once per site visit. The first adapter is
+    // the default filesystem; its `path` (e.g. "local-images:/") is the root.
+    if (!State.mediaAdapters) {
+        const siteId = State.currentSiteId;
+        clearNode(panel);
+        panel.appendChild(el('div', 'loading-row', el('div', 'spinner'), txt(' ' + t('GRAFIDA_MSG_LOADING'))));
         let adapters;
         try {
             const data = await api.getMediaAdapters(siteId);
             adapters = Array.isArray(data.adapters) ? data.adapters : [];
         } catch (err) {
             if (State.currentSiteId !== siteId) return;
-            clearNode(container);
-            container.appendChild(el('div', 'alert alert-error', String(err.message)));
+            clearNode(panel);
+            panel.appendChild(el('div', 'alert alert-error', String(err.message)));
             return;
         }
         if (State.currentSiteId !== siteId) return;
@@ -4051,23 +4193,62 @@ async function loadMediaScreen() {
         State.mediaPath = first && typeof first.path === 'string' ? first.path : '';
     }
 
-    clearNode(container);
+    clearNode(panel);
     const toolbar = el('div', 'media-mgr-toolbar');
     toolbar.id = 'media-mgr-toolbar';
-    container.appendChild(toolbar);
+    panel.appendChild(toolbar);
     const grid = el('div', 'media-mgr-grid');
     grid.id = 'media-mgr-grid';
-    container.appendChild(grid);
+    panel.appendChild(grid);
 
     await reloadMediaManager(State.mediaPath);
 }
 
-/** Builds the screen-header Upload / New Folder actions (rebuilt per language). */
+/**
+ * Loads the Local Media tab (offline `media_blobs`) into its panel. Reads
+ * `media_blobs` only, so — unlike the Site tab — this never fails for a
+ * disconnected site; it is reloaded on every visit since it is cheap
+ * (purely local SQLite), rather than cached like the Site tab's adapters.
+ */
+async function loadLocalMediaTab() {
+    const panel = document.getElementById('media-tab-local');
+    if (!panel) return;
+
+    clearNode(panel);
+    panel.appendChild(el('div', 'loading-row', el('div', 'spinner'), txt(' ' + t('GRAFIDA_MSG_LOADING'))));
+
+    const siteId = State.currentSiteId;
+    let data;
+    try {
+        data = await api.getLocalMedia(siteId);
+    } catch (err) {
+        if (State.currentSiteId !== siteId || State.mediaTab !== 'local') return;
+        clearNode(panel);
+        panel.appendChild(el('div', 'alert alert-error', String(err.message)));
+        return;
+    }
+    if (State.currentSiteId !== siteId || State.mediaTab !== 'local') return;
+
+    State.localMediaEntries = Array.isArray(data.entries) ? data.entries : [];
+
+    clearNode(panel);
+    const grid = el('div', 'media-mgr-grid');
+    grid.id = 'local-media-grid';
+    panel.appendChild(grid);
+    renderLocalMediaGrid(grid, State.localMediaEntries);
+}
+
+/**
+ * Builds the screen-header Upload / New Folder / Refresh actions. These act
+ * on the site's online Media Manager, so they only make sense — and are
+ * only shown — on the Site Media tab; the Local Media tab's per-card actions
+ * cover everything a blob needs (rebuilt per language/tab switch).
+ */
 function renderMediaHeaderActions() {
     const box = document.getElementById('media-header-actions');
     if (!box) return;
     clearNode(box);
-    if (!State.currentSiteId) return;
+    if (!State.currentSiteId || State.mediaTab !== 'site') return;
 
     const uploadBtn = iconBtn('upload', t('GRAFIDA_BTN_UPLOAD'), 'btn', 'btn-primary', 'btn-sm');
     uploadBtn.addEventListener('click', mediaManagerUpload);
@@ -4207,7 +4388,7 @@ function buildMediaCard(entry, isDir) {
 
     const actions = el('div', 'media-mgr-actions');
     if (!isDir && isEditableImage(entry)) {
-        actions.appendChild(mediaActionBtn('crop-simple', t('GRAFIDA_BTN_EDIT_IMAGE'), () => openImageEditor(entry)));
+        actions.appendChild(mediaActionBtn('crop-simple', t('GRAFIDA_BTN_EDIT_IMAGE'), () => openImageEditor(siteMediaEditorDescriptor(entry))));
     }
     actions.appendChild(mediaActionBtn('pen', t('GRAFIDA_BTN_RENAME'), () => mediaManagerRename(entry)));
     actions.appendChild(mediaActionBtn('trash', t('GRAFIDA_BTN_DELETE'), () => mediaManagerDelete(entry, isDir)));
@@ -4234,6 +4415,205 @@ function openMediaPreview(entry) {
     const closeBtn = iconBtn('xmark', t('GRAFIDA_BTN_CLOSE'), 'btn', 'btn-secondary');
     closeBtn.addEventListener('click', closeModal);
     showModal(entry.name || t('GRAFIDA_LBL_MEDIA_PREVIEW'), body, [closeBtn]);
+}
+
+// --------------------------------------------------------
+//  Local Media tab (offline media_blobs, gh-36)
+// --------------------------------------------------------
+
+/** Renders the Local Media tab's card grid — flat, no folders/breadcrumb/adapter switcher. */
+function renderLocalMediaGrid(grid, entries) {
+    clearNode(grid);
+    if (entries.length === 0) {
+        grid.appendChild(el('div', 'media-mgr-empty', t('GRAFIDA_MSG_LOCAL_MEDIA_EMPTY')));
+        return;
+    }
+    entries.forEach(entry => grid.appendChild(buildLocalMediaCard(entry)));
+}
+
+// Raster mime types the in-app editor can open and re-save for a Local Media
+// blob — the local analogue of EDITABLE_IMAGE_EXTENSIONS, keyed by mime
+// (what a media_blobs row actually carries) rather than extension.
+const EDITABLE_LOCAL_MEDIA_MIMES = ['image/png', 'image/jpeg', 'image/webp'];
+
+/** Whether a Local Media blob is a raster image the in-app editor can edit. */
+function isEditableLocalMedia(entry) {
+    return EDITABLE_LOCAL_MEDIA_MIMES.includes(String(entry.mime || '').toLowerCase());
+}
+
+/** Builds a Local Media tab card for one offline image blob. */
+function buildLocalMediaCard(entry) {
+    const card = el('div', 'media-mgr-item');
+
+    // The revved local URL straight from the payload — never hand-build it,
+    // so a just-saved crop/resize shows immediately. The local analogue of
+    // the online tab's mediaDisplayUrl() rule (gh-4/gh-36).
+    const thumb = el('div', 'media-mgr-thumb');
+    const im = document.createElement('img');
+    im.src = entry.url;
+    im.alt = '';
+    im.loading = 'lazy';
+    thumb.appendChild(im);
+    card.appendChild(thumb);
+
+    card.appendChild(el('div', 'media-mgr-name', entry.filename || ''));
+
+    const metaParts = [];
+    if (entry.width && entry.height) metaParts.push(entry.width + ' × ' + entry.height);
+    const sizeText = formatBytes(entry.size);
+    if (sizeText) metaParts.push(sizeText);
+    card.appendChild(el('div', 'media-mgr-meta', metaParts.join(' · ') || ' '));
+
+    if (entry.draftTitle) {
+        card.appendChild(el('div', 'media-mgr-used-by', ...formatNodes(t('GRAFIDA_LBL_MEDIA_USED_BY'), entry.draftTitle)));
+    }
+    if (entry.remoteUrl) {
+        card.appendChild(el('span', 'media-mgr-badge', t('GRAFIDA_LBL_MEDIA_PUBLISHED')));
+    }
+
+    const actions = el('div', 'media-mgr-actions');
+    if (isEditableLocalMedia(entry)) {
+        actions.appendChild(mediaActionBtn('crop-simple', t('GRAFIDA_BTN_EDIT_IMAGE'), () => openImageEditor(localMediaEditorDescriptor(entry))));
+    }
+    actions.appendChild(mediaActionBtn('pen', t('GRAFIDA_BTN_RENAME'), () => localMediaRename(entry)));
+    actions.appendChild(mediaActionBtn('download', t('GRAFIDA_BTN_SAVE_TO_DISK'), () => localMediaSaveToDisk(entry)));
+    actions.appendChild(mediaActionBtn('trash', t('GRAFIDA_BTN_DELETE'), () => localMediaDelete(entry)));
+    card.appendChild(actions);
+
+    card.classList.add('clickable');
+    card.addEventListener('click', () => openMediaPreview({ url: entry.url, name: entry.filename }));
+
+    return card;
+}
+
+/** Prompts for a new filename and renames a Local Media blob (extension is re-derived server-side). */
+async function localMediaRename(entry) {
+    const name = await promptText(t('GRAFIDA_LBL_RENAME'), t('GRAFIDA_LBL_NEW_NAME'), entry.filename || '');
+    if (!name || name === entry.filename) return;
+    try {
+        await api.renameLocalMedia(entry.id, name);
+        showToast(t('GRAFIDA_MSG_MEDIA_RENAMED'), 'success');
+        await loadLocalMediaTab();
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+/**
+ * Picks a destination folder via the native dialog and writes a Local Media
+ * blob's bytes there — Boson has no Save-As dialog, so this mirrors
+ * `.grafida` export / the Request Log export (folder picker + server-side
+ * write under the blob's own stored filename).
+ */
+async function localMediaSaveToDisk(entry) {
+    let dir;
+    try {
+        dir = await api.selectDirectory();
+    } catch (err) {
+        showToast(err.message, 'error');
+        return;
+    }
+    if (!dir || dir.cancelled) return;
+    try {
+        const result = await api.saveLocalMediaToDisk(entry.id, dir.path);
+        showToast(formatText(t('GRAFIDA_MSG_MEDIA_SAVED_TO_DISK'), result.path), 'success');
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+/**
+ * Confirms and deletes a Local Media blob outright. When it is referenced by
+ * a local article (`draftTitle` set) the confirmation says so explicitly —
+ * the reference itself is left alone (matching
+ * `MediaController::deleteLocalMedia()`'s doc comment) and simply renders as
+ * a broken image afterwards, which is honest about what happened rather
+ * than silently scrubbing the article's HTML.
+ */
+async function localMediaDelete(entry) {
+    const title = t('GRAFIDA_MSG_DELETE_MEDIA_TITLE');
+    const ok = entry.draftTitle
+        ? await confirmYesNo(title, el('p', null, ...formatNodes(t('GRAFIDA_MSG_DELETE_LOCAL_MEDIA_CONFIRM_USED'), entry.filename || '', entry.draftTitle)))
+        : await confirmYesNo(title, el('p', null, ...formatNodes(t('GRAFIDA_MSG_DELETE_LOCAL_MEDIA_CONFIRM'), entry.filename || '')));
+    if (!ok) return;
+    try {
+        await api.deleteLocalMedia(entry.id);
+        showToast(t('GRAFIDA_MSG_MEDIA_DELETED'), 'success');
+        await loadLocalMediaTab();
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+/**
+ * After a Local Media blob's bytes change (the image editor's crop/resize
+ * save), every existing reference to it carries a stale `rev` in its cached
+ * URL. Single chokepoint so the editor's inline `<img>`s and the intro/
+ * full-text preview cannot drift out of sync with each other (gh-36):
+ *  1. the caller re-renders the Local Media grid from the fresh list
+ *     payload (new `url`s) — not done here, since not every caller has a
+ *     grid on screen (e.g. re-editing an image from inside the article
+ *     editor, once that entry point exists);
+ *  2. every `img[data-grafida-media-id="N"]` in the open editor is
+ *     rewritten to the new URL in one undo step, and the draft is forced
+ *     dirty (the content changed, but not through TinyMCE's own input path);
+ *  3. the intro/full-text preview cache is refreshed and the Images section
+ *     re-rendered, if this id is the one currently referenced there.
+ */
+function refreshLocalMediaReferences(id, newUrl) {
+    const editor = State.tinyMCEEditor;
+    if (editor) {
+        const imgs = editor.dom.select('img[' + GRAFIDA_MEDIA_ATTR + '="' + id + '"]');
+        if (imgs.length) {
+            editor.undoManager.transact(() => {
+                imgs.forEach(img => editor.dom.setAttrib(img, 'src', newUrl));
+            });
+            State.editorForceDirty = true;
+        }
+    }
+
+    const ref = MEDIA_REF_PREFIX + id;
+    let touchedPreview = false;
+    ['image_intro', 'image_fulltext'].forEach(key => {
+        if (State.editorImages && State.editorImages[key] === ref) {
+            State.mediaPreviews[ref] = newUrl;
+            touchedPreview = true;
+        }
+    });
+    if (touchedPreview) {
+        const editorSiteId = State.currentDraft ? State.currentDraft.siteId : State.currentSiteId;
+        rerenderImagesSection(editorSiteId);
+    }
+}
+
+/** Image-editor descriptor for a Site Media (online Joomla Media Manager) entry. */
+function siteMediaEditorDescriptor(entry) {
+    const ext = mediaEntryExt(entry);
+    const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+
+    return {
+        name: entry.name || '',
+        mime,
+        loadDataUri: async () => (await api.getMediaFile(State.currentSiteId, entry.path)).dataUri,
+        save: async (dataBase64) => {
+            await api.updateMediaContent(State.currentSiteId, { path: entry.path, dataBase64 });
+            await reloadMediaManager(State.mediaPath);
+        },
+    };
+}
+
+/** Image-editor descriptor for a Local Media (offline media_blobs) entry. */
+function localMediaEditorDescriptor(entry) {
+    return {
+        name: entry.filename || '',
+        mime: entry.mime || 'image/png',
+        loadDataUri: async () => (await api.getMediaBlob(entry.id)).dataUri,
+        save: async (dataBase64) => {
+            const result = await api.updateLocalMediaContent(entry.id, dataBase64);
+            refreshLocalMediaReferences(entry.id, result.url);
+            await loadLocalMediaTab();
+        },
+    };
 }
 
 /** Picks a local file via the native dialog and uploads it to the current folder. */
@@ -4327,26 +4707,31 @@ async function mediaManagerDelete(entry, isDir) {
 //  Image editor (crop / resize / rotate / flip)
 // --------------------------------------------------------
 
-/** Opens the in-app image editor for an editable raster image entry. */
-async function openImageEditor(entry) {
-    const siteId = State.currentSiteId;
+/**
+ * Opens the in-app image editor against a small descriptor — `{ name, mime,
+ * loadDataUri(), save(dataBase64) }` — rather than a Media Manager entry
+ * directly, so the same crop/resize/rotate/flip UI serves both the Site
+ * Media tab (`siteMediaEditorDescriptor()`) and the Local Media tab
+ * (`localMediaEditorDescriptor()`, gh-36) without knowing which one it is.
+ * Both descriptors load bytes through the backend as a same-origin data:
+ * URI so drawing onto a `<canvas>` does not taint it — a cross-origin
+ * `<img>` would block `toBlob()`/save.
+ */
+async function openImageEditor(descriptor) {
     let dataUri;
     try {
-        // Load the bytes through the backend (a same-origin data: URI) so drawing
-        // onto a canvas does not taint it — a cross-origin <img> would block save.
-        const res = await api.getMediaFile(siteId, entry.path);
-        dataUri = res.dataUri;
+        dataUri = await descriptor.loadDataUri();
     } catch (err) {
         showToast(err.message, 'error');
         return;
     }
     const img = new Image();
-    img.onload = () => buildImageEditor(entry, img);
+    img.onload = () => buildImageEditor(descriptor, img);
     img.onerror = () => showToast(t('GRAFIDA_MSG_MEDIA_EDIT_LOAD_FAIL'), 'error');
     img.src = dataUri;
 }
 
-function buildImageEditor(entry, img) {
+function buildImageEditor(descriptor, img) {
     // `work` is an offscreen canvas holding the current edited bitmap.
     let work = document.createElement('canvas');
     work.width = img.naturalWidth;
@@ -4544,23 +4929,20 @@ function buildImageEditor(entry, img) {
     cancelBtn.addEventListener('click', () => { cleanup(); closeModal(); });
     const saveBtn = iconBtn('floppy-disk', t('GRAFIDA_BTN_SAVE'), 'btn', 'btn-primary');
     saveBtn.addEventListener('click', () => {
-        const ext = mediaEntryExt(entry);
-        const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
         saveBtn.disabled = true;
         work.toBlob(async (blob) => {
             if (!blob) { saveBtn.disabled = false; showToast(t('GRAFIDA_MSG_MEDIA_EDIT_LOAD_FAIL'), 'error'); return; }
             const dataBase64 = await blobToBase64(blob);
             try {
-                await api.updateMediaContent(State.currentSiteId, { path: entry.path, dataBase64 });
+                await descriptor.save(dataBase64);
                 cleanup();
                 closeModal();
                 showToast(t('GRAFIDA_MSG_MEDIA_SAVED'), 'success');
-                reloadMediaManager(State.mediaPath);
             } catch (err) {
                 saveBtn.disabled = false;
                 showToast(err.message, 'error');
             }
-        }, mime, 0.92);
+        }, descriptor.mime, 0.92);
     });
 
     showModal(t('GRAFIDA_LBL_IMAGE_EDITOR'), body, [cancelBtn, saveBtn]);
