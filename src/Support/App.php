@@ -26,6 +26,9 @@ final class App
     /** Application version (semantic versioning). */
     public const VERSION = '0.3';
 
+    /** The project's home page. */
+    public const URL = 'https://github.com/akeeba/grafida';
+
     /** Copyright line. */
     public const COPYRIGHT = 'Copyright © 2026 Nicholas K. Dionysopoulos';
 
@@ -44,13 +47,14 @@ final class App
     /**
      * The metadata payload sent to the front-end at start-up.
      *
-     * @return array{name: string, version: string, copyright: string, license: string, licenseUrl: string, disclaimer: string}
+     * @return array{name: string, version: string, url: string, copyright: string, license: string, licenseUrl: string, disclaimer: string}
      */
     public static function info(): array
     {
         return [
             'name'       => self::NAME,
             'version'    => self::VERSION,
+            'url'        => self::URL,
             'copyright'  => self::COPYRIGHT,
             'license'    => self::LICENSE,
             'licenseUrl' => self::LICENSE_URL,

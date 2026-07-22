@@ -3299,6 +3299,47 @@ function insertReadMore(editor) {
     editor.insertContent('<hr class="readmore">');
 }
 
+/**
+ * The editor features Grafida adds itself, listed in TinyMCE's Help ▸ Plugins tab.
+ *
+ * They are not TinyMCE plugins at all — the slash-command menu is an
+ * autocompleter and the AI assistant is a pair of toolbar buttons over a docked
+ * panel, both wired up in the init `setup` below. But the Help dialog's plugin
+ * list is the one place a user looks to find out what the editor can do and
+ * where it came from, and someone who meets these features here would otherwise
+ * assume they are stock TinyMCE and go looking for them inside Joomla (gh-21).
+ * So each is registered as an empty plugin whose only job is to answer
+ * getMetadata() — the hook the Help dialog calls for a plugin it does not know
+ * (`identifyUnknownPlugin` in plugins/help) — with a name marking it as ours
+ * and a link to the project's home page.
+ *
+ * @type {Array<{key: string, label: string, requiresAi?: boolean}>}
+ */
+const GRAFIDA_EDITOR_PLUGINS = [
+    { key: 'grafidaslashtools', label: 'GRAFIDA_LBL_SLASH_TOOLS' },
+    { key: 'grafidaai', label: 'GRAFIDA_BTN_AI_ASSISTANT', requiresAi: true },
+];
+
+/**
+ * Register the faux plugins above with TinyMCE's global plugin manager.
+ *
+ * Registration is global and permanent, hence the get() guard — the editor is
+ * re-created on every theme/language change. The name is resolved inside
+ * getMetadata(), which the Help dialog calls when it opens, so it follows the
+ * interface language without re-registration.
+ */
+function registerGrafidaEditorPlugins() {
+    for (const plugin of GRAFIDA_EDITOR_PLUGINS) {
+        if (tinymce.PluginManager.get(plugin.key)) continue;
+        tinymce.PluginManager.add(plugin.key, () => ({
+            getMetadata: () => ({
+                name: formatText(t('GRAFIDA_LBL_EDITOR_PLUGIN_NAME'), t(plugin.label)),
+                url: State.app.url || 'https://github.com/akeeba/grafida',
+            }),
+        }));
+    }
+}
+
 async function initTinyMCE(draft) {
     if (State.tinyMCEEditor) {
         try { State.tinyMCEEditor.remove(); } catch {}
@@ -3395,6 +3436,15 @@ async function initTinyMCE(draft) {
     const hasAiService = State.aiServices.length > 0;
     const aiToolbarSegment = hasAiService ? ' | aitools aiassistant' : '';
 
+    // Grafida's own editor features, so the Help dialog names them (gh-21). The
+    // AI one is gated on the same condition as its toolbar buttons: with no
+    // service configured it contributes nothing to the editor, so listing it
+    // would advertise a feature that is not there.
+    registerGrafidaEditorPlugins();
+    const grafidaPlugins = GRAFIDA_EDITOR_PLUGINS
+        .filter(p => !p.requiresAi || hasAiService)
+        .map(p => p.key);
+
     await tinymce.init({
         formats: styleFormats,
         selector: '#tinymce-editor',
@@ -3450,7 +3500,8 @@ async function initTinyMCE(draft) {
         plugins: [
             'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
             'anchor', 'searchreplace', 'visualblocks', 'fullscreen', 'accordion',
-            'insertdatetime', 'media', 'table', 'help', 'wordcount', 'quickbars'
+            'insertdatetime', 'media', 'table', 'help', 'wordcount', 'quickbars',
+            ...grafidaPlugins,
         ],
         // The quick insert toolbar (shown on every empty line) offers "quickimage",
         // which clicks a plain <input type="file"> — dead in Boson's webview, like
