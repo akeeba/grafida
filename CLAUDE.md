@@ -732,8 +732,7 @@ window-free in tests (a null dialog makes the endpoint return 503).
   `/api/ai/system-prompt`, `/api/ai/proxy`, `/api/ai/render` (sanitise a reply for display — see the
   AI facts), `/api/ai/chats[...]`, `/api/drafts/{id}/chats`.
 - `src/Support/` — `Resources`/`Paths` (filesystem locations), `App` (app identity/legal
-  metadata: name, `VERSION`, `URL` (the project's GitHub home page), copyright, licence + FSF URL,
-  the verbatim Joomla! trademark
+  metadata: name, `VERSION`, copyright, licence + FSF URL, the verbatim Joomla! trademark
   disclaimer — sent to the SPA in the `bootstrap` payload's `app` key), and `UrlOpener`
   (opens an external http(s) URL in the OS default browser; backs `POST /api/open-url`).
   The sidebar footer shows the version and opens an About dialog using this metadata.
@@ -865,20 +864,6 @@ window-free in tests (a null dialog makes the endpoint return 503).
   `helpShortcutText()` mirrors the help plugin's own `convertText()` so our rows render as
   ⌘/⌃/⇧ glyphs on macOS and `Ctrl + …` elsewhere, and its output is therefore HTML (escape a
   sentence *before* interpolating a shortcut into its `%s`).
-  That dialog's **Plugins** tab also lists two **faux plugins** (gh-21) — `GRAFIDA_EDITOR_PLUGINS` /
-  `registerGrafidaEditorPlugins()` in `app.js`, added to the init's `plugins` list. Neither is a
-  TinyMCE plugin at all (the slash-command menu is an autocompleter, the AI assistant a pair of
-  buttons over a docked panel), but that tab is where a user looks to find out what the editor can
-  do and where it came from, and someone meeting these features would otherwise take them for stock
-  TinyMCE and go hunting for them inside Joomla. Each registers an empty plugin whose only job is to
-  answer **`getMetadata()`** — the hook the help plugin's `identifyUnknownPlugin` calls for a plugin
-  it does not recognise — with a `GRAFIDA_LBL_EDITOR_PLUGIN_NAME`-formatted "… (Grafida)" name and
-  `App::URL` (the bootstrap payload's `app.url`, `https://github.com/akeeba/grafida`) as the link.
-  The name is resolved *inside* `getMetadata()`, so it follows a language switch without
-  re-registration; registration is global and permanent, hence the `PluginManager.get()` guard,
-  since the editor is re-created on every theme/language change. The AI one is gated on
-  `hasAiService`, exactly like its toolbar buttons — with no service configured it contributes
-  nothing to the editor, so listing it would advertise a feature that is not there.
   ⚠️ **A shortcut's modifier gate is `hasPrimaryModifier()`, never `e.ctrlKey || e.metaKey`**: on
   Windows `metaKey` is the **Windows key**, whose chords belong to the OS (Win+S opens Windows
   Search), so accepting either key on every platform binds us to a chord we don't own (gh-13). It

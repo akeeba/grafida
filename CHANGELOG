@@ -8,7 +8,6 @@ Grafida 0.3
 + Light / dark / follow-system switch in the sidebar, so you can change it without leaving the open article (gh-41)
 + Right-click an image in the editor for Edit image (crop/resize/rotate/flip a local picture), CSS class and Reset size (gh-43)
 + The in-article media browser can now also pick a Local media image, not yet published (gh-43)
-+ The editor's Help dialog now lists Grafida's own features among the installed plugins, linked to the project page (gh-21)
 ~ Pasted and dropped images are stored locally and referenced, not embedded in the article; existing articles are converted when first opened (gh-36)
 ~ Image editor: pressing Crop now visibly arms the tool, and the crop selection's size is shown as you drag (gh-31)
 ~ Site metadata is refreshed automatically once it goes stale, not only when you press Reload metadata (gh-42)

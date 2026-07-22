@@ -180,9 +180,6 @@ final class UiStrings
         'GRAFIDA_OPT_METADATA_TTL_1D', 'GRAFIDA_LBL_METADATA_RESET_ON_START',
         'GRAFIDA_MSG_METADATA_RESET_ON_START_INFO',
 
-        // Grafida's own editor features in TinyMCE's Help dialog (gh-21)
-        'GRAFIDA_LBL_EDITOR_PLUGIN_NAME',
-
         // Editor slash commands (gh-9)
         'GRAFIDA_LBL_SLASH_TOOLS', 'GRAFIDA_MSG_SLASH_TOOLS_INFO',
         'GRAFIDA_LBL_SLASH_H1', 'GRAFIDA_LBL_SLASH_H2', 'GRAFIDA_LBL_SLASH_H3',
