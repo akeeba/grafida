@@ -71,6 +71,9 @@ update the workflow (splitting `EXTENSIONS` per-OS if they ever diverge), push,
 * The workflow needs no secrets; it authenticates static-php-cli's tool
   downloads with the default `GITHUB_TOKEN` (without it, SPC hits the runners'
   anonymous GitHub API rate limit and fails in `doctor`).
+* The `build-windows` job installs static-php-cli's dependencies with
+  `composer install --no-dev` — a GPG-verified dev dependency fails to install
+  on the Windows runner, and nothing in the SFX build needs it.
 
 ## Building the SFX locally (CI bypass)
 
@@ -94,6 +97,11 @@ Full recipe in 01. Gotchas that will bite you:
    equal `md5 build/sfx/<sfx>`. (`compile-target.php` pre-cleans output dirs
    precisely to prevent this — do not bypass it by calling `boson compile`
    directly.)
+   ⚠️ On Windows this comparison only works on the **unsigned** binary. Signing
+   rewrites the PE checksum and the security-directory entry, both of which live
+   inside the SFX prefix, so a *signed* stub's prefix hash will never equal the
+   raw SFX. Compare the unsigned compiled `grafida.exe` instead — a mismatch
+   there is a real stale-binary problem; a mismatch after signing is expected.
 2. **Phantom phar corruption** (`zlib: data error`, "actual filesize
    mismatch")? Some reads are missing the payload offset. Run with
    `MICRO_TRACE_OPEN=1` and check every open of the payload path reports
@@ -101,6 +109,10 @@ Full recipe in 01. Gotchas that will bite you:
 3. **App won't start after splitting?** The stub was probably built from a
    stock SFX (no sibling fallback). `strings <stub> | grep -c "next to this
    executable"` — 0 means stock.
+   ⚠️ If you grep the **binary directly** instead of piping through `strings`,
+   use `grep -a` (`--text`). BSD grep (the macOS default) treats the combined
+   binary as binary data and stays silent about matches, so a sibling-capable
+   stub reads as stock and you chase a phantom build problem.
 4. **`codesign` complains about a subcomponent?** A data file crept into
    `Contents/MacOS`. Only signed Mach-O files may live there.
 5. **Verification commands** for a finished build: see "Verifying a finished
