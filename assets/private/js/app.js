@@ -6302,7 +6302,7 @@ function renderSlashToolsSetting() {
     if (!sel) return;
     clearNode(sel);
 
-    [['1', 'GRAFIDA_BTN_YES'], ['0', 'GRAFIDA_BTN_NO']].forEach(([value, key]) => {
+    [['1', 'GRAFIDA_BTN_ON'], ['0', 'GRAFIDA_BTN_OFF']].forEach(([value, key]) => {
         const opt = document.createElement('option');
         opt.value = value;
         opt.textContent = t(key);
@@ -6317,7 +6317,7 @@ function renderSpellCheckSetting() {
     if (!sel) return;
     clearNode(sel);
 
-    [['1', 'GRAFIDA_BTN_YES'], ['0', 'GRAFIDA_BTN_NO']].forEach(([value, key]) => {
+    [['1', 'GRAFIDA_BTN_ON'], ['0', 'GRAFIDA_BTN_OFF']].forEach(([value, key]) => {
         const opt = document.createElement('option');
         opt.value = value;
         opt.textContent = t(key);

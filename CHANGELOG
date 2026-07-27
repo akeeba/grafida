@@ -23,6 +23,7 @@ Grafida 0.3
 # [MEDIUM] Editing a built-in AI tool's title or icon saved, but never took effect (gh-28)
 # [MEDIUM] Enabling or disabling a built-in AI tool wiped its prompt and tone; editing a custom AI tool made it vanish from the list (gh-28)
 # [LOW] The Category drop-downs showed a flat list instead of the category tree (gh-40)
+# [LOW] Slash commands and spell checking settings used Yes/No instead of On/Off (gh-48)
 
 Grafida 0.2
 ================================================================================
