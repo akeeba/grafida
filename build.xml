@@ -217,7 +217,7 @@
 		</exec>
 	</target>
 
-	<target name="git-win-x86" depends="prepare" description="Compile the Windows (x64) binary">
+	<target name="git-win-x86" depends="prepare,prepare-sfx" description="Compile the Windows (x64) binary">
 		<exec executable="php" dir="${dirs.root}" passthru="true" checkreturn="true">
 			<arg value="${compile.target.script}" />
 			<arg value="--type=windows" />
@@ -225,7 +225,7 @@
 		</exec>
 	</target>
 
-	<target name="git-linux-x86" depends="prepare" description="Compile the Linux (x64) binary">
+	<target name="git-linux-x86" depends="prepare,prepare-sfx" description="Compile the Linux (x64) binary">
 		<exec executable="php" dir="${dirs.root}" passthru="true" checkreturn="true">
 			<arg value="${compile.target.script}" />
 			<arg value="--type=linux" />
@@ -233,7 +233,7 @@
 		</exec>
 	</target>
 
-	<target name="git-linux-arm" depends="prepare" description="Compile the Linux (ARM64) binary">
+	<target name="git-linux-arm" depends="prepare,prepare-sfx" description="Compile the Linux (ARM64) binary">
 		<exec executable="php" dir="${dirs.root}" passthru="true" checkreturn="true">
 			<arg value="${compile.target.script}" />
 			<arg value="--type=linux" />
