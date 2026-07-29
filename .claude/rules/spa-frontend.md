@@ -387,6 +387,24 @@ ship inside the app.
     in `initHelpLinks()` that excludes `#help-page` itself (so a link inside a rendered page is not
     handled twice). A contextual help button therefore needs no JavaScript of its own and localises
     its tooltip through `applyStrings()`'s existing `data-i18n-title` pass.
+  The contents pane **collapses and resizes**, for the 13"-laptop case where 220px of sidebar plus
+  250px of contents leaves the page itself too narrow. Three things about it differ from the app's
+  other collapsibles, all deliberately:
+  - It collapses **to nothing**, not to an icon rail. Its entries are page titles, so there are no
+    icons a rail could show, and giving the width back is the entire point.
+  - Its toggle (`#help-toc-toggle`) therefore lives in the **screen header**, outside the pane it
+    hides — inside, collapsing would take the way back with it. `setupCollapsible()` already takes
+    the toggle id separately from the aside id, so this needed no change to that helper. It is
+    static markup and sits deliberately *outside* `#help-actions`, which `renderHelpActions()`
+    clears and rebuilds on every page change.
+  - The width is written to **`--help-toc-width` on `#help-layout`**, not to `#help-toc`: the pane
+    is a grid *track*, and a width set on the item cannot widen the track constraining it.
+    `syncHelpTocToggle()` mirrors the collapsed state onto the layout as a class rather than the CSS
+    deriving it with `:has()`, and onto the toggle as `aria-pressed` — one fixed label, like the
+    display-mode switch, instead of two strings that must stay each other's opposite.
+  ⚠️ The drag handle `#help-toc-resizer` is positioned against `#help-layout` and **not** against
+  `#help-toc`: that pane scrolls, so a handle inside it would scroll away with the content and be
+  clipped by its `overflow`. It sits in the 20px grid gutter, overlapping neither pane.
   The documentation is **English only** — one source shared with a wiki that has a flat page
   namespace — so `applyStrings()` re-renders only the screen's chrome, never the page or its titles.
   The rest is in `.claude/rules/documentation.md`.
@@ -394,10 +412,20 @@ ship inside the app.
   and the editor metadata **`#editor-sidebar`** ("Article properties") each carry an `.icon-toggle`
   button (`#sidebar-toggle` / `#editor-sidebar-toggle`) that toggles a `.collapsed` class — the left
   sidebar collapses to a 56px icon-only rail, the metadata sidebar to a 40px rail; the state persists
-  in `localStorage` (`grafida.sidebarCollapsed` / `grafida.propsCollapsed`). The **`#ai-panel`** is
-  width-**resizable** by dragging `#ai-panel-resizer`, a `col-resize` handle on its left edge
-  (`setupAiPanelResize()`, pointer events, clamped 280px…`min(innerWidth−360, 760)`); the chosen
-  width persists in `grafida.aiPanelWidth`. Toggle buttons localise their tooltip/`aria-label` via a
+  in `localStorage` (`grafida.sidebarCollapsed` / `grafida.propsCollapsed`). The Help screen's
+  contents pane is a third `setupCollapsible()` caller (`grafida.helpTocCollapsed`) — see the Help
+  screen notes above for why it alone collapses to nothing rather than to a rail.
+  Two panels are width-**resizable** by dragging a `col-resize` handle, both through the shared
+  **`setupPanelResize(resizerId, opts)`**: `#ai-panel` via `#ai-panel-resizer` on its *left* edge
+  (`setupAiPanelResize()`, clamped 280px…`min(innerWidth−360, 760)`, persisted in
+  `grafida.aiPanelWidth`) and the Help contents via `#help-toc-resizer` on its *right*
+  (`setupHelpTocResize()`, 160px…`min(innerWidth−520, 460)`, `grafida.helpTocWidth`). The helper
+  parameterises exactly the two things that differed — **`edge`** (`-1` when the handle is on the
+  panel's left, `+1` on the right) and **`apply`** (the AI panel is a flex child and sets its own
+  width; the Help contents is a grid *track*, so its width goes to a custom property on the grid
+  container and setting it on the element would do nothing) — while pointer capture, clamping, the
+  `resizing-col` body class that suppresses text selection mid-drag, and the localStorage write are
+  shared, having been identical in both. Toggle buttons localise their tooltip/`aria-label` via a
   `data-i18n-title` attribute (`applyStrings()` sets both `title` and `aria-label` from it).
   The collapsed left rail is icon-only, so `syncSidebarTooltips()` mirrors each nav item's (and the
   footer's) visible label into a `title` **only while collapsed**, and keeps the `aria-label` set in

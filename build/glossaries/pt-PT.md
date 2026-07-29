@@ -160,3 +160,4 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | help (screen / documentation) | Ajuda | O ecrã de navegação que mostra a documentação integrada. GRAFIDA_NAV_HELP. |
 | documentation | documentação | As páginas Markdown incluídas na aplicação, publicadas também como wiki do GitHub. As páginas mantêm-se em inglês; apenas a interface do ecrã é traduzida. |
 | page (documentation) | página | Um artigo de documentação no índice; nunca «artigo» (reservado para o conteúdo do Joomla!). |
+| table of contents | índice | A lista de páginas no ecrã de ajuda; pode ser recolhida e redimensionada. GRAFIDA_BTN_TOGGLE_CONTENTS. |

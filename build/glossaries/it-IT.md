@@ -166,3 +166,4 @@ I nomi propri non si traducono: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | help (screen / documentation) | Guida | La schermata di navigazione che mostra la documentazione integrata. GRAFIDA_NAV_HELP. ⚠️ «Guida», non «Aiuto» (JHELP): qui si tratta di un manuale sfogliabile, non di un aiuto contestuale puntuale. |
 | documentation | documentazione | Le pagine Markdown distribuite con l'applicazione, pubblicate anche come wiki GitHub. Le pagine restano in inglese: si traduce solo l'interfaccia della schermata. |
 | page (documentation) | pagina | Un articolo di documentazione nell'indice; mai «articolo» (riservato ai contenuti Joomla!). |
+| table of contents | indice | L'elenco delle pagine nella schermata della guida; comprimibile e ridimensionabile. «Indice», non «tavola dei contenuti» (calco dall'inglese). GRAFIDA_BTN_TOGGLE_CONTENTS. |

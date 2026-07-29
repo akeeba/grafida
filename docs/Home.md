@@ -1,31 +1,11 @@
-# Grafida documentation
+# Welcome to Grafida
 
-Grafida is a cross-platform desktop application for creating and editing [Joomla!](https://www.joomla.org)
-articles. It talks to your site over the Joomla Web Services (REST) API, keeps your work in a local
-database, and publishes only when you say so.
+Grafida is a cross-platform desktop application for creating and editing Joomla!® articles. It talks to your site over the Joomla Web Services (REST) API, keeps your work in a local database, and publishes only when you say so.
 
-This documentation ships inside the application itself — the **Help** item in the sidebar shows the
-same pages you are reading here.
+Grafida is a tool for _focused content authoring_. It does not attempt to put Joomla's article editor and backend interface in a desktop application, nor does it concern itself with content management. We provided a carefuly curated list of features to make authoring content enjoyable while maintaining a familiar interface.
 
-## Before you start
+This documentation can be found in the application itself, using the **Help** item. The documentation of the latest published version can also be found in our [GitHub project's wiki](https://github.com/akeeba/grafida/wiki).
 
-You need a Joomla **5.4 or later** site with the Web Services API enabled, and an API token for an
-account that is allowed to use it. Super User accounts can do this out of the box. For anything else,
-see [Custom API access](Custom-API-Access).
+## Ready to dive in?
 
-## Contents
-
-- [Custom API access](Custom-API-Access) — letting non-Super-User accounts use the API, and the
-  permission limits you will run into afterwards.
-
-## Getting help
-
-- Report a problem or ask a question in the
-  [issue tracker](https://github.com/akeeba/grafida/issues).
-- The [README](https://github.com/akeeba/grafida#readme) covers installation, system requirements and
-  the known Windows Home limitation.
-
-Grafida is free software, released under the
-[GNU General Public License version 3](https://www.gnu.org/licenses/gpl-3.0.html) or later.
-Joomla!® is a registered trademark of Open Source Matters, Inc. Grafida is not affiliated with or
-endorsed by the Joomla! Project or Open Source Matters, Inc.
+Start by [connecting a site](Connect-a-Site) to Grafida.

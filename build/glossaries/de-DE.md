@@ -167,3 +167,4 @@ Eigennamen (Grafida, Joomla!, API, Markdown, HTML, TinyMCE) werden nicht überse
 | help (screen / documentation) | Hilfe | Der Navigationsbildschirm, der die integrierte Dokumentation anzeigt. GRAFIDA_NAV_HELP. |
 | documentation | Dokumentation | Die mit der Anwendung ausgelieferten Markdown-Seiten, die zugleich als GitHub-Wiki veröffentlicht werden. Die Seiten selbst bleiben englisch — übersetzt wird nur die Oberfläche des Bildschirms. |
 | page (documentation) | Seite | Ein Dokumentationsartikel im Inhaltsverzeichnis; nicht „Beitrag" (für Joomla!-Inhalte reserviert). |
+| table of contents | Inhaltsverzeichnis | Das Seitenverzeichnis im Hilfebildschirm; ein-/ausklappbar und in der Breite veränderbar. GRAFIDA_BTN_TOGGLE_CONTENTS. |

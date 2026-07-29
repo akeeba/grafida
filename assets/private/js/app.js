@@ -6913,6 +6913,27 @@ async function openHelpPage(slug) {
     pane.scrollTop = 0;
 }
 
+/**
+ * Mirrors the contents pane's collapsed state onto its toggle button and onto
+ * `#help-layout`.
+ *
+ * The layout class is set here rather than with a `#help-layout:has(.collapsed)`
+ * selector so the grid does not depend on `:has()` support, and the toggle is an
+ * `aria-pressed` button with one fixed label rather than a button whose text
+ * flips — the same choice the sidebar's display-mode switch makes, and it keeps
+ * the label a single translatable string instead of two that must stay opposite.
+ */
+function syncHelpTocToggle() {
+    const toc = document.getElementById('help-toc');
+    const layout = document.getElementById('help-layout');
+    const toggle = document.getElementById('help-toc-toggle');
+    if (!toc) return;
+
+    const collapsed = toc.classList.contains('collapsed');
+    if (layout) layout.classList.toggle('toc-collapsed', collapsed);
+    if (toggle) toggle.setAttribute('aria-pressed', collapsed ? 'false' : 'true');
+}
+
 /** The Help screen's own toolbar: read the current page on the GitHub wiki. */
 function renderHelpActions() {
     const actions = document.getElementById('help-actions');
@@ -8263,6 +8284,8 @@ async function bootstrap() {
 const SIDEBAR_COLLAPSED_KEY = 'grafida.sidebarCollapsed';
 const PROPS_COLLAPSED_KEY = 'grafida.propsCollapsed';
 const AI_PANEL_WIDTH_KEY = 'grafida.aiPanelWidth';
+const HELP_TOC_COLLAPSED_KEY = 'grafida.helpTocCollapsed';
+const HELP_TOC_WIDTH_KEY = 'grafida.helpTocWidth';
 
 /** Toggle a collapsible aside and persist the preference. */
 function setupCollapsible(asideId, toggleId, storageKey, onChange) {
@@ -8338,33 +8361,52 @@ function syncSidebarTooltips() {
     if (footer && version) label(footer, version.textContent || t('GRAFIDA_BTN_ABOUT'));
 }
 
-/** Make the AI panel resizable by dragging its left-edge handle. */
-function setupAiPanelResize() {
-    const panel = document.getElementById('ai-panel');
-    const resizer = document.getElementById('ai-panel-resizer');
-    if (!panel || !resizer) return;
-
-    const MIN = 280;
-    const maxWidth = () => Math.max(MIN, Math.min(window.innerWidth - 360, 760));
+/**
+ * Makes a panel width-resizable by dragging a handle on one of its edges, and
+ * persists the chosen width.
+ *
+ * Shared by the AI panel and the Help screen's table of contents, which differ
+ * in two ways this parameterises and in nothing else:
+ *
+ * - **Which edge the handle is on.** `edge` is `-1` when the handle is on the
+ *   panel's *left* (the AI panel, docked right: dragging left widens it) and
+ *   `+1` when it is on the right (the Help contents, docked left).
+ * - **How a width is applied.** The AI panel is a flex child and sets its own
+ *   width; the Help contents is a CSS grid *track*, so its width lives in a
+ *   custom property on the grid container and setting it on the element itself
+ *   would do nothing.
+ *
+ * Everything else — pointer capture, clamping, the `resizing-col` body class
+ * that suppresses text selection mid-drag, writing the result to localStorage —
+ * was identical in both, which is why it lives here once.
+ *
+ * @param {string}   resizerId   Element the drag starts from.
+ * @param {object}   opts
+ * @param {Function} opts.measure Current width in px.
+ * @param {Function} opts.apply   Applies a clamped width in px.
+ * @param {number}   opts.min     Smallest allowed width.
+ * @param {Function} opts.max     Largest allowed width, evaluated per apply.
+ * @param {string}   opts.storageKey
+ * @param {number}   opts.edge    -1 = handle on the left, +1 = handle on the right.
+ */
+function setupPanelResize(resizerId, opts) {
+    const resizer = document.getElementById(resizerId);
+    if (!resizer) return;
 
     function applyWidth(px) {
-        const w = Math.round(Math.max(MIN, Math.min(px, maxWidth())));
-        panel.style.width = w + 'px';
-        panel.style.minWidth = w + 'px';
-        panel.style.maxWidth = w + 'px';
+        const w = Math.round(Math.max(opts.min, Math.min(px, Math.max(opts.min, opts.max()))));
+        opts.apply(w);
         return w;
     }
 
-    const saved = parseInt(localStorage.getItem(AI_PANEL_WIDTH_KEY) || '', 10);
+    const saved = parseInt(localStorage.getItem(opts.storageKey) || '', 10);
     if (saved) applyWidth(saved);
 
     let startX = 0;
     let startW = 0;
 
     function onMove(e) {
-        // The panel sits on the right edge, so dragging left (dx < 0) widens it.
-        const dx = e.clientX - startX;
-        applyWidth(startW - dx);
+        applyWidth(startW + (e.clientX - startX) * opts.edge);
     }
 
     function onUp(e) {
@@ -8373,13 +8415,12 @@ function setupAiPanelResize() {
         resizer.removeEventListener('pointerup', onUp);
         resizer.removeEventListener('pointercancel', onUp);
         document.body.classList.remove('resizing-col');
-        localStorage.setItem(AI_PANEL_WIDTH_KEY,
-            String(Math.round(panel.getBoundingClientRect().width)));
+        localStorage.setItem(opts.storageKey, String(Math.round(opts.measure())));
     }
 
     resizer.addEventListener('pointerdown', (e) => {
         startX = e.clientX;
-        startW = panel.getBoundingClientRect().width;
+        startW = opts.measure();
         resizer.setPointerCapture?.(e.pointerId);
         document.body.classList.add('resizing-col');
         resizer.addEventListener('pointermove', onMove);
@@ -8389,9 +8430,60 @@ function setupAiPanelResize() {
     });
 }
 
+/** Make the AI panel resizable by dragging its left-edge handle. */
+function setupAiPanelResize() {
+    const panel = document.getElementById('ai-panel');
+    if (!panel) return;
+
+    setupPanelResize('ai-panel-resizer', {
+        min: 280,
+        max: () => Math.min(window.innerWidth - 360, 760),
+        edge: -1,
+        storageKey: AI_PANEL_WIDTH_KEY,
+        measure: () => panel.getBoundingClientRect().width,
+        apply: (w) => {
+            panel.style.width = w + 'px';
+            panel.style.minWidth = w + 'px';
+            panel.style.maxWidth = w + 'px';
+        },
+    });
+}
+
+/**
+ * Make the Help screen's table of contents resizable by dragging its right-edge
+ * handle.
+ *
+ * The width is written to `--help-toc-width` on `#help-layout` rather than to
+ * `#help-toc` itself: the contents pane is a grid *track*, and a width set on
+ * the item cannot widen the track that constrains it.
+ */
+function setupHelpTocResize() {
+    const layout = document.getElementById('help-layout');
+    const toc = document.getElementById('help-toc');
+    if (!layout || !toc) return;
+
+    setupPanelResize('help-toc-resizer', {
+        min: 160,
+        // Always leave the page pane a readable measure, whatever the screen —
+        // this is a 13" laptop's constraint, not a big monitor's.
+        max: () => Math.min(window.innerWidth - 520, 460),
+        edge: 1,
+        storageKey: HELP_TOC_WIDTH_KEY,
+        measure: () => toc.getBoundingClientRect().width,
+        apply: (w) => layout.style.setProperty('--help-toc-width', w + 'px'),
+    });
+}
+
 function initLayoutControls() {
     setupCollapsible('sidebar', 'sidebar-toggle', SIDEBAR_COLLAPSED_KEY, syncSidebarTooltips);
     setupCollapsible('editor-sidebar', 'editor-sidebar-toggle', PROPS_COLLAPSED_KEY);
+    // Unlike the other two, the Help contents collapses to nothing rather than to
+    // an icon rail — its entries are page titles, so there are no icons a rail
+    // could show, and the width it gives back is the whole point on a small
+    // screen. Its toggle therefore lives in the screen header, outside the pane
+    // it hides, or collapsing it would take the way back with it.
+    setupCollapsible('help-toc', 'help-toc-toggle', HELP_TOC_COLLAPSED_KEY, syncHelpTocToggle);
+    setupHelpTocResize();
     setupAiPanelResize();
 
     // Display-mode tri-state (gh-41): persist + apply without leaving the editor.

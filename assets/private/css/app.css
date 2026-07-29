@@ -18,6 +18,9 @@
     --color-input-bg: #1a2030;
     --color-input-border: #2a3347;
     --color-input-focus: #F93904;
+    /* The one alert level with no existing semantic colour: GitHub's "Important"
+       is purple, and the other four map onto info/success/warning/danger. */
+    --color-important: #a371f7;
 
     --font-fallback-main: BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
     --font-main: Inter, var(--font-fallback-main);
@@ -56,6 +59,7 @@
     --color-input-bg: #ffffff;
     --color-input-border: #c4c9d4;
     --color-input-focus: #F93904;
+    --color-important: #8250df;
 
     color-scheme: light;
 }
@@ -3122,13 +3126,24 @@ body.resizing-col {
 }
 
 #help-layout {
+    --help-toc-width: 250px;
     flex: 1;
     /* Without this a grid child refuses to shrink below its content, and the
        page pane grows the screen instead of scrolling inside it. */
     min-height: 0;
     display: grid;
-    grid-template-columns: 250px 1fr;
+    grid-template-columns: var(--help-toc-width) 1fr;
     gap: 20px;
+    /* The drag handle is positioned against this box; see #help-toc-resizer. */
+    position: relative;
+}
+
+/* Collapsed: the contents pane gives back its width entirely rather than leaving
+   an icon rail, because its entries are page titles and it has no icons to show.
+   The class is put here by syncHelpTocToggle() rather than being derived with
+   :has(), so the grid does not depend on that selector. */
+#help-layout.toc-collapsed {
+    grid-template-columns: 1fr;
 }
 
 #help-toc {
@@ -3138,6 +3153,32 @@ body.resizing-col {
     min-height: 0;
     overflow-y: auto;
     padding-right: 4px;
+}
+
+#help-toc.collapsed,
+#help-layout.toc-collapsed #help-toc-resizer {
+    display: none;
+}
+
+/* Sits in the 20px gutter, so it never overlaps either pane's content. Styled
+   like #ai-panel-resizer, the app's other drag handle. */
+#help-toc-resizer {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--help-toc-width);
+    width: 6px;
+    margin-left: 7px;
+    z-index: 5;
+    cursor: col-resize;
+    background: transparent;
+    border-radius: 3px;
+    transition: background var(--transition);
+}
+
+#help-toc-resizer:hover,
+body.resizing-col #help-toc-resizer {
+    background: var(--color-accent);
 }
 
 #help-toc-list {
@@ -3270,6 +3311,40 @@ body.resizing-col {
     color: var(--color-text-muted);
 }
 
+/* GitHub alert blockquotes (`> [!NOTE]`), synthesised by Help\HelpService —
+   see styleAlerts(). `--alert` is set per level and everything else reads it,
+   so a new level needs one rule, not four. The tint is a color-mix of that
+   colour; if a webview cannot do color-mix the background simply stays
+   transparent and the coloured bar still carries the meaning. */
+.help-page .help-alert {
+    --alert: var(--color-info);
+    border-left-color: var(--alert);
+    background: color-mix(in srgb, var(--alert) 10%, transparent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 12px 16px;
+    color: var(--color-text);
+}
+
+.help-page .help-alert-tip       { --alert: var(--color-success); }
+.help-page .help-alert-important { --alert: var(--color-important); }
+.help-page .help-alert-warning   { --alert: var(--color-warning); }
+.help-page .help-alert-caution   { --alert: var(--color-danger); }
+
+.help-page .help-alert-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 0.4em;
+    font-weight: 600;
+    color: var(--alert);
+}
+
+/* The last paragraph's bottom margin would otherwise show as dead space inside
+   the tinted box. */
+.help-page .help-alert > :last-child {
+    margin-bottom: 0;
+}
+
 .help-page table {
     border-collapse: collapse;
     margin: 0 0 1em;
@@ -3320,6 +3395,9 @@ body.resizing-col {
     padding-right: 10px;
 }
 
+/* Too narrow to sit side by side at all: stack, and drop the drag handle with the
+   second column it used to divide. The rule comes after the resize declarations
+   above, so it wins over an inline --help-toc-width without needing !important. */
 @media (max-width: 900px) {
     #help-layout {
         grid-template-columns: 1fr;
@@ -3328,6 +3406,10 @@ body.resizing-col {
 
     #help-toc {
         max-height: 30vh;
+    }
+
+    #help-toc-resizer {
+        display: none;
     }
 }
 

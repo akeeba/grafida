@@ -15,10 +15,15 @@ use League\CommonMark\Environment\Environment;
 use League\CommonMark\Event\DocumentParsedEvent;
 use League\CommonMark\Exception\CommonMarkException;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
+use League\CommonMark\Extension\CommonMark\Node\Block\BlockQuote;
+use League\CommonMark\Extension\CommonMark\Node\Inline\HtmlInline;
 use League\CommonMark\Extension\CommonMark\Node\Inline\Image;
 use League\CommonMark\Extension\CommonMark\Node\Inline\Link;
 use League\CommonMark\Extension\GithubFlavoredMarkdownExtension;
 use League\CommonMark\MarkdownConverter;
+use League\CommonMark\Node\Block\Paragraph;
+use League\CommonMark\Node\Inline\Newline;
+use League\CommonMark\Node\Inline\Text;
 use League\CommonMark\Node\Query;
 
 /**
@@ -63,6 +68,27 @@ final class HelpService
      * four is well past the three levels any of this documentation needs.
      */
     private const MAX_DEPTH = 4;
+
+    /**
+     * GitHub's alert blockquotes (`> [!NOTE]`), which CommonMark's GFM extension
+     * does not implement — see {@see self::styleAlerts()}.
+     *
+     * Keyed by the marker GitHub uses, mapping to the FontAwesome icon and the
+     * label to render. The labels are English and stay English: they sit inside
+     * an English document (the documentation is English-only by design, being one
+     * source shared with the wiki), and a translated word in an untranslated
+     * paragraph would read worse than GitHub's own wording. They are therefore
+     * deliberately **not** in `I18n\UiStrings::KEYS`.
+     *
+     * @var array<string, array{icon: string, label: string}>
+     */
+    private const ALERTS = [
+        'NOTE'      => ['icon' => 'circle-info', 'label' => 'Note'],
+        'TIP'       => ['icon' => 'lightbulb', 'label' => 'Tip'],
+        'IMPORTANT' => ['icon' => 'circle-exclamation', 'label' => 'Important'],
+        'WARNING'   => ['icon' => 'triangle-exclamation', 'label' => 'Warning'],
+        'CAUTION'   => ['icon' => 'ban', 'label' => 'Caution'],
+    ];
 
     /** @var array{home: string, tree: list<array<string, mixed>>}|null */
     private ?array $manifest = null;
@@ -185,6 +211,93 @@ final class HelpService
         }
 
         return $nodes;
+    }
+
+    /**
+     * Turns GitHub's alert blockquotes into styled callouts.
+     *
+     * ```
+     * > [!IMPORTANT]
+     * > This may not work on Windows 11 Home.
+     * ```
+     *
+     * GitHub renders that as a coloured callout with an icon and a heading.
+     * CommonMark's GFM extension does **not** implement it — the extension covers
+     * tables, task lists, autolinks and strikethrough, and alerts are a GitHub
+     * rendering feature rather than part of the GFM spec — so without this the
+     * marker survives as a literal `[!IMPORTANT]` line inside an ordinary
+     * blockquote. That is the one place the two consumers would visibly disagree
+     * about what a page means, which is exactly what this whole arrangement
+     * exists to prevent.
+     *
+     * The **source stays untouched**: the page keeps GitHub's syntax, so the wiki
+     * goes on rendering it with GitHub's own styling, and only the in-app
+     * rendering is synthesised here.
+     *
+     * The marker parses as a single `Text` node followed by a `Newline` (the
+     * unmatched `[` never becomes a link), so it is removed as those two nodes
+     * and replaced with a title paragraph. The icon is a real
+     * `<i class="fa-solid fa-…" aria-hidden="true">` element rather than a CSS
+     * `content:` codepoint, because that is how every other icon in this app is
+     * built — `app.css` hard-codes no glyph anywhere — and a class name does not
+     * silently point at a different picture when FontAwesome renumbers.
+     */
+    private static function styleAlerts(DocumentParsedEvent $event): void
+    {
+        $document = $event->getDocument();
+
+        foreach ((new Query())->where(Query::type(BlockQuote::class))->findAll($document) as $quote) {
+            \assert($quote instanceof BlockQuote);
+
+            $paragraph = $quote->firstChild();
+
+            if (!$paragraph instanceof Paragraph) {
+                continue;
+            }
+
+            $marker = $paragraph->firstChild();
+
+            if (!$marker instanceof Text) {
+                continue;
+            }
+
+            if (preg_match('/^\[!([A-Z]+)\]$/', $marker->getLiteral(), $matches) !== 1) {
+                continue;
+            }
+
+            $alert = self::ALERTS[$matches[1]] ?? null;
+
+            // An unrecognised marker (`> [!SOMETHING]`) is left exactly as it is:
+            // GitHub renders it as a plain blockquote too, so agreeing with it
+            // costs nothing and guessing could not be undone by the author.
+            if ($alert === null) {
+                continue;
+            }
+
+            // Drop the marker and the line break that followed it.
+            $next = $marker->next();
+            $marker->detach();
+
+            if ($next instanceof Newline) {
+                $next->detach();
+            }
+
+            $icon = new HtmlInline('<i class="fa-solid fa-' . $alert['icon'] . '" aria-hidden="true"></i>');
+
+            $title = new Paragraph();
+            $title->appendChild($icon);
+            $title->appendChild(new Text(' ' . $alert['label']));
+            $title->data->set('attributes/class', 'help-alert-title');
+
+            $quote->prependChild($title);
+            $quote->data->set('attributes/class', 'help-alert help-alert-' . strtolower($matches[1]));
+
+            // `> [!NOTE]` with nothing after it leaves an empty paragraph behind,
+            // which would render as a stray blank line under the title.
+            if ($paragraph->firstChild() === null) {
+                $paragraph->detach();
+            }
+        }
     }
 
     /**
@@ -340,6 +453,10 @@ final class HelpService
         $environment->addEventListener(
             DocumentParsedEvent::class,
             fn (DocumentParsedEvent $event) => $this->rewriteReferences($event)
+        );
+        $environment->addEventListener(
+            DocumentParsedEvent::class,
+            static fn (DocumentParsedEvent $event) => self::styleAlerts($event)
         );
 
         return new MarkdownConverter($environment);

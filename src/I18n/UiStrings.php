@@ -210,5 +210,6 @@ final class UiStrings
         // from docs/ by Help\HelpService, not through the language files.
         'GRAFIDA_NAV_HELP', 'GRAFIDA_BTN_HELP', 'GRAFIDA_BTN_HELP_ON_WEB',
         'GRAFIDA_LBL_HELP_FILTER', 'GRAFIDA_MSG_NO_HELP_MATCHES',
+        'GRAFIDA_BTN_TOGGLE_CONTENTS', 'GRAFIDA_BTN_RESIZE_CONTENTS',
     ];
 }

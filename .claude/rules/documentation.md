@@ -50,10 +50,12 @@ other way round. That is the single decision everything below follows from.
 - **Images live in `docs/images/`, flat, referenced as `images/foo.png`.** The renderer rewrites
   that to `/api/help/image/foo.png` by **basename**, so a subdirectory would resolve in the wiki
   and 404 in the app.
-- **Avoid GitHub's alert blockquotes** (`> [!NOTE]`, `> [!WARNING]`). CommonMark's GFM extension
-  covers tables, task lists, autolinks and strikethrough, but not those — they would render on the
-  wiki and appear as a plain quoted `[!NOTE]` line in the app. (The `README.md` uses them; it is
-  not a documentation page and is not published to the wiki.)
+- **GitHub's alert blockquotes are supported** — `> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`,
+  `> [!WARNING]`, `> [!CAUTION]`, written exactly as GitHub wants them. They are *not* part of the
+  GFM spec (they are a GitHub rendering feature), so CommonMark's GFM extension does not implement
+  them and `HelpService::styleAlerts()` synthesises the callout for the app; the source is untouched
+  and the wiki goes on using GitHub's own styling. An **unrecognised** marker (`> [!SOMETHING]`) is
+  deliberately left as a plain blockquote, which is what GitHub does with it too.
 - **Keep the `# H1`** at the top of each file. It is what makes the file readable on its own, in
   the repository and on GitHub's blob view. The sync script strips it on the way to the wiki, where
   GitHub already prints the page name as a heading.
@@ -71,9 +73,20 @@ legitimately needs (`<kbd>`, `<sub>`) survive in both places. Stripping HTML out
 been safer in the abstract and *wrong* in practice — a page would mean two different things
 depending on where it was read.
 
-Retargeting happens on the **AST**, via a `DocumentParsedEvent` listener, not with a regex over the
-rendered HTML: at AST level a URL is unambiguously a URL, with no guessing about quoting or about
-what is inside a fenced code block. This is why the converter is assembled by hand
+Two `DocumentParsedEvent` listeners then transform the **AST** — never a regex over the rendered
+HTML, because at AST level a URL is unambiguously a URL and a blockquote unambiguously a blockquote,
+with no guessing about quoting or about what is inside a fenced code block:
+
+- `rewriteReferences()` retargets links and images (see the link table below).
+- `styleAlerts()` turns GitHub's alert blockquotes into callouts. The marker parses as a single
+  `Text` node followed by a `Newline` (the unmatched `[` never becomes a link), so it is removed as
+  those two nodes and a title paragraph is prepended, carrying the level's icon and label. The icon
+  is a real `<i class="fa-solid fa-…" aria-hidden="true">` element, **not** a CSS `content:`
+  codepoint — `app.css` hard-codes no glyph anywhere, and a class name cannot silently point at a
+  different picture when FontAwesome renumbers. The five labels (Note/Tip/Important/Warning/Caution)
+  are English and stay English: they sit inside an English document, so they are deliberately not in
+  `UiStrings::KEYS`. In CSS each level sets one `--alert` custom property and the border, tint and
+  title colour all read it, so adding a level is one rule rather than four. This is why the converter is assembled by hand
 (`new Environment` + `CommonMarkCoreExtension` + `GithubFlavoredMarkdownExtension`) rather than
 using `GithubFlavoredMarkdownConverter`, which does not expose an `Environment` to add a listener
 to. `Markdown\MarkdownService` (the *import* feature) is a separate, simpler converter and is

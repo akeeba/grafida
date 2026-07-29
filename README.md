@@ -9,7 +9,7 @@ Grafida is a cross-platform desktop application for creating and editing [Joomla
 
 Grafida uses the Joomla Web Services (REST) API. It's built with [Boson](https://bosonphp.com) (PHP on the desktop) and runs natively on **macOS, Windows, and Linux**. It _does not_ use Electron; Boson uses the resource-efficient WebView provided by your Operating System.
 
-## This software does not work on Windows Home
+## This software may not work on Windows Home
 
 New installations of Windows enable [Smart App Control (SAC)](https://windowsforum.com/threads/windows-11-sac-toggle-new-option-lets-you-turn-smart-app-control-on-or-off-without-reinstall.393866/) by default. On Windows _Home_ edition (and _only_ the Home edition) this has a rather concerning side effect: it will block a _signed_ application from executing if Microsoft's cloud does not positively report the application as known safe. On the Pro and Enterprise versions of Windows it will allow execution unless the app is positively reported by Microsoft's cloud as malicious.
 

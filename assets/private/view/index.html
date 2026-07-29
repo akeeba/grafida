@@ -364,7 +364,19 @@
         <section id="help-screen" class="screen" role="main">
             <div class="screen-header">
                 <h2 data-i18n="GRAFIDA_NAV_HELP">Help</h2>
-                <div class="screen-actions" id="help-actions"></div>
+                <div class="screen-actions">
+                    <!--
+                        Static markup, and deliberately OUTSIDE #help-actions, which
+                        renderHelpActions() clears and rebuilds on every page change —
+                        a toggle placed in there would be destroyed with it.
+                    -->
+                    <button id="help-toc-toggle" type="button" class="btn btn-secondary btn-icon-only"
+                            aria-pressed="true" aria-controls="help-toc"
+                            data-i18n-title="GRAFIDA_BTN_TOGGLE_CONTENTS">
+                        <i class="fa-solid fa-list-ul" aria-hidden="true"></i>
+                    </button>
+                    <div id="help-actions" class="screen-actions"></div>
+                </div>
             </div>
             <div id="help-layout">
                 <aside id="help-toc">
@@ -373,6 +385,13 @@
                            data-i18n-aria="GRAFIDA_LBL_HELP_FILTER">
                     <nav id="help-toc-list" data-i18n-aria="GRAFIDA_NAV_HELP"></nav>
                 </aside>
+                <!--
+                    The drag handle sits in the grid gutter, positioned against
+                    #help-layout rather than inside #help-toc — the pane scrolls, and
+                    a handle inside it would scroll away and be clipped by overflow.
+                -->
+                <div id="help-toc-resizer" role="separator" aria-orientation="vertical"
+                     data-i18n-aria="GRAFIDA_BTN_RESIZE_CONTENTS"></div>
                 <article id="help-page" class="help-page" tabindex="-1"></article>
             </div>
         </section>

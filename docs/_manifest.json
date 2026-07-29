@@ -20,14 +20,45 @@
     "pages": [
         {
             "slug": "Home",
-            "title": "Introduction"
+            "title": "Introduction",
+            "children": [
+                {
+                    "slug": "Requirements",
+                    "title": "Requirements"
+                },
+                {
+                    "slug": "Community-and-help",
+                    "title": "Community and help"
+                }
+            ]
         },
         {
             "title": "Getting Started",
             "children": [
                 {
+                    "slug": "Connect-a-Site",
+                    "title": "Connect a Site"
+                }
+            ]
+        },
+        {
+            "title": "Appendices",
+            "children": [
+                {
                     "slug": "Custom-API-Access",
                     "title": "Custom API access"
+                },
+                {
+                    "slug": "Legal-notices",
+                    "title": "Legal notices"
+                },
+                {
+                    "slug": "GPL",
+                    "title": "GNU GPL 3.0"
+                },
+                {
+                    "slug": "FDL",
+                    "title": "GNU FDL 1.3"
                 }
             ]
         }

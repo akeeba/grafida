@@ -13,6 +13,7 @@ namespace Grafida\Tests\Unit\Help;
 
 use Grafida\Help\HelpService;
 use Grafida\Tests\Unit\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * Covers the two things the documentation pipeline can silently get wrong: the
@@ -257,6 +258,98 @@ final class HelpServiceTest extends TestCase
         $this->assertNotNull($page);
         $this->assertStringNotContainsString('<script>', $page['html']);
         $this->assertStringContainsString('<kbd>Ctrl</kbd>', $page['html']);
+    }
+
+    /**
+     * GitHub's alert blockquotes are a GitHub *rendering* feature, not part of
+     * the GFM spec, so CommonMark's GFM extension does not implement them and
+     * `HelpService` synthesises them. Without that, the marker survives as a
+     * literal `[!NOTE]` line — the one place the wiki and the app would visibly
+     * disagree about what a page means.
+     *
+     * @return list<array{0: string, 1: string, 2: string, 3: string}>
+     */
+    public static function alertProvider(): array
+    {
+        return [
+            'note'      => ['NOTE', 'help-alert-note', 'fa-circle-info', 'Note'],
+            'tip'       => ['TIP', 'help-alert-tip', 'fa-lightbulb', 'Tip'],
+            'important' => ['IMPORTANT', 'help-alert-important', 'fa-circle-exclamation', 'Important'],
+            'warning'   => ['WARNING', 'help-alert-warning', 'fa-triangle-exclamation', 'Warning'],
+            'caution'   => ['CAUTION', 'help-alert-caution', 'fa-ban', 'Caution'],
+        ];
+    }
+
+    #[DataProvider('alertProvider')]
+    public function testGithubAlertsBecomeStyledCallouts(
+        string $marker,
+        string $class,
+        string $icon,
+        string $label
+    ): void {
+        $this->writeManifest([['slug' => 'Home', 'title' => 'Introduction']]);
+        $this->writePage('Home', "> [!{$marker}]\n> The body.\n");
+
+        $page = $this->service()->page('Home');
+
+        $this->assertNotNull($page);
+        $this->assertStringContainsString('<blockquote class="help-alert ' . $class . '">', $page['html']);
+        $this->assertStringContainsString($icon, $page['html']);
+        $this->assertStringContainsString('>' . ' ' . $label . '</p>', $page['html']);
+        $this->assertStringContainsString('<p>The body.</p>', $page['html']);
+        // The marker itself must be gone, not merely styled around.
+        $this->assertStringNotContainsString('[!' . $marker . ']', $page['html']);
+    }
+
+    public function testAnAlertKeepsTheInlineMarkupInItsBody(): void
+    {
+        $this->writeManifest([['slug' => 'Home', 'title' => 'Introduction']]);
+        $this->writePage('Home', "> [!IMPORTANT]\n> See [the site](https://example.test) and **this**.\n");
+
+        $page = $this->service()->page('Home');
+
+        $this->assertNotNull($page);
+        $this->assertStringContainsString('data-help-external="1"', $page['html']);
+        $this->assertStringContainsString('<strong>this</strong>', $page['html']);
+    }
+
+    /** GitHub renders an unknown marker as a plain quote too; agreeing costs nothing. */
+    public function testAnUnknownAlertMarkerIsLeftAlone(): void
+    {
+        $this->writeManifest([['slug' => 'Home', 'title' => 'Introduction']]);
+        $this->writePage('Home', "> [!BOGUS]\n> Body.\n");
+
+        $page = $this->service()->page('Home');
+
+        $this->assertNotNull($page);
+        $this->assertStringContainsString('<blockquote>', $page['html']);
+        $this->assertStringContainsString('[!BOGUS]', $page['html']);
+        $this->assertStringNotContainsString('help-alert', $page['html']);
+    }
+
+    public function testAnOrdinaryBlockquoteIsUntouched(): void
+    {
+        $this->writeManifest([['slug' => 'Home', 'title' => 'Introduction']]);
+        $this->writePage('Home', "> Just a quotation.\n");
+
+        $page = $this->service()->page('Home');
+
+        $this->assertNotNull($page);
+        $this->assertStringContainsString('<blockquote>', $page['html']);
+        $this->assertStringNotContainsString('help-alert', $page['html']);
+    }
+
+    /** A marker with no body would otherwise leave a stray empty paragraph. */
+    public function testAnAlertWithNoBodyLeavesNoEmptyParagraph(): void
+    {
+        $this->writeManifest([['slug' => 'Home', 'title' => 'Introduction']]);
+        $this->writePage('Home', "> [!NOTE]\n");
+
+        $page = $this->service()->page('Home');
+
+        $this->assertNotNull($page);
+        $this->assertStringContainsString('help-alert-note', $page['html']);
+        $this->assertStringNotContainsString('<p></p>', $page['html']);
     }
 
     public function testUnknownSlugIsNull(): void
