@@ -13,6 +13,7 @@ namespace Grafida\Publish;
 
 use Grafida\Article\Draft;
 use Grafida\Article\DraftRepository;
+use Grafida\Field\FieldCategoryScope;
 use Grafida\Field\FieldSupport;
 use Grafida\Html\ContentSplitter;
 use Grafida\Html\InlineMedia;
@@ -57,6 +58,7 @@ final class PublishService
         private readonly LanguageService $language,
         private readonly InlineImageExtractor $inlineImages,
         private readonly FieldSupport $fields = new FieldSupport(),
+        private readonly FieldCategoryScope $fieldScope = new FieldCategoryScope(),
         private readonly ContentSplitter $splitter = new ContentSplitter(),
         private readonly InlineMedia $inlineMedia = new InlineMedia(),
     ) {}
@@ -78,7 +80,21 @@ final class PublishService
 
         $base = $site->apiBase;
 
-        $fieldDefs = $this->references->fields($site);
+        // Only the fields Joomla actually uses for this article's category. A
+        // required field belonging to some *other* category must not block the
+        // publish, and a value for one must not be sent.
+        //
+        // The category tree is read **best-effort**: it only widens the scope
+        // (a field assigned to a parent category reaches its children), so a
+        // site we cannot reach with a cold category cache costs a little
+        // precision, whereas throwing here would fail the publish outright over
+        // an auxiliary lookup.
+        $fieldDefs = $this->fieldScope->forCategory(
+            $this->references->fields($site),
+            $this->references->categories($site, false, true),
+            $draft->catid,
+        );
+
         $this->guardRequiredUnsupportedFields($fieldDefs, $draft->html);
 
         $html = $this->uploadOfflineMedia($draft, $site, $base, $token);

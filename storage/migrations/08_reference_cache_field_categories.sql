@@ -1,0 +1,14 @@
+-- Custom fields are per-category in Joomla, and Grafida now reads that
+-- assignment (`assigned_cat_ids`) so the editor only offers the fields the
+-- article's category actually uses.
+--
+-- The cached `fields` payload predating this carries no assignment, which
+-- FieldCategoryScope has to read as "used in every category" — the old,
+-- wrong behaviour. reference_cache is permanent, so without this the fix would
+-- not show until the user happened to press Reload metadata. Dropping just that
+-- one kind makes the next editor open refetch it; every other cached list is
+-- unaffected.
+--
+-- Not re-runnable in spirit (it is a data delete, not a schema change), which is
+-- exactly what the schema_migrations bookkeeping is for.
+DELETE FROM reference_cache WHERE kind = 'fields';

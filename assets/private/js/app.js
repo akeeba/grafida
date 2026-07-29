@@ -2820,28 +2820,12 @@ function renderEditorSidebar(draft) {
     });
     sidebar.appendChild(el('div', 'sidebar-reload', reloadBtn));
 
-    // Custom fields (supported)
-    if (refs.fields.supported && refs.fields.supported.length > 0) {
-        const sec = el('div', null);
-        const secTitle = el('div', 'section-title', 'Custom Fields');
-        sec.appendChild(secTitle);
-        refs.fields.supported.forEach(field => {
-            const val = (draft.fields || {})[field.name];
-            const fg = formGroup(field.label, buildFieldInput(field, val));
-            fg.dataset.fieldName = field.name;
-            sec.appendChild(fg);
-        });
-        sidebar.appendChild(sec);
-    }
-
-    // Unsupported fields notice
-    if (refs.fields.unsupported && refs.fields.unsupported.length > 0) {
-        const names = refs.fields.unsupported.map(f => f.label).join(', ');
-        const notice = el('div', 'unsupported-fields-notice',
-            ...formatNodes(t('GRAFIDA_MSG_UNSUPPORTED_FIELDS'), names)
-        );
-        sidebar.appendChild(notice);
-    }
+    // Custom fields, scoped to the article's category — repainted on its own
+    // whenever the Category drop-down changes. See renderCustomFields().
+    const customFields = el('div', null);
+    customFields.id = 'editor-custom-fields';
+    sidebar.appendChild(customFields);
+    renderCustomFields(draft);
 
     // Created by Alias — the by-line Joomla shows instead of the real author's
     // name. Empty (the default) credits the account the article is published under.
@@ -2870,6 +2854,60 @@ function renderEditorSidebar(draft) {
 
     // Intro / full-text article images (Joomla's "Images and Links" tab).
     sidebar.appendChild(renderImagesSection(draft.siteId));
+}
+
+/**
+ * The custom fields Joomla uses for a category, out of one of the partitioned
+ * lists the references payload carries.
+ *
+ * `categoryIds` is computed server-side by PHP's FieldCategoryScope: null means
+ * "every category", otherwise it is the *expanded* list (assigned categories
+ * plus all their descendants), so the whole rule reduces to a membership test
+ * here and the tree walk has a single implementation. An article with no
+ * category sees everything, exactly as Joomla's own article form does.
+ */
+function fieldsForCategory(fields, catid) {
+    const list = fields || [];
+    const id = Number(catid);
+    if (!catid || !Number.isFinite(id) || id <= 0) return list;
+    return list.filter(f => !Array.isArray(f.categoryIds) || f.categoryIds.includes(id));
+}
+
+/**
+ * Paints the sidebar's Custom Fields section for the draft's *current*
+ * category. Called by renderEditorSidebar() and again on every change of the
+ * Category drop-down — a field belonging to another category must not be shown,
+ * and above all must not block publishing by being required (see
+ * PublishService::guardRequiredUnsupportedFields()).
+ */
+function renderCustomFields(draft) {
+    const host = document.getElementById('editor-custom-fields');
+    if (!host) return;
+    clearNode(host);
+
+    const refs = cachedReferences(draft.siteId) || {};
+    const all = refs.fields || { supported: [], unsupported: [] };
+    const supported = fieldsForCategory(all.supported, draft.catid);
+    const unsupported = fieldsForCategory(all.unsupported, draft.catid);
+
+    if (supported.length > 0) {
+        const sec = el('div', null);
+        sec.appendChild(el('div', 'section-title', 'Custom Fields'));
+        supported.forEach(field => {
+            const val = (draft.fields || {})[field.name];
+            const fg = formGroup(field.label, buildFieldInput(field, val));
+            fg.dataset.fieldName = field.name;
+            sec.appendChild(fg);
+        });
+        host.appendChild(sec);
+    }
+
+    if (unsupported.length > 0) {
+        const names = unsupported.map(f => f.label).join(', ');
+        host.appendChild(el('div', 'unsupported-fields-notice',
+            ...formatNodes(t('GRAFIDA_MSG_UNSUPPORTED_FIELDS'), names)
+        ));
+    }
 }
 
 // Site picker for the open draft. Changing it moves the draft to another site;
@@ -2981,6 +3019,20 @@ function buildCategorySelect(categories, selectedCatid) {
         opt.textContent = label;
         if (String(id) === String(selectedCatid)) opt.selected = true;
         sel.appendChild(opt);
+    });
+
+    // Custom fields are per-category in Joomla, so the section below has to
+    // follow this drop-down. collectDraftFormData() reads the new selection and
+    // carries over the values of the fields that are about to disappear, so
+    // flipping between categories is non-destructive.
+    sel.addEventListener('change', () => {
+        if (!State.currentDraft) return;
+        const current = collectDraftFormData();
+        // Write the values back onto the draft before the fields leaving scope
+        // are unrendered — nothing else would remember them, and coming back to
+        // this category would find them blank.
+        State.currentDraft.fields = current.fields;
+        renderCustomFields({ ...State.currentDraft, ...current });
     });
 
     return sel;
@@ -5935,7 +5987,19 @@ function collectDraftFormData() {
     const editor = State.tinyMCEEditor;
     const refs = cachedReferences(State.currentDraft && State.currentDraft.siteId) || { fields: { supported: [] } };
 
+    // Fields the sidebar is not currently showing — because they belong to
+    // another category, or because the sidebar is not rendered at all — keep
+    // whatever the draft already holds, so switching category and back is not
+    // destructive. Only values that carry something are carried: an out-of-scope
+    // field that was never filled in has nothing to preserve, and keeping its
+    // empty key would make merely *visiting* a category look like an edit.
     const fields = {};
+    const carried = (State.currentDraft && State.currentDraft.fields) || {};
+    Object.keys(carried).forEach(name => {
+        const v = carried[name];
+        if (v !== '' && v !== null && v !== undefined && !(Array.isArray(v) && v.length === 0)) fields[name] = v;
+    });
+
     (refs.fields.supported || []).forEach(field => {
         const name = `field-${field.name}`;
         const fieldEl = document.getElementById(name);
@@ -5971,7 +6035,10 @@ function collectDraftFormData() {
         language: langEl ? langEl.value : '*',
         state: stateEl ? parseInt(stateEl.value, 10) : 1,
         html: editor ? editor.getContent() : '',
-        fields,
+        // Sorted, because isEditorDirty() compares the JSON of this object and
+        // the insertion order otherwise follows whichever fields the current
+        // category happens to render.
+        fields: Object.fromEntries(Object.keys(fields).sort().map(k => [k, fields[k]])),
         tags,
         images: collectImages(),
         metadesc: metadescEl ? metadescEl.value : '',

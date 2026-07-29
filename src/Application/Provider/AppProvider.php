@@ -18,6 +18,7 @@ use Grafida\Display\DisplayModeService;
 use Grafida\Editor\AutoCloseTagsService;
 use Grafida\Editor\SlashToolsService;
 use Grafida\Editor\SpellCheckService;
+use Grafida\Field\FieldCategoryScope;
 use Grafida\Field\FieldSupport;
 use Grafida\FrontController;
 use Grafida\Help\HelpService;
@@ -86,6 +87,8 @@ final class AppProvider implements ServiceProviderInterface
         });
 
         $container->share(FieldSupport::class, static fn (): FieldSupport => new FieldSupport());
+
+        $container->share(FieldCategoryScope::class, static fn (): FieldCategoryScope => new FieldCategoryScope());
 
         $container->share(UrlOpener::class, static fn (): UrlOpener => new UrlOpener());
 

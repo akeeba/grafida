@@ -27,6 +27,7 @@ use Grafida\Display\DisplayModeService;
 use Grafida\Editor\AutoCloseTagsService;
 use Grafida\Editor\SlashToolsService;
 use Grafida\Editor\SpellCheckService;
+use Grafida\Field\FieldCategoryScope;
 use Grafida\Field\FieldSupport;
 use Grafida\Help\HelpService;
 use Grafida\Http\ApiController;
@@ -97,6 +98,7 @@ final class ControllerProvider implements ServiceProviderInterface
                 references: $c->get(ReferenceService::class),
                 siteContext: $c->get(SiteContext::class),
                 fields: $c->get(FieldSupport::class),
+                fieldScope: $c->get(FieldCategoryScope::class),
                 editorCss: $c->get(EditorCssService::class),
                 diagnostics: $c->get(ConnectionDiagnostics::class),
             );

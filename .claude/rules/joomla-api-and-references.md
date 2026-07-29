@@ -143,3 +143,25 @@ what we cache about a site, and the API contracts that govern reading it. Verbat
   `page[limit]=0`, which every other collection route here uses to mean "all", **divides by zero**
   server-side. The payload is `configuration.php` verbatim, `secret` and `password` included — read
   what you need, never cache the lot.
+- Article custom fields: `GET /v1/fields/content/articles` (gh-56). ⚠️ **The list endpoint cannot tell you
+  which categories a field is used in, and the route accepts no filter that would.** `com_fields`'
+  `JsonapiView` puts `assigned_cat_ids` in `$fieldsToRenderItem` but **not** in
+  `$fieldsToRenderList`; and `ApiController::displayList()` builds every list model with
+  `['ignore_request' => true]`, which sets `__state_set` and so stops `populateState()` from ever
+  running — the `filter[…]` array `ListModel::populateState()` would have read is therefore never
+  looked at, and `FieldsController` forwards nothing but `filter.context` of its own accord. So
+  `filter[assigned_cat_ids]` silently does nothing, and the **item** endpoint
+  (`GET /v1/fields/content/articles/{id}`, `ApiClient::getArticleField()`), one request per field,
+  is the only way. `ReferenceService::fetchFields()` pays that cost when the `fields` cache is
+  refreshed, never on an editor open, and degrades a failed item request to `[0]` — "used in every
+  category", the behaviour Grafida had before it read the assignment at all.
+  The **rule** it feeds, reimplemented in `Field\FieldCategoryScope` from `FieldsHelper::getFields()`
+  + `FieldsModel::getListQuery()`: no rows in `#__fields_categories` (reported as `[0]`) → every
+  category; assigned categories → those **and all their descendants** (Joomla walks *up* from the
+  article's category, matching a field pinned to any ancestor); `[-1]` → "Only Use In Subform",
+  never on an article form; an article with **no** category is filtered by nothing and sees
+  everything. `PublishService` scopes `$fieldDefs` through it before the required-unsupported guard
+  and before `mapFields()`, so a required field belonging to another category can no longer make an
+  article unpublishable — which is the bug this exists for. Note the category tree is read
+  **best-effort** there: it only ever *widens* the scope, so an unreachable site with a cold
+  category cache must not fail the publish over it.

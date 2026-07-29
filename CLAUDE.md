@@ -109,7 +109,17 @@ window-free in tests (a null dialog makes the endpoint return 503).
   easily broken from outside: `TemplateDiscovery` needs the **template styles API**, not just a
   home-page scan — a child template that ships only an `editor.css` renders no asset URL of its
   own and is structurally invisible to any page scan (gh-3).
-- `src/Field/FieldSupport.php` — supported field-type subset + required-unsupported guard.
+- `src/Field/` — `FieldSupport` (supported field-type subset + required-unsupported guard) and
+  `FieldCategoryScope` (gh-56), which works out **which fields Joomla actually uses for a category** —
+  assigned to it, to one of its ancestors, or to no category at all; `-1` ("Only Use In Subform")
+  never. ⚠️ **The fields *list* endpoint does not carry the assignment and the API accepts no
+  category filter** (`$fieldsToRenderList` omits `assigned_cat_ids`, and every API list model is
+  built with `ignore_request` so `populateState()` never reads a `filter[…]`), so
+  `ReferenceService::fetchFields()` pays **one item request per field** on a cache refresh to learn
+  it. A field whose assignment is unknown stays in scope everywhere — hiding it would silently drop
+  whatever the user typed into it. `annotate()` expands the assignment **downwards** into
+  `categoryIds` (null = all) so the SPA re-scopes on a category change with an `includes()` test and
+  the tree walk has exactly one implementation.
 - `src/Article/` — `Draft` entity + repository (local drafts), the alias (URL slug) preview, the
   two-tab Articles screen (Local / Remote) and the portable **`.grafida`** export format. A draft
   remembers the `site_id` + `remote_id` it mirrors; drafts are only written to the DB on the first

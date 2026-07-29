@@ -275,6 +275,25 @@ final class ApiClient
     }
 
     /**
+     * Reads one article custom field.
+     *
+     * The only reason to call this after {@see listArticleFields()} is
+     * `assigned_cat_ids` — which categories the field is used in.
+     * `com_fields`' `JsonapiView` renders it in `$fieldsToRenderItem` but
+     * **not** in `$fieldsToRenderList`, and its `FieldsController` forwards no
+     * `filter[…]` to the model (the API builds every list model with
+     * `ignore_request`, so `populateState()` never runs). So the item endpoint,
+     * one request per field, is the only way to learn the assignment over the
+     * REST API. See {@see \Grafida\Field\FieldCategoryScope}.
+     *
+     * @return array<string, mixed>
+     */
+    public function getArticleField(string $base, string $token, int $id): array
+    {
+        return $this->resource($base, $token, 'fields/content/articles/' . $id);
+    }
+
+    /**
      * Lists the site's template styles, each with `template` (the template's
      * directory name), `title` and `home` — where `home = "1"` marks the site's
      * default style and `home = "<lang tag>"` a language's home on a

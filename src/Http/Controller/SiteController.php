@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Grafida\Http\Controller;
 
 use Boson\Contracts\Http\ResponseInterface;
+use Grafida\Field\FieldCategoryScope;
 use Grafida\Field\FieldSupport;
 use Grafida\Http\Json;
 use Grafida\Http\RouteContext;
@@ -32,6 +33,7 @@ final class SiteController extends Controller
         private readonly ReferenceService $references,
         private readonly SiteContext $siteContext,
         private readonly FieldSupport $fields,
+        private readonly FieldCategoryScope $fieldScope,
         private readonly EditorCssService $editorCss,
         private readonly ConnectionDiagnostics $diagnostics,
     ) {}
@@ -170,7 +172,14 @@ final class SiteController extends Controller
         // the user sees why a refresh failed.
         $bestEffort = !$refresh;
 
-        $fieldDefs = $this->references->fields($site, $refresh, $bestEffort);
+        $fieldDefs  = $this->references->fields($site, $refresh, $bestEffort);
+        $categories = $this->references->categories($site, $refresh, $bestEffort);
+
+        // Each field gets the expanded list of categories Joomla uses it in
+        // (`categoryIds`, null = all), so the SPA can re-scope the sidebar on a
+        // category change with an includes() test and no round-trip. The tree
+        // walk stays here, in the one place that owns the rule.
+        $fieldDefs = $this->fieldScope->annotate($fieldDefs, $categories);
 
         // The explicit refresh also re-downloads the favicon, so the SPA can
         // update the icon shown for the site without a full reload.
@@ -179,7 +188,7 @@ final class SiteController extends Controller
         }
 
         return Json::ok([
-            'categories' => $this->references->categories($site, $refresh, $bestEffort),
+            'categories' => $categories,
             'tags'       => $this->references->tags($site, $refresh, $bestEffort),
             'levels'     => $this->references->accessLevels($site, $refresh, $bestEffort),
             'languages'  => $this->references->contentLanguages($site, $refresh, $bestEffort),

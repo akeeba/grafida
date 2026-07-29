@@ -291,6 +291,24 @@ ship inside the app.
   defined and a previously remembered last active site is still in the list — the remembered id
   is read *before* `renderSiteSelector()` writes its first-site fallback, so a freshly added but
   never-selected site does not trigger the Articles default.
+  ⚠️ **The editor sidebar's Custom Fields section is scoped to the article's category** (gh-56), and is the
+  one part of the sidebar with a repaint path of its own: `renderCustomFields(draft)` refills
+  `#editor-custom-fields` (both the inputs *and* the unsupported-fields notice) from
+  `fieldsForCategory(list, catid)`, and the Category `<select>`'s own `change` handler calls it. The
+  filter is deliberately a one-line `categoryIds.includes(id)` — PHP's `Field\FieldCategoryScope`
+  has already expanded each field's assignment down the category tree and sends `categoryIds`
+  (`null` = every category) in the references payload, so the actual Joomla rule is **not**
+  reimplemented here. A field with no `categoryIds` array at all stays visible everywhere (an
+  unknown assignment must never hide a field the user may have typed into).
+  ⚠️ **`collectDraftFormData()` therefore cannot build `fields` from the rendered inputs alone.**
+  It seeds the object from `State.currentDraft.fields`, keeping only entries that carry a value,
+  before the rendered inputs overwrite it — otherwise changing category would wipe the fields
+  leaving scope, and the next save would lose them for good. The empty ones are dropped so that
+  merely *visiting* a category does not add keys and make an unedited article look dirty, and the
+  result is **key-sorted** because `isEditorDirty()` compares this object's JSON and the insertion
+  order would otherwise follow whichever fields the current category happens to render. The change
+  handler writes the collected `fields` back onto `State.currentDraft` before repainting — nothing
+  else remembers them.
   ⚠️ **A category drop-down's tree indent is Joomla's `- ` prefix, never leading spaces**
   (gh-40): `categoryTreeOptions()` is the single place both the editor sidebar's Category
   select and the Articles screen's category filters get their `[id, label]` pairs, ordered

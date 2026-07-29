@@ -58,9 +58,12 @@ final class PublishServiceLocalMediaTest extends TestCase
             . "'2026-01-01 00:00:00', '2026-01-01 00:00:00')"
         );
 
-        // Pre-seed the "fields" reference cache empty so guardRequiredUnsupportedFields()
-        // and mapFields() never need a network round trip for this test.
-        (new ReferenceRepository($this->db))->put(1, ReferenceService::KIND_FIELDS, []);
+        // Pre-seed the "fields" and "categories" reference caches empty so
+        // guardRequiredUnsupportedFields() and mapFields() — which scope the
+        // fields to the draft's category — never need a network round trip.
+        $references = new ReferenceRepository($this->db);
+        $references->put(1, ReferenceService::KIND_FIELDS, []);
+        $references->put(1, ReferenceService::KIND_CATEGORIES, []);
 
         $this->media     = new MediaRepository($this->db);
         $this->drafts    = new DraftRepository($this->db);

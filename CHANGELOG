@@ -24,6 +24,7 @@ Grafida 0.3
 ~ Offline: friendlier "site unreachable" message, and consistent error display across the Articles list, Media Manager and media browser (gh-29)
 # [HIGH] Severe editor lag, and a frozen source code editor, after pasting a large image (gh-36)
 # [HIGH] Editor content stuck in dark mode when the site's editor.css switches on prefers-color-scheme (gh-38)
+# [HIGH] The editor showed every custom field the site has, not the ones the article's category uses — and a required field belonging to another category made publishing impossible (gh-56)
 # [MEDIUM] Offline, the whole Articles screen was replaced by an error — even the Local articles tab, which needs no network (gh-29)
 # [MEDIUM] The webview could cache Grafida's own API responses, showing stale data even after a restart (gh-35)
 # [MEDIUM] The Articles list's category, tag and language filters never picked up reloaded site metadata (gh-42)

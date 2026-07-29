@@ -183,7 +183,11 @@ ones.
 
 **Reload metadata** re-reads all of the above from the site. Your unsaved edits are preserved.
 
-**Custom Fields** appear next, if your site has any that apply to articles.
+**Custom Fields** appear next, if your site has any that apply to articles. Just as in Joomla, you
+only see the fields the article's **category** uses — a field assigned to that category, to one of
+its parent categories, or to no category at all. Change the Category and the list changes with it;
+anything you had already typed into a field that belongs to another category is kept, so switching
+back and forth loses nothing. An article with no category set sees every field.
 
 **Created by Alias** is the by-line Joomla shows instead of the publishing account's name. Leave it
 empty to credit the account whose API token you are using.
@@ -203,12 +207,13 @@ The *Full article image* block below it is identical.
 
 Grafida edits the common core field types: calendar, checkboxes, colour, integer, list, radio,
 text, textarea and URL. Anything else — editor, media, SQL, subform, user, user group list, image
-list — is listed as unsupported below the fields it can edit.
+list — is listed as unsupported below the fields it can edit. Like the editable fields, this list
+only covers the article's own category.
 
 > [!WARNING]
-> If one of those unsupported fields is **required** on your site, Grafida refuses to publish the
-> article rather than sending Joomla something it will reject. Edit that article in the Joomla
-> back-end instead.
+> If one of those unsupported fields is **required** for the article's category, Grafida refuses to
+> publish the article rather than sending Joomla something it will reject. Either put the article in
+> a category that does not use that field, or edit it in the Joomla back-end instead.
 
 ## Publishing
 

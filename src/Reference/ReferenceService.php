@@ -79,7 +79,57 @@ final class ReferenceService
     /** @return list<array<string, mixed>> */
     public function fields(Site $site, bool $refresh = false, bool $bestEffort = false): array
     {
-        return $this->load($site, self::KIND_FIELDS, $refresh, $bestEffort, fn (string $b, string $t) => $this->api->listArticleFields($b, $t));
+        return $this->load($site, self::KIND_FIELDS, $refresh, $bestEffort, fn (string $b, string $t) => $this->fetchFields($b, $t));
+    }
+
+    /**
+     * The site's article custom fields, each carrying `assigned_cat_ids` — the
+     * categories it is used in.
+     *
+     * That costs **one extra request per field**, because the list endpoint does
+     * not render the assignment and the API accepts no category filter (see
+     * {@see ApiClient::getArticleField()}). It is paid only when the `fields`
+     * cache is actually refreshed, not on every editor open.
+     *
+     * A field whose item request fails keeps the assignment the list gave it, or
+     * falls back to `[0]` — "every category", which is how Grafida behaved
+     * before it read the assignment at all. Hiding a field because one request
+     * failed would silently drop whatever the user had typed into it, so this
+     * degrades towards showing too much rather than too little.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function fetchFields(string $base, string $token): array
+    {
+        $fields = $this->api->listArticleFields($base, $token);
+
+        foreach ($fields as $index => $field) {
+            if (isset($field['assigned_cat_ids'])) {
+                continue;
+            }
+
+            $id = $field['id'] ?? null;
+
+            if (!is_int($id) || $id <= 0) {
+                continue;
+            }
+
+            try {
+                $item = $this->api->getArticleField($base, $token, $id);
+            } catch (ApiException | HttpException) {
+                $fields[$index]['assigned_cat_ids'] = [0];
+
+                continue;
+            }
+
+            $assigned = $item['assigned_cat_ids'] ?? null;
+
+            $fields[$index]['assigned_cat_ids'] = is_array($assigned) && $assigned !== []
+                ? array_values($assigned)
+                : [0];
+        }
+
+        return $fields;
     }
 
     /**
