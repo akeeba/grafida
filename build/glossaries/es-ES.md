@@ -170,3 +170,4 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | cache (noun) | caché | Kept as the standard Spanish technical term; «Tiempo de caché» = cache time. GRAFIDA_LBL_METADATA_CACHE_TIME. |
 | startup (reload on) | al iniciar | The moment Grafida starts; «Recargar al iniciar» = reload on startup. GRAFIDA_LBL_METADATA_RESET_ON_START. |
 | reset size (article image) | Restablecer tamaño | Article image context-toolbar action that restores an `<img>`'s natural (undistorted) width/height (gh-43). GRAFIDA_BTN_RESET_SIZE. |
+| created / modified (article row) | Creado / Modificado | Prefix on an article row's date line (gh-53); the value is the formatted timestamp. Distinct from the sort labels GRAFIDA_SORT_CREATED/_MODIFIED (« Fecha de creación / Fecha de modificación »), which name a column rather than label a value. GRAFIDA_LBL_ARTICLE_CREATED / _MODIFIED. |

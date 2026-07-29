@@ -100,7 +100,17 @@ and two-space continuation indent are the original bullet formatting.
   (`articleJoomlaId()`, rendered as a muted monospace `#123`) — on a remote row its own `id`; on a
   local row the `remoteId` of the article it mirrors, since a draft's `id` is a key in our own
   `drafts` table and means nothing on the site. A draft that has never been published therefore
-  shows no id at all, which is exactly why the drafts tab offers no id sort. The API only accepts a
+  shows no id at all, which is exactly why the drafts tab offers no id sort. Below the alias sits
+  the **created/modified line** (`articleDatesLine()`, gh-53), which needed no API work at all:
+  `created` and `modified` are both in com_content's `$fieldsToRenderList`, so the *list* endpoint
+  emits them per item and `ApiClient::flatten()` hands every attribute through untouched — a
+  contract `ArticleRoutingTest` now pins, since an attribute whitelist added to `flatten()` would
+  drop the dates from both tabs silently. On a **local** row the dates are the draft's own
+  `createdAt`/`updatedAt`, describing the local copy rather than the article on the site — which is
+  what that tab lists. ⚠️ Rendering them needs a real `Date`, so they go through
+  **`js/util/datetime.js`** (`formatStamp()` in `app.js` is the guarded wrapper) rather than
+  `Date.parse()`, which WKWebView mishandles for the naive UTC form — the same trap the date
+  *sorts* dodge by comparing the strings directly. The API only accepts a
   **single** category/tag and an INT `state`, so there is no multi-select or "all states"; an
   author filter is omitted (no local user list).
   `DraftExportService` builds and consumes the portable **`.grafida`** file format (plain JSON

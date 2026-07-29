@@ -1265,6 +1265,20 @@ input[type="color"].form-control {
     font-family: var(--font-mono);
 }
 
+/* The created/modified line. Two independently-translated labelled dates side by
+   side, wrapping onto a second row rather than overflowing when the window is
+   narrow; each date stays whole (nowrap) so it never breaks mid-timestamp. */
+.article-item-dates {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 12px;
+    row-gap: 2px;
+}
+
+.article-item-dates > span {
+    white-space: nowrap;
+}
+
 .article-badge {
     font-size: 10px;
     font-weight: 600;

@@ -13,6 +13,7 @@ namespace Grafida\Tests\Feature;
 
 use Boson\Component\Http\Request;
 use Grafida\Application\Kernel;
+use Grafida\Http\HttpResponse;
 use Grafida\Tests\Support\TestContainer;
 use Grafida\Tests\Support\TestDatabase;
 use Grafida\Tests\Unit\Support\FakeTransport;
@@ -142,6 +143,69 @@ final class ArticleRoutingTest extends TestCase
         self::assertSame('Offline draft', $json['data'][0]['title']);
         // The decoration is simply absent — the list itself is what matters.
         self::assertNull($json['data'][0]['categoryTitle']);
+    }
+
+    /**
+     * The remote list must carry each article's `created`/`modified` through to
+     * the SPA, which renders them on the row (gh-53).
+     *
+     * Nothing in Grafida *builds* these — com_content's JSON:API view lists them
+     * in `$fieldsToRenderList` and `ApiClient::flatten()` hands every attribute
+     * of the resource through untouched — which is exactly why the contract is
+     * worth pinning: the dates would vanish from both tabs, silently and with no
+     * error anywhere, the day `flatten()` grew an attribute whitelist.
+     */
+    public function testRemoteArticleListCarriesTheJoomlaTimestamps(): void
+    {
+        $payload = json_encode([
+            'data' => [[
+                'type'       => 'articles',
+                'id'         => '17',
+                'attributes' => [
+                    'id'       => 17,
+                    'title'    => 'Dated article',
+                    'alias'    => 'dated-article',
+                    'state'    => 1,
+                    'catid'    => 2,
+                    // Naive UTC, exactly as Joomla stores and serialises it.
+                    'created'  => '2026-07-20 09:15:00',
+                    'modified' => '2026-07-29 08:30:00',
+                ],
+            ]],
+            'meta' => ['total-pages' => 1],
+        ], JSON_THROW_ON_ERROR);
+
+        $fake   = (new FakeTransport())->on($this->defaultArticlesUrl(), new HttpResponse(200, $payload));
+        $kernel = $this->kernelWithFakeTransport($fake);
+        $siteId = $this->seedConnectedSite();
+
+        [$status, $json] = $this->call($kernel, 'GET', "/api/sites/{$siteId}/articles");
+
+        self::assertSame(200, $status);
+        self::assertTrue($json['ok']);
+        self::assertCount(1, $json['data']['items']);
+        self::assertSame('2026-07-20 09:15:00', $json['data']['items'][0]['created']);
+        self::assertSame('2026-07-29 08:30:00', $json['data']['items'][0]['modified']);
+    }
+
+    /**
+     * A local row shows the *draft's* own timestamps, so `Draft::toArray()` must
+     * keep exposing them on the drafts route (gh-53). They are naive UTC strings
+     * and stay that way — the SPA parses them component-wise, never with
+     * Date.parse() (see js/util/datetime.js).
+     */
+    public function testDraftListCarriesTheDraftTimestamps(): void
+    {
+        $fake   = (new FakeTransport())->throwForAll(6);
+        $kernel = $this->kernelWithFakeTransport($fake);
+        $siteId = $this->seedConnectedSite();
+        $this->seedDraft($siteId, 'Dated draft');
+
+        [$status, $json] = $this->call($kernel, 'GET', "/api/sites/{$siteId}/drafts");
+
+        self::assertSame(200, $status);
+        self::assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $json['data'][0]['createdAt']);
+        self::assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $json['data'][0]['updatedAt']);
     }
 
     private function seedDraft(int $siteId, string $title): void

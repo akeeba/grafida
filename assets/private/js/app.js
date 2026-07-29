@@ -2476,6 +2476,56 @@ function articleJoomlaId(article, type) {
     return id == null ? null : id;
 }
 
+/**
+ * A stored naive-UTC timestamp rendered in the interface language and the
+ * machine's own time zone, or '' when there is none.
+ *
+ * The work is `js/util/datetime.js` (see it for why Date.parse() is off limits
+ * for this format), loaded ahead of app.js since it is self-contained. Its
+ * absence is guarded all the same: an unreadable date must never take a whole
+ * article list down with it.
+ */
+function formatStamp(value) {
+    const mod = window.GrafidaDateTime;
+
+    try {
+        return mod ? mod.format(value, State.language) : '';
+    } catch (e) {
+        return '';
+    }
+}
+
+/**
+ * The created/modified line for an article row (gh-53).
+ *
+ * A remote row is a Joomla article, so it carries the site's own `created` /
+ * `modified` attributes — `ApiClient::flatten()` hands every attribute of the
+ * list resource through untouched, and both are in com_content's
+ * `$fieldsToRenderList`. A local row is a draft, whose timestamps are our own
+ * `createdAt`/`updatedAt`: they describe the local copy, not the article on the
+ * site, which is exactly what that tab is listing.
+ *
+ * Returns null when neither date is usable, so no empty line is rendered.
+ */
+function articleDatesLine(article, type) {
+    const created  = formatStamp(type === 'remote' ? article.created : article.createdAt);
+    const modified = formatStamp(type === 'remote' ? article.modified : article.updatedAt);
+
+    if (!created && !modified) return null;
+
+    const line = el('div', 'article-item-meta article-item-dates');
+
+    if (created) {
+        line.appendChild(el('span', null, formatText(t('GRAFIDA_LBL_ARTICLE_CREATED'), created)));
+    }
+
+    if (modified) {
+        line.appendChild(el('span', null, formatText(t('GRAFIDA_LBL_ARTICLE_MODIFIED'), modified)));
+    }
+
+    return line;
+}
+
 function buildArticleItem(article, type) {
     const item = el('div', 'article-item');
 
@@ -2502,6 +2552,9 @@ function buildArticleItem(article, type) {
     if (article.alias) {
         infoDiv.appendChild(el('div', 'article-item-meta article-item-alias', article.alias));
     }
+
+    const dates = articleDatesLine(article, type);
+    if (dates) infoDiv.appendChild(dates);
 
     const badgeClass = type === 'draft' ? 'badge-draft' : 'badge-remote';
     const badgeText = type === 'draft' ? 'Draft' : 'Remote';

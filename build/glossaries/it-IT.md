@@ -160,3 +160,4 @@ I nomi propri non si traducono: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | cache (noun) | cache | Kept as-is (technical loanword); «Durata cache» = cache time. GRAFIDA_LBL_METADATA_CACHE_TIME. |
 | startup (reload on) | avvio | The moment Grafida starts; «Ricarica all'avvio» = reload on startup. GRAFIDA_LBL_METADATA_RESET_ON_START. |
 | reset size (article image) | Reimposta dimensioni | Article image context-toolbar action that restores an `<img>`'s natural (undistorted) width/height (gh-43). GRAFIDA_BTN_RESET_SIZE. |
+| created / modified (article row) | Creato / Modificato | Prefix on an article row's date line (gh-53); the value is the formatted timestamp. Distinct from the sort labels GRAFIDA_SORT_CREATED/_MODIFIED (« Data di creazione / Data di modifica »), which name a column rather than label a value. GRAFIDA_LBL_ARTICLE_CREATED / _MODIFIED. |

@@ -104,11 +104,14 @@ final class Draft
             'metadesc'       => $this->metadesc,
             'metakey'        => $this->metakey,
             'createdByAlias' => $this->createdByAlias,
-            // Naive UTC 'Y-m-d H:i:s', as stored. The SPA only ever sorts on
-            // these, and that format sorts lexicographically in chronological
-            // order — so it compares them as strings and never has to hand them
-            // to Date.parse(), which WKWebView does not handle reliably for the
+            // Naive UTC 'Y-m-d H:i:s', as stored. The SPA *sorts* on these as
+            // plain strings — that format sorts lexicographically in
+            // chronological order — so the sort never has to hand them to
+            // Date.parse(), which WKWebView does not handle reliably for the
             // naive form (see the ai_chats.last_response_at note in CLAUDE.md).
+            // Displaying them on an article row (gh-53) does need a real Date,
+            // which js/util/datetime.js builds component-wise via Date.UTC()
+            // rather than by parsing the string, for exactly the same reason.
             'createdAt'      => $this->createdAt,
             'updatedAt'      => $this->updatedAt,
         ];

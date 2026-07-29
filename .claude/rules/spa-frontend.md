@@ -34,6 +34,22 @@ ship inside the app.
   + `css/solid.min.css` + `webfonts/fa-solid-900.woff2`) — never images/emoji. Action
   buttons carry a leading `<i class="fa-solid fa-…" aria-hidden="true">` before the label;
   in `app.js` use the `icon()` / `iconBtn()` helpers.
+  ⚠️ **A stored timestamp is never handed to `Date.parse()`** — `js/util/datetime.js`
+  (`window.GrafidaDateTime = {parse, format}`, gh-53) is the one place a naive UTC `Y-m-d H:i:s`
+  becomes a `Date`, building it component-wise from `Date.UTC()` because WKWebView does not parse
+  that form reliably (the trap already documented for `ai_chats.last_response_at`,
+  `drafts.updated_at` and `reference_cache.fetchedAt`). Anywhere the app only needs to **order**
+  such values it still compares the strings directly — that format sorts lexicographically in
+  chronological order — and does not come here at all; this module exists for the one thing string
+  comparison cannot do, showing a timestamp to a person. Two things worth knowing:
+  `parse()` **round-trips the components back out of the built `Date`**, which is load-bearing
+  rather than paranoid — `Date.UTC()` does not reject an out-of-range component, it rolls it over,
+  so Joomla's MySQL null date (`0000-00-00 00:00:00`, still found in legacy `modified` columns)
+  would otherwise render as a real date in 1899; and `format()` renders in the machine's **own**
+  time zone and `State.language`, which can differ from the same article's date in Joomla's
+  back-end (site/user time zone). It is loaded **before** `app.js` (unlike the `js/editor/` modules,
+  which load after it) since it is self-contained; `app.js`'s `formatStamp()` wrapper guards its
+  absence all the same. `tests/js/datetime.test.mjs` covers it.
   ⚠️ **Every pane-level error/empty placeholder goes through `stateBlock()` / `errorState()`**
   (gh-29), never a hand-rolled `<div class="alert alert-error">` or a bespoke class: before this,
   the same caught error rendered three different ways — a narrow square in the Media Manager's CSS
