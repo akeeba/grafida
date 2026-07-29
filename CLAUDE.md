@@ -278,10 +278,16 @@ window-free in tests (a null dialog makes the endpoint return 503).
   which is what makes the `schema_migrations` bookkeeping load-bearing — and why
   `StorageService::reset()` wipes every table *except* that one.
   `StorageService` reports the DB file path, opens its folder in the OS file browser
-  (`open`/`explorer`/`xdg-open`), and resets local storage (deletes tokens + wipes all
+  (`open`/`explorer`/`xdg-open`), and resets local storage (deletes secrets + wipes all
   tables, keeping `schema_migrations`). Exposed under `/api/settings/storage[/open|/reset]`.
   ⚠️ `PRAGMA foreign_keys` is a **no-op inside a transaction**, so `reset()` must never be wrapped
   in one.
+  ⚠️ **Every kind of OS-stored secret needs its own delete loop in `reset()`, run *before* the bulk
+  wipe.** The secret store is not a table, so `DELETE FROM` reaches none of it, and once the row
+  carrying the `secret_ref` is gone nothing can say which keychain entry was ours — it becomes an
+  unfindable orphan. `reset()` therefore loops `SiteService::delete()` **and**
+  `AiServiceManager::delete()` (the latter was missing until it was reported through the
+  documentation). A future secret gets a third loop; `StorageServiceTest` pins this.
 - `src/Ai/` — the **AI chat assistant** (chat with an LLM about the open article, the document
   supplied as context; modelled on the Joomla AITiny plugin, **text only — no AI images**).
   `AiServiceManager` is CRUD over configured **AI services** (`ai_services`), each a named

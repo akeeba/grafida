@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Grafida\Storage;
 
+use Grafida\Ai\AiServiceManager;
 use Grafida\Secret\ProcessRunner;
 use Grafida\Site\SiteService;
 use Grafida\Support\Paths;
@@ -27,6 +28,7 @@ final class StorageService
     public function __construct(
         private readonly DatabaseInterface $db,
         private readonly SiteService $sites,
+        private readonly AiServiceManager $aiServices,
         private readonly ProcessRunner $runner = new ProcessRunner(),
     ) {}
 
@@ -75,9 +77,17 @@ final class StorageService
     }
 
     /**
-     * Wipes every trace of local data: stored API tokens (from the OS secret
-     * store) and all application rows, leaving an empty but fully-migrated
-     * database behind.
+     * Wipes every trace of local data: stored secrets (from the OS secret store)
+     * and all application rows, leaving an empty but fully-migrated database
+     * behind.
+     *
+     * ⚠️ **Both kinds of secret have to be deleted through their own service,
+     * before the bulk wipe.** The OS secret store is not a table, so a `DELETE
+     * FROM` reaches none of it, and once the row carrying the `secret_ref` is
+     * gone there is nothing left to say which keychain entry belonged to us —
+     * the entry becomes an orphan no later run can find. That is exactly what
+     * used to happen to AI service keys, whose loop was missing while the site
+     * one was here from the start.
      */
     public function reset(): void
     {
@@ -85,6 +95,14 @@ final class StorageService
         foreach ($this->sites->list() as $site) {
             if ($site->id !== null) {
                 $this->sites->delete($site->id);
+            }
+        }
+
+        // Likewise the AI services, whose API keys live under their own
+        // `grafida.ai_service.{id}` references.
+        foreach ($this->aiServices->list() as $service) {
+            if ($service->id !== null) {
+                $this->aiServices->delete($service->id);
             }
         }
 

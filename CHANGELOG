@@ -28,6 +28,7 @@ Grafida 0.3
 # [MEDIUM] The webview could cache Grafida's own API responses, showing stale data even after a restart (gh-35)
 # [MEDIUM] The Articles list's category, tag and language filters never picked up reloaded site metadata (gh-42)
 # [MEDIUM] Cropping or resizing a local image already used in an article distorted it the next time the article was opened (gh-43)
+# [MEDIUM] Reset local storage left every AI service's API key behind in the OS keychain
 # [MEDIUM] Editing a built-in AI tool's title or icon saved, but never took effect (gh-28)
 # [MEDIUM] Enabling or disabling a built-in AI tool wiped its prompt and tone; editing a custom AI tool made it vanish from the list (gh-28)
 # [LOW] The source code editor inserted a closing tag even when a matching one already followed (gh-52)

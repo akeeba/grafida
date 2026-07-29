@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Grafida\Application\Provider;
 
 use Grafida\Ai\AiChatRepository;
+use Grafida\Ai\AiServiceManager;
 use Grafida\Ai\AiServiceRepository;
 use Grafida\Ai\AiToolRepository;
 use Grafida\Application\Container;
@@ -101,7 +102,11 @@ final class StorageProvider implements ServiceProviderInterface
         );
 
         $container->share(StorageService::class, static function (Container $c): StorageService {
-            return new StorageService($c->get(DatabaseInterface::class), $c->get(SiteService::class));
+            return new StorageService(
+                $c->get(DatabaseInterface::class),
+                $c->get(SiteService::class),
+                $c->get(AiServiceManager::class),
+            );
         });
     }
 }

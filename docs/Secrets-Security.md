@@ -108,15 +108,9 @@ does it write the token to `sites.insecure_token`, or the AI key to `ai_services
 **Deleting a site** deletes its token from the OS secret store as well as its row from the
 database. The same goes for deleting an AI service.
 
-**Reset local storage** ([Settings](Settings#reset-local-storage)) deletes every site's stored
-token from the OS secret store before wiping the database.
-
-> [!NOTE]
-> AI service keys are a known exception: **Reset local storage** clears the `ai_services` table but
-> leaves those entries behind in your keychain, where they become orphans nothing refers to. They
-> are harmless, but if you want them gone, delete each AI service from
-> [Settings](Settings) *before* resetting, or remove the `grafida.ai_service.*` entries by hand with
-> your platform's keychain tool.
+**Reset local storage** ([Settings](Settings#reset-local-storage)) deletes every stored secret —
+site tokens and AI service keys alike — from the OS secret store before wiping the database, so it
+leaves nothing behind in your keychain either.
 
 **Backups.** Backing up the database backs up your work, not your credentials. Restoring it on
 another machine — or on the same machine after a reinstall — means re-entering each site's API
