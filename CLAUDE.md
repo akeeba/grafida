@@ -405,7 +405,12 @@ opt-in and image-collection paths, and the panel UI including the server-side sa
 - Never build a localised sentence by concatenating fragments around an injected value — word
   order differs per language. Keep each message a single string with `%s` placeholders and
   interpolate in the SPA with `formatNodes(t('KEY'), node)` (returns text/DOM nodes to spread
-  into `el()`), mirroring Joomla's `Text::sprintf()`.
+  into `el()`), mirroring Joomla's `Text::sprintf()`. `formatText()` is the plain-string
+  counterpart (toasts); **`formatNodesStrong()` emphasises the template's own literal text**
+  instead of the substitution, which is how a `<strong>Created:</strong> 20 Jul 2026` pair is
+  rendered from one string rather than from a label key plus a value key — the label, its
+  punctuation and its position relative to the value all stay the translator's to decide. All
+  three share `interpolateNodes()`.
 - **Commit directly on `main`. Do NOT create or switch to feature branches unless explicitly
   asked.** This project is worked solo and the branch overhead is unwanted; this deliberately
   overrides the general "branch first if on the default branch" default. If a branch was created

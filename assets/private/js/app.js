@@ -201,10 +201,42 @@ function txt(str) {
  * @returns {Node[]} text/substituted nodes, ready to spread into el()
  */
 function formatNodes(template, ...subs) {
+    return interpolateNodes(template, subs, txt);
+}
+
+/**
+ * formatNodes() with the template's own literal text emphasised — a
+ * "<strong>Label:</strong> value" pair without splitting it into two strings.
+ *
+ * Which is the point: the label, its punctuation and its position relative to
+ * the value all stay the translator's to decide. `"Created: %s"` bolds
+ * "Created: ", `"Créé le %s"` bolds "Créé le ", and a translation that puts the
+ * value first bolds whatever trails it — none of which a Label + value pair of
+ * keys could express.
+ *
+ * @param {string} template — localized string with `%s` placeholders
+ * @param {...(Node|string)} subs — substitutions, in placeholder order
+ * @returns {Node[]} nodes, ready to spread into el()
+ */
+function formatNodesStrong(template, ...subs) {
+    return interpolateNodes(template, subs, part => el('strong', null, part));
+}
+
+/**
+ * Shared core of formatNodes()/formatNodesStrong(): splits `template` on `%s`,
+ * passes each literal segment through `wrapLiteral` and drops each substitution
+ * in between (a Node as-is, anything else as a text node).
+ *
+ * @param {string}                template
+ * @param {Array<Node|string>}    subs
+ * @param {function(string):Node} wrapLiteral
+ * @returns {Node[]}
+ */
+function interpolateNodes(template, subs, wrapLiteral) {
     const parts = String(template).split('%s');
     const nodes = [];
     parts.forEach((part, i) => {
-        if (part !== '') nodes.push(txt(part));
+        if (part !== '') nodes.push(wrapLiteral(part));
         if (i < parts.length - 1) {
             const sub = subs[i];
             nodes.push(sub instanceof Node ? sub : txt(sub == null ? '' : String(sub)));
@@ -2505,6 +2537,12 @@ function formatStamp(value) {
  * `createdAt`/`updatedAt`: they describe the local copy, not the article on the
  * site, which is exactly what that tab is listing.
  *
+ * The two dates get a class each rather than being told apart by position: the
+ * created date is left-aligned and the modified one right-aligned, and a row
+ * with only one of them (a legacy article whose `modified` is Joomla's null
+ * date) must still put that one on its own side, which `:last-child` could not
+ * express.
+ *
  * Returns null when neither date is usable, so no empty line is rendered.
  */
 function articleDatesLine(article, type) {
@@ -2516,11 +2554,13 @@ function articleDatesLine(article, type) {
     const line = el('div', 'article-item-meta article-item-dates');
 
     if (created) {
-        line.appendChild(el('span', null, formatText(t('GRAFIDA_LBL_ARTICLE_CREATED'), created)));
+        line.appendChild(el('span', 'article-item-date-created',
+            ...formatNodesStrong(t('GRAFIDA_LBL_ARTICLE_CREATED'), created)));
     }
 
     if (modified) {
-        line.appendChild(el('span', null, formatText(t('GRAFIDA_LBL_ARTICLE_MODIFIED'), modified)));
+        line.appendChild(el('span', 'article-item-date-modified',
+            ...formatNodesStrong(t('GRAFIDA_LBL_ARTICLE_MODIFIED'), modified)));
     }
 
     return line;

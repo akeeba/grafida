@@ -107,7 +107,17 @@ and two-space continuation indent are the original bullet formatting.
   contract `ArticleRoutingTest` now pins, since an attribute whitelist added to `flatten()` would
   drop the dates from both tabs silently. On a **local** row the dates are the draft's own
   `createdAt`/`updatedAt`, describing the local copy rather than the article on the site — which is
-  what that tab lists. ⚠️ Rendering them needs a real `Date`, so they go through
+  what that tab lists. Each date is its own `<span>` — `created` left, `modified` pushed to the
+  right edge by `margin-left: auto` on its **own class** rather than by `justify-content` or
+  `:last-child`, so a row carrying only one of the two still lands on its own side — and each
+  label is bold, built with **`formatNodesStrong()`** so `"Created: %s"` stays one translatable
+  unit (see CLAUDE.md's Conventions). Below a **480px container** the pair stacks, both
+  left-aligned: that is an `@container article-row` query on `.article-item-info`, **not** a media
+  query, because collapsing either sidebar changes the row's width without touching the viewport's;
+  480px is set by the widest shipped language (el-GR needs ~437px against ~310px for the rest), and
+  the block simply never matching (unsupported `container-type`) leaves every row on the wide
+  layout, which `flex-wrap: wrap` keeps from overflowing.
+  ⚠️ Rendering them needs a real `Date`, so they go through
   **`js/util/datetime.js`** (`formatStamp()` in `app.js` is the guarded wrapper) rather than
   `Date.parse()`, which WKWebView mishandles for the naive UTC form — the same trap the date
   *sorts* dodge by comparing the strings directly. The API only accepts a

@@ -1208,9 +1208,24 @@ input[type="color"].form-control {
     background: var(--color-surface-2);
 }
 
+/*
+ * The row's text column, and the query container the dates line below sizes
+ * itself against. A *container* query, not a media query: this column's width
+ * has little to do with the viewport's — collapsing the left sidebar or the
+ * editor's properties pane changes it on a fixed window, and a media query
+ * would answer for a width the row does not have.
+ *
+ * `container-type: inline-size` is safe here precisely because the column is
+ * `flex: 1` (basis 0): the flex line already sizes it, never its contents, so
+ * the inline-size containment it implies takes nothing away. Where the property
+ * is unsupported the @container block below simply never matches and every row
+ * keeps the wide layout, which still wraps rather than overflowing.
+ */
 .article-item-info {
     flex: 1;
     min-width: 0;
+    container-type: inline-size;
+    container-name: article-row;
 }
 
 .article-item-title {
@@ -1265,9 +1280,16 @@ input[type="color"].form-control {
     font-family: var(--font-mono);
 }
 
-/* The created/modified line. Two independently-translated labelled dates side by
-   side, wrapping onto a second row rather than overflowing when the window is
-   narrow; each date stays whole (nowrap) so it never breaks mid-timestamp. */
+/*
+ * The created/modified line: created on the left, modified pushed out to the
+ * right edge of the text column. Each date stays whole (nowrap) so it never
+ * breaks mid-timestamp, and the line still wraps as a whole if one somehow
+ * cannot fit.
+ *
+ * The right-hand date is placed by its own class rather than by `justify-content`
+ * or `:last-child`, so a row carrying only a modified date still puts it on the
+ * right, and a row carrying only a created date still puts it on the left.
+ */
 .article-item-dates {
     display: flex;
     flex-wrap: wrap;
@@ -1277,6 +1299,42 @@ input[type="color"].form-control {
 
 .article-item-dates > span {
     white-space: nowrap;
+}
+
+.article-item-date-modified {
+    margin-left: auto;
+}
+
+.article-item-dates strong {
+    font-weight: 600;
+}
+
+/*
+ * Too narrow to keep the two dates apart: stacked, both left-aligned. Below the
+ * threshold, pinning them to opposite edges reads as two unrelated fragments
+ * rather than one line.
+ *
+ * 480px is set by the *widest* shipped language, since one threshold serves all
+ * of them: measured in the app, the pair needs ~295–311px in en-GB/de-DE/fr-FR/
+ * es-ES/it-IT/pt-PT but ~437px in el-GR, whose labels are «Δημιουργήθηκε:» /
+ * «Τροποποιήθηκε:» and whose CLDR time format is 12-hour with π.μ./μ.μ. The
+ * slack above that covers a longer month name or a two-digit hour. Erring high
+ * only makes a mid-width window stack a line that would have fitted; erring low
+ * would let Greek collide — and note it could not actually collide even then,
+ * because `flex-wrap: wrap` above is what the layout falls back to.
+ */
+@container article-row (max-width: 480px) {
+    .article-item-dates {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    /* In a column flex container an auto left margin would push the date to the
+       right edge just as it does in a row — it has to go, not merely be
+       overruled by align-items. */
+    .article-item-date-modified {
+        margin-left: 0;
+    }
 }
 
 .article-badge {
