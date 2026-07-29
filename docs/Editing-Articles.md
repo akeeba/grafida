@@ -229,6 +229,15 @@ Every write records a note in Joomla's own version history saying it was made wi
 which version, so an editor looking at the article's history on the site can see where a revision
 came from.
 
+> [!WARNING]
+> **A separate page or proxy cache may keep showing the old article after a successful publish.**
+> Joomla's article save clears the core content and article-module caches, including when Grafida
+> saves through the Web Services API. It does not purge full pages stored by the **System - Page
+> Cache** plugin, and Joomla has no core Web Services endpoint Grafida can call to clear that cache.
+> The same limitation applies to caches outside Joomla, such as a CDN, reverse proxy, hosting cache
+> or third-party cache extension. If the public page stays stale, clear that cache from Joomla or
+> its provider, or configure it with a suitable lifetime or an API-aware purge rule.
+
 Afterwards, Grafida asks what to do with your local copy:
 
 * **Delete Local Article** removes it from your computer and takes you back to the list. The
