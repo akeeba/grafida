@@ -35,7 +35,7 @@ If you are a Super User:
 * Click on the Joomla API Token tab.
 * Set Active to Yes
 * Click on Save
-* You now see a Token field. Copy its contents. This is your personal Joomla API token. _Keep it safe_. It is your username and password all rolled into one, and it bypasses Multi-factor Authentication (MFA). We recommend keeping it in your password manager.
+* You now see a Token field. Copy its contents. This is your personal Joomla API token. _Keep it safe_. It is your username and password all rolled into one, and it bypasses Multi-factor Authentication (MFA). We recommend keeping it in your password manager. Grafida keeps its own copy in your operating system's secret store, not in its database — see [Secrets security](Secrets-Security).
 * Click on the Close button to dismiss this page.
 
 If you are not a Super User, you need to get your API token after logging into the site's frontend and going to your user account's Edit Profile page. This is site-specific. If you're unsure how to get there, please ask your site's Super User.

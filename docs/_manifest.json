@@ -85,11 +85,6 @@
                     "title": "Settings"
                 },
                 {
-                    "slug": "Request-Log",
-                    "title": "Request Log"
-                },
-                {
-                    "slug": "AI",
                     "title": "AI",
                     "children": [
                         {
@@ -111,6 +106,10 @@
                     ]
                 },
                 {
+                    "slug": "Help",
+                    "title": "Help"
+                },
+                {
                     "slug": "Request-Log",
                     "title": "Request Log"
                 }
@@ -122,6 +121,14 @@
                 {
                     "slug": "Custom-API-Access",
                     "title": "Custom API access"
+                },
+                {
+                    "slug": "Secrets-Security",
+                    "title": "Secrets security"
+                },
+                {
+                    "slug": "Translation",
+                    "title": "Translation"
                 },
                 {
                     "slug": "GPL",

@@ -7,3 +7,6 @@ If you need help, have a question, want to thank the developers, or just showcas
 If you have found a bug, please report it in the [issue tracker](https://github.com/akeeba/grafida/issues).
 
 If you have an improvement to share, you can submit a [Pull Request](https://github.com/akeeba/grafida/pulls).
+
+Translating Grafida into your language — or fixing a wording that reads wrong — is one of the most
+useful contributions you can make, and it needs no code change. See [Translation](Translation).

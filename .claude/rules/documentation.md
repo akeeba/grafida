@@ -50,6 +50,20 @@ other way round. That is the single decision everything below follows from.
 - **Images live in `docs/images/`, flat, referenced as `images/foo.png`.** The renderer rewrites
   that to `/api/help/image/foo.png` by **basename**, so a subdirectory would resolve in the wiki
   and 404 in the app.
+  ⚠️ **They ship inside every binary** (`docs/` is in `boson.json`'s `build.directories`), so a
+  screenshot's file size is multiplied by every platform we build. Full-resolution 2× PNG captures
+  run 0.5–0.7 MB each; run every new one through
+  `magick <in> -strip -colors 256 PNG8:<out>` before committing, which is ~3× smaller and visually
+  indistinguishable for UI chrome. Screen shots are the whole window (macOS chrome included, matching
+  the hand-taken ones); a dialog is cropped to the dialog, as `site.png` is.
+  A shot with more to it than fits — a long Diagnose Connection panel — is cropped with a white
+  fade at the cut rather than ending abruptly.
+  ⚠️ **A screenshot showing the table of contents (`help.png`) goes stale the moment
+  `_manifest.json` changes.** Re-take it in the same commit.
+  The `verify` skill's HTTP bridge + Chromium harness is how these are produced without a native
+  window: it drives the real SPA against the real `Kernel`, so a capture is the shipping UI, not a
+  mock-up. Point `db.path` at a **copy** of the real database and never at
+  `Paths::databaseFile()` itself.
 - **GitHub's alert blockquotes are supported** — `> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`,
   `> [!WARNING]`, `> [!CAUTION]`, written exactly as GitHub wants them. They are *not* part of the
   GFM spec (they are a GitHub rendering feature), so CommonMark's GFM extension does not implement

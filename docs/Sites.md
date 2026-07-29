@@ -6,7 +6,7 @@ The Sites view lets you manage the connections to the sites you can use with Gra
 
 Use the **Add Site** button to add a new site.  
 
-The **Reload metadata** button refreshes the information Grafida has cached for the site: languages, current template, categories, langauges, and tags. You may need to use this if you were off-line for a while and things changed on the site in the meantime.
+The **Reload metadata** button refreshes the information Grafida has cached for the site: languages, current template, categories, access levels, custom fields, and tags. You may need to use this if you were off-line for a while and things changed on the site in the meantime.
 
 The **Edit** button lets you edit a site.
 
@@ -19,7 +19,7 @@ The **Delete** button deletes the site from Grafida's database along with all of
 
 When you add or edit a site, you see the Site's Edit dialog.
 
-![Editing a site](images/sites.png)
+![Editing a site](images/site.png)
 
 **Title**. A (short) title which makes sense to you, e.g. “Acme Blog”. It does not have to be the same as the site's title defined in Joomla's Global Configuration. Keep it short; it will be shown in the navigation sidebar's drop-down.
 
