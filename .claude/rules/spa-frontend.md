@@ -128,8 +128,9 @@ ship inside the app.
   pre-registered as a `grafidaInline_N` / `grafidaBlock_N` format pair in the init `formats` option;
   menu items are toggles whose active state mirrors `editor.formatter.match()`.
   **Slash commands** (`js/editor/slashtools.js`, `window.GrafidaSlashTools`, gh-9): typing `/` opens a
-  filterable command menu — headings, lists, dummy text, quote, read more, images, link, table,
-  source code, fullscreen. Ported from Brian Teeman's
+  filterable command menu — headings, lists, inline code, a preformatted block, dummy text, quote,
+  read more, images, link, table, source code, fullscreen. Code and Pre sit directly below Ordered
+  List and share `js/editor/codeformats.js`'s format actions with the editor shortcuts. Ported from Brian Teeman's
   [slashtools](https://github.com/brianteeman/slashtools) TinyMCE plugin (GPLv3), **not integrated**:
   upstream ships as a Joomla extension wired up through TinyMCE's "External Plugin URLs" setting, and
   neither half exists here — `js/tinymce/` is npm-vendored and **gitignored** (a plugin file dropped
@@ -189,6 +190,12 @@ ship inside the app.
   own editor features — the slash-command menu, the AI assistant — as empty plugins answering
   `getMetadata()` so they would be *named* in the plugins tab; with the tab gone, so is that
   machinery.)
+  Code and Pre use literal **Alt+Shift+C/P** shortcuts on every platform (registered by
+  `js/editor/codeformats.js`); the older Blockquote shortcut remains literal Ctrl+Shift+Q.
+  `codeformats.js` also appends the inline-backtick Code pattern through `text_patterns_lookup`
+  (so TinyMCE's defaults survive) and handles a bare triple-backtick paragraph on Enter itself:
+  TinyMCE's public enter-triggered block pattern deliberately skips a marker with no following text,
+  which is exactly the normal Markdown fence.
   ⚠️ **A shortcut's modifier gate is `hasPrimaryModifier()`, never `e.ctrlKey || e.metaKey`**: on
   Windows `metaKey` is the **Windows key**, whose chords belong to the OS (Win+S opens Windows
   Search), so accepting either key on every platform binds us to a chord we don't own (gh-13). It

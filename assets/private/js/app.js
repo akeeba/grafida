@@ -3359,13 +3359,13 @@ function helpShortcutText(spec) {
  */
 function grafidaHelpTab() {
     // Each row is [label key, shortcut spec]. "Meta" is Cmd on macOS and Ctrl
-    // elsewhere; the three format shortcuts are registered with a literal
-    // "ctrl", so they are Ctrl on every platform, macOS included.
+    // elsewhere. Code and Pre use literal Alt+Shift chords on every platform;
+    // Blockquote retains its literal Ctrl+Shift chord.
     const rows = [
         ['GRAFIDA_LBL_HELP_SC_SAVE', 'Meta + S'],
         ['GRAFIDA_LBL_HELP_SC_SETTINGS', 'Meta + ,'],
-        ['GRAFIDA_LBL_HELP_SC_CODE', 'Ctrl + Shift + C'],
-        ['GRAFIDA_LBL_HELP_SC_PRE', 'Ctrl + Shift + P'],
+        ['GRAFIDA_LBL_HELP_SC_CODE', 'Alt + Shift + C'],
+        ['GRAFIDA_LBL_HELP_SC_PRE', 'Alt + Shift + P'],
         ['GRAFIDA_LBL_HELP_SC_QUOTE', 'Ctrl + Shift + Q'],
         // The source editor's find chords are CodeMirror's platform defaults,
         // and its replace chord is the one that differs between them (gh-34).
@@ -3625,6 +3625,13 @@ async function initTinyMCE(draft) {
         // applySpellCheckChange): browser_spellcheck: false sets spellcheck="false"
         // on the body, which WebKit honours even with the master flag on.
         browser_spellcheck: State.spellCheck !== false,
+        // Append Markdown-style inline code (`text`) without replacing
+        // TinyMCE's built-in heading/list/quote patterns. A bare ``` line is
+        // handled on Enter by GrafidaCodeFormats.register() below.
+        text_patterns_lookup: (context) =>
+            typeof GrafidaCodeFormats !== 'undefined'
+                ? GrafidaCodeFormats.markdownPatterns(context)
+                : [],
         // The editor UI always follows the app theme; the editing surface only
         // switches to the dark built-in CSS when the site supplies no editor.css.
         content_css: cssOpts.length ? cssOpts : editorContentCss(),
@@ -3711,6 +3718,10 @@ async function initTinyMCE(draft) {
             colorSchemeStyle,
         setup: (editor) => {
             State.tinyMCEEditor = editor;
+
+            if (typeof GrafidaCodeFormats !== 'undefined') {
+                GrafidaCodeFormats.register(editor);
+            }
 
             editor.ui.registry.addIcon('readmore',
                 '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" ' +
@@ -4079,14 +4090,8 @@ async function initTinyMCE(draft) {
                 },
             });
 
-            // Keyboard shortcuts for the Format ▸ Formats entries that lack one:
-            // inline Code, and the Pre / Blockquote blocks.
-            editor.addShortcut('ctrl+shift+c', 'Inline code format', () => {
-                editor.execCommand('mceToggleFormat', false, 'code');
-            });
-            editor.addShortcut('ctrl+shift+p', 'Preformatted block', () => {
-                editor.execCommand('mceToggleFormat', false, 'pre');
-            });
+            // Keyboard shortcut for the remaining Format ▸ Formats entry that
+            // lacks one. Code and Pre are registered by GrafidaCodeFormats.
             editor.addShortcut('ctrl+shift+q', 'Blockquote block', () => {
                 editor.execCommand('mceToggleFormat', false, 'blockquote');
             });

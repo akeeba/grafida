@@ -33,6 +33,8 @@ const STRINGS = {
     GRAFIDA_LBL_SLASH_H3: 'Heading 3',
     GRAFIDA_LBL_SLASH_BULLET_LIST: 'Bulleted list',
     GRAFIDA_LBL_SLASH_ORDERED_LIST: 'Ordered list',
+    GRAFIDA_LBL_HELP_SC_CODE: 'Inline code format',
+    GRAFIDA_LBL_HELP_SC_PRE: 'Preformatted block',
     GRAFIDA_LBL_SLASH_LIST_ITEM: 'List item',
     GRAFIDA_LBL_SLASH_LOREM_SENTENCE: 'Dummy sentence',
     GRAFIDA_LBL_SLASH_LOREM_PARAGRAPH: 'Dummy paragraph',
@@ -87,7 +89,14 @@ function load(opts = {}) {
     const strings = opts.strings || STRINGS;
 
     const sandbox = {
-        window: {},
+        window: {
+            GrafidaCodeFormats: {
+                toggleInlineCode: (instance) =>
+                    instance.execCommand('mceToggleFormat', false, 'code'),
+                togglePreformattedBlock: (instance) =>
+                    instance.execCommand('mceToggleFormat', false, 'pre'),
+            },
+        },
         State: Object.assign({ slashTools: true }, opts.state || {}),
         t: (key) => (Object.prototype.hasOwnProperty.call(strings, key) ? strings[key] : key),
         // Mirrors app.js's escapeHtmlText: it serialises a text node, so it
@@ -268,6 +277,27 @@ test('the ordered list inserts an <ol>, the bulleted list a <ul>', () => {
     assert.deepEqual(calls.inserted, [
         '<ol><li>List item</li></ol>',
         '<ul><li>List item</li></ul>',
+    ]);
+});
+
+test('inline Code and Pre follow Ordered list and apply their TinyMCE formats', () => {
+    const { Slash, editor, calls } = load();
+    const results = Slash.fetchItems(editor, {}, '');
+    const shown = labels(results);
+    const ordered = shown.indexOf('Ordered list');
+
+    assert.deepEqual(shown.slice(ordered, ordered + 3), [
+        'Ordered list',
+        'Inline code format',
+        'Preformatted block',
+    ]);
+
+    run(results, 'Inline code format');
+    run(results, 'Preformatted block');
+
+    assert.deepEqual(calls.commands, [
+        { cmd: 'mceToggleFormat', ui: false, value: 'code' },
+        { cmd: 'mceToggleFormat', ui: false, value: 'pre' },
     ]);
 });
 

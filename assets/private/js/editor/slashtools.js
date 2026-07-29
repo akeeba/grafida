@@ -20,8 +20,10 @@
  * the placeholder images are PNG rather than SVG, and item labels are localised
  * while filtering still matches the English keywords.
  *
- * Relies on globals app.js places in the window scope (resolved at call time):
- *   State, t, escapeHtmlText, openMediaBrowser, openSourceCodeEditor, insertReadMore
+ * Relies on globals app.js places in the window scope (resolved at call time),
+ * plus the codeformats.js module loaded immediately before this file:
+ *   State, t, escapeHtmlText, openMediaBrowser, openSourceCodeEditor,
+ *   insertReadMore, GrafidaCodeFormats
  */
 
 'use strict';
@@ -183,6 +185,18 @@
             { type: 'separator' },
             list('ul', 'GRAFIDA_LBL_SLASH_BULLET_LIST'),
             list('ol', 'GRAFIDA_LBL_SLASH_ORDERED_LIST'),
+            {
+                key: 'GRAFIDA_LBL_HELP_SC_CODE',
+                keywords: ['code', 'inline', 'monospace'],
+                icon: 'format-code',
+                action: () => global.GrafidaCodeFormats.toggleInlineCode(editor),
+            },
+            {
+                key: 'GRAFIDA_LBL_HELP_SC_PRE',
+                keywords: ['pre', 'preformatted', 'code block'],
+                icon: 'code-sample',
+                action: () => global.GrafidaCodeFormats.togglePreformattedBlock(editor),
+            },
             { type: 'separator' },
             {
                 key: 'GRAFIDA_LBL_SLASH_LOREM_SENTENCE',

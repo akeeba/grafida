@@ -72,13 +72,29 @@ You can only have one separator per article, which is also Joomla's rule.
 ### Slash commands
 
 Type `/` on an empty line and a filterable menu of common insertions appears: headings, lists,
-dummy text, a quotation, the read-more separator, images, a link, a table, the source code editor
-and full-screen mode. Keep typing to filter, press <kbd>Enter</kbd> to insert the highlighted item.
+inline code, a preformatted block, dummy text, a quotation, the read-more separator, images, a
+link, a table, the source code editor and full-screen mode. Keep typing to filter, press
+<kbd>Enter</kbd> to insert the highlighted item. **Inline code format** and **Preformatted block**
+appear immediately below **Ordered list**.
 
 The filter matches the English keyword as well as the translated label, so `/head` finds the
 headings even when you are running Grafida in another language.
 
 This is switched on by default; you can turn it off in [Settings](Settings).
+
+### Markdown code syntax
+
+Grafida recognises the two common Markdown spellings for code while you type:
+
+* Wrap text in single backticks, for example `` `configuration.php` ``, then press
+  <kbd>Space</kbd> or <kbd>Enter</kbd> to apply the inline **Code** format. The backticks
+  disappear.
+* At the start of an otherwise empty paragraph, type <code>```</code> and press
+  <kbd>Enter</kbd> to turn that paragraph into a **Preformatted** (`<pre>`) block. The fence
+  disappears; use the Blocks menu to leave or remove the preformatted block when you are done.
+
+These are typing conveniences, not a Markdown mode: Grafida still stores and publishes the article
+body as HTML.
 
 ### Spell checking
 
@@ -131,8 +147,8 @@ Beyond TinyMCE's own shortcuts, Grafida adds a few. They are also listed in the 
 |---|---|---|
 | Save the local article | <kbd>Ctrl</kbd> + <kbd>S</kbd> | <kbd>Cmd</kbd> + <kbd>S</kbd> |
 | Open Settings | <kbd>Ctrl</kbd> + <kbd>,</kbd> | <kbd>Cmd</kbd> + <kbd>,</kbd> |
-| Inline code format | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd> | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd> |
-| Preformatted block | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> |
+| Inline code format | <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd> | <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd> |
+| Preformatted block | <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> | <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> |
 | Blockquote block | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Q</kbd> | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Q</kbd> |
 
 ## Images in the article body
