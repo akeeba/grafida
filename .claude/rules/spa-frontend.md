@@ -71,8 +71,8 @@ ship inside the app.
   the `typeof tinymce === 'undefined'` fatal (a full-page condition, not a list/grid item).
   Source-code editing uses vendored
   **CodeMirror 5** (`js/codemirror/`: `lib/` + `mode/{xml,javascript,css,htmlmixed}` +
-  `addon/edit/{matchbrackets,closetag}` + `addon/dialog` + `addon/search/{search,searchcursor,
-  jump-to-line}` + the `material-darker` dark theme) instead of
+  `addon/edit/{matchbrackets,closetag}` + `addon/fold/xml-fold` + `addon/dialog` +
+  `addon/search/{search,searchcursor,jump-to-line}` + the `material-darker` dark theme) instead of
   TinyMCE's stock `code` plugin: that plugin is dropped from the `plugins` list, and a
   custom `sourcecode` toolbar button + Tools-menu item (registered in the editor `setup`)
   opens `openSourceCodeEditor()` — a `showModal()` dialog hosting a CodeMirror `htmlmixed`
@@ -101,6 +101,23 @@ ship inside the app.
   `addon/search/matchesonscrollbar` (scrollbar match markers) is deliberately **not** vendored:
   `annotatescrollbar` only paints when `cm.display.barWidth` is non-zero, which overlay scrollbars
   (macOS, and Chromium generally) make 0 — it would render on some platforms and not others.
+  **Tag auto-closing is a three-way preference, not on/off** (gh-52, see
+  `Editor\AutoCloseTagsService`): the `closetag` addon binds two independent keys — `'>'`
+  (`whenOpening`, inserting `</p>` when you finish typing `<p>`) and `'/'` (`whenClosing`,
+  completing a closing tag once you have typed its `</`) — and `autoCloseTagsOption()` maps
+  `State.autoCloseTags` onto `true` / `{whenOpening: false}` / `false`. The middle one is the mode
+  for editing existing markup: nothing appears unbidden, but a closing tag you have started is
+  finished for you. `AUTO_CLOSE_TAGS_CHOICES` must stay in step with PHP's `AVAILABLE`. The
+  preference is read where the instance is built and **never applied live** — the source editor is
+  a `showModal()` overlay, so Settings cannot be reached while one is open; `applyAutoCloseTagsChange()`
+  deliberately has no live-update branch (`setOption('autoCloseTags', …)` *would* work — the option
+  handler adds/removes the keymap — there is simply no way to reach it).
+  ⚠️ **`addon/fold/xml-fold` is vendored for `closetag`, not for folding** (we ship no fold
+  addon), and must load **before** it. `closingTagExists()` is guarded by
+  `if (!CodeMirror.scanForClosingTag) return false;`, which xml-fold is the only provider of — so
+  without it the check silently degrades to "no closing tag exists" and the addon inserts one even
+  when a matching tag already follows, exactly the case gh-52 complains about. It is a silent
+  quality regression, not an error: nothing throws, the auto-close is just dumber than upstream's.
   The toolbar also carries a **"Styles" drop-down** (`styleselect`, a custom `addMenuButton`
   registered in `setup`) that applies a CSS class to the selection the way Joomla's editor does.
   Its class list is `editorStyleClasses()` — class names `parseEditorCssClasses()` discovers in the

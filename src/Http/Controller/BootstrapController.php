@@ -18,6 +18,7 @@ use Grafida\Ai\Defaults;
 use Grafida\Debug\RequestLog;
 use Grafida\Debug\RequestLogService;
 use Grafida\Display\DisplayModeService;
+use Grafida\Editor\AutoCloseTagsService;
 use Grafida\Editor\SlashToolsService;
 use Grafida\Editor\SpellCheckService;
 use Grafida\Field\FieldSupport;
@@ -43,6 +44,7 @@ final class BootstrapController extends Controller
         private readonly DisplayModeService $displayMode,
         private readonly SlashToolsService $slashTools,
         private readonly SpellCheckService $spellCheck,
+        private readonly AutoCloseTagsService $autoCloseTags,
         private readonly Defaults $aiDefaults,
         private readonly AiServiceManager $aiServices,
         private readonly AiToolRepository $aiTools,
@@ -81,6 +83,7 @@ final class BootstrapController extends Controller
             'systemPrefersDark'   => $this->displayMode->systemPrefersDark(),
             'slashTools'          => $this->slashTools->current(),
             'spellCheck'          => $this->spellCheck->current(),
+            'autoCloseTags'       => $this->autoCloseTags->current(),
             'requestLog'          => $this->requestLogService->current(),
             'metadataResetOnStart' => $this->metadataCache->resetOnStart(),
             'metadataCacheTtl'     => $this->metadataCache->ttlMinutes(),

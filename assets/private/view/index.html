@@ -283,6 +283,14 @@
                 </div>
             </div>
             <div class="card settings-card">
+                <p class="card-title" data-i18n="GRAFIDA_LBL_AUTO_CLOSE_TAGS">Close HTML tags for me</p>
+                <p class="text-muted" data-i18n="GRAFIDA_MSG_AUTO_CLOSE_TAGS_INFO"></p>
+                <div class="form-group">
+                    <label for="settings-auto-close-tags-select" data-i18n="GRAFIDA_LBL_AUTO_CLOSE_TAGS">Close HTML tags for me</label>
+                    <select id="settings-auto-close-tags-select" class="form-control"></select>
+                </div>
+            </div>
+            <div class="card settings-card">
                 <p class="card-title" data-i18n="GRAFIDA_LBL_METADATA_CACHE">Site metadata</p>
                 <p class="text-muted" data-i18n="GRAFIDA_MSG_METADATA_CACHE_INFO"></p>
                 <div class="form-group">
@@ -368,6 +376,8 @@
 <script src="/js/codemirror/mode/css/css.min.js"></script>
 <script src="/js/codemirror/mode/htmlmixed/htmlmixed.min.js"></script>
 <script src="/js/codemirror/addon/edit/matchbrackets.min.js"></script>
+<!-- xml-fold before closetag: it is what lets auto-closing notice an existing closing tag (gh-52). -->
+<script src="/js/codemirror/addon/fold/xml-fold.min.js"></script>
 <script src="/js/codemirror/addon/edit/closetag.min.js"></script>
 <script src="/js/codemirror/addon/dialog/dialog.min.js"></script>
 <script src="/js/codemirror/addon/search/searchcursor.min.js"></script>

@@ -190,6 +190,11 @@
             },
             {
                 "type": "file",
+                "from": "node_modules/codemirror/addon/fold/xml-fold.js",
+                "to": "assets/private/js/codemirror/addon/fold/xml-fold.js"
+            },
+            {
+                "type": "file",
                 "from": "node_modules/codemirror/addon/dialog/dialog.js",
                 "to": "assets/private/js/codemirror/addon/dialog/dialog.js"
             },
@@ -228,6 +233,7 @@
                 "assets/private/js/codemirror/mode/htmlmixed/htmlmixed.js",
                 "assets/private/js/codemirror/addon/edit/matchbrackets.js",
                 "assets/private/js/codemirror/addon/edit/closetag.js",
+                "assets/private/js/codemirror/addon/fold/xml-fold.js",
                 "assets/private/js/codemirror/addon/dialog/dialog.js",
                 "assets/private/js/codemirror/addon/search/searchcursor.js",
                 "assets/private/js/codemirror/addon/search/search.js",

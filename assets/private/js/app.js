@@ -38,6 +38,9 @@ const State = {
     // Whether the editor's native spell checking is on (gh-24). Drives the editing
     // body's `spellcheck` attribute — the authoritative per-element gate.
     spellCheck: true,
+    // How the source-code editor closes HTML tags: 'full' (both halves),
+    // 'closing' (only the "type </ and it completes" half) or 'off' (gh-52).
+    autoCloseTags: 'full',
     // Whether the Debug "Request Log" is recording site-facing HTTP calls (gh-37).
     // Unlike slashTools/spellCheck this defaults OFF — it is an opt-in diagnostic
     // aid with a memory cost, not something every user wants running.
@@ -738,6 +741,7 @@ const api = {
     systemTheme: () => apiFetch('GET', '/api/settings/system-theme'),
     setSlashTools: (enabled) => apiFetch('POST', '/api/settings/slash-tools', { enabled }),
     setSpellCheck: (enabled) => apiFetch('POST', '/api/settings/spell-check', { enabled }),
+    setAutoCloseTags: (mode) => apiFetch('POST', '/api/settings/auto-close-tags', { mode }),
     setLastSite: (siteId) => apiFetch('POST', '/api/settings/last-site', { siteId }),
     checkUpdate: () => apiFetch('GET', '/api/update'),
     getStorageInfo: () => apiFetch('GET', '/api/settings/storage'),
@@ -4527,6 +4531,25 @@ function makeCodeSearchPersistent(host, cm) {
 }
 
 /**
+ * Translates the stored tag auto-closing preference into CodeMirror's
+ * `autoCloseTags` option (gh-52).
+ *
+ * The `closetag` addon has two independent halves, bound to two separate keys:
+ * `whenOpening` inserts the closing tag when you type the `>` of an opening one,
+ * `whenClosing` completes a closing tag once you have typed its `</`. Passing
+ * `true` turns on both; the object form lets us keep only the second, which is
+ * what someone editing existing markup wants — nothing appears unbidden, but a
+ * closing tag they have started is still finished for them.
+ */
+function autoCloseTagsOption() {
+    switch (State.autoCloseTags || 'full') {
+        case 'off':     return false;
+        case 'closing': return { whenOpening: false };
+        default:        return true;
+    }
+}
+
+/**
  * Open the article HTML in a CodeMirror source-code editor (a modal), replacing
  * TinyMCE's stock "code" plugin so raw HTML gets syntax highlighting, line
  * numbers, bracket/tag matching and search/replace. On Save the edited source
@@ -4557,7 +4580,7 @@ function openSourceCodeEditor(editor) {
         theme: State.resolvedTheme === 'dark' ? 'material-darker' : 'default',
         lineNumbers: true,
         lineWrapping: true,
-        autoCloseTags: true,
+        autoCloseTags: autoCloseTagsOption(),
         matchBrackets: true,
         indentUnit: 2,
         tabSize: 2,
@@ -6360,6 +6383,7 @@ function renderSettingsScreen() {
     renderDisplayModeSetting();
     renderSlashToolsSetting();
     renderSpellCheckSetting();
+    renderAutoCloseTagsSetting();
     renderRequestLogSetting();
     renderMetadataTtlSetting();
     renderMetadataResetSetting();
@@ -6415,6 +6439,37 @@ function renderSpellCheckSetting() {
         opt.value = value;
         opt.textContent = t(key);
         if ((State.spellCheck !== false) === (value === '1')) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
+
+/**
+ * The source editor's tag auto-closing choices, paired with their language keys.
+ * ⚠️ Must stay in step with `AutoCloseTagsService::AVAILABLE` in PHP, which
+ * validates the stored value and silently snaps an unknown one back to 'full'.
+ */
+const AUTO_CLOSE_TAGS_CHOICES = [
+    ['full', 'GRAFIDA_OPT_AUTO_CLOSE_TAGS_FULL'],
+    ['closing', 'GRAFIDA_OPT_AUTO_CLOSE_TAGS_CLOSING'],
+    ['off', 'GRAFIDA_OPT_AUTO_CLOSE_TAGS_OFF'],
+];
+
+/**
+ * Populates the tag auto-closing selector, reflecting the stored preference.
+ * Three choices rather than on/off because the addon's two halves are useful
+ * separately, and an "off" that still completed a closing tag would be a lie
+ * (gh-52) — see AutoCloseTagsService.
+ */
+function renderAutoCloseTagsSetting() {
+    const sel = document.getElementById('settings-auto-close-tags-select');
+    if (!sel) return;
+    clearNode(sel);
+
+    AUTO_CLOSE_TAGS_CHOICES.forEach(([value, key]) => {
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = t(key);
+        if ((State.autoCloseTags || 'full') === value) opt.selected = true;
         sel.appendChild(opt);
     });
 }
@@ -7780,6 +7835,28 @@ async function applySpellCheckChange(enabled) {
 }
 
 /**
+ * Persists the source editor's tag auto-closing preference. Nothing needs
+ * applying live — the source editor is a modal, so Settings cannot be reached
+ * while one is open, and `openSourceCodeEditor()` reads the preference every
+ * time it builds an instance.
+ *
+ * Re-renders the selector unconditionally: on failure to snap it back to the
+ * stored value, on success because PHP validates the mode and may hand back a
+ * different one than we sent.
+ */
+async function applyAutoCloseTagsChange(mode) {
+    try {
+        const result = await api.setAutoCloseTags(mode);
+        State.autoCloseTags = result.autoCloseTags || 'full';
+        showToast(t('GRAFIDA_MSG_SAVED'), 'success');
+    } catch (err) {
+        showToast(err.message, 'error');
+    } finally {
+        renderAutoCloseTagsSetting();
+    }
+}
+
+/**
  * Persists the Request Log (Debug) preference. The sidebar item appears/
  * disappears immediately (renderSidebarNav()); turning it off also empties
  * the buffer server-side (SettingsController::setRequestLog()) and, if the
@@ -7887,6 +7964,7 @@ async function bootstrap() {
             : null;
         State.slashTools = data.slashTools !== false;
         State.spellCheck = data.spellCheck !== false;
+        State.autoCloseTags = data.autoCloseTags || 'full';
         // Inverted default vs. the two flags above: Request Log defaults OFF.
         State.requestLog = data.requestLog === true;
         // Inverted default, like requestLog: the startup reset is opt-in (gh-42).
@@ -8199,6 +8277,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const slashToolsSel = document.getElementById('settings-slash-tools-select');
     if (slashToolsSel) {
         slashToolsSel.addEventListener('change', () => applySlashToolsChange(slashToolsSel.value === '1'));
+    }
+
+    const autoCloseTagsSel = document.getElementById('settings-auto-close-tags-select');
+    if (autoCloseTagsSel) {
+        autoCloseTagsSel.addEventListener('change', () => applyAutoCloseTagsChange(autoCloseTagsSel.value));
     }
 
     const spellCheckSel = document.getElementById('settings-spell-check-select');

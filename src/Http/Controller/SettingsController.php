@@ -17,6 +17,7 @@ use Grafida\Debug\RequestLog;
 use Grafida\Debug\RequestLogService;
 use Grafida\Debug\RequestRecord;
 use Grafida\Display\DisplayModeService;
+use Grafida\Editor\AutoCloseTagsService;
 use Grafida\Editor\SlashToolsService;
 use Grafida\Editor\SpellCheckService;
 use Grafida\Http\Json;
@@ -46,6 +47,7 @@ final class SettingsController extends Controller
         private readonly DisplayModeService $displayMode,
         private readonly SlashToolsService $slashTools,
         private readonly SpellCheckService $spellCheck,
+        private readonly AutoCloseTagsService $autoCloseTags,
         private readonly LastSiteService $lastSite,
         private readonly UrlOpener $urlOpener,
         private readonly UpdateService $updates,
@@ -64,6 +66,7 @@ final class SettingsController extends Controller
         $router->add('GET', '/api/settings/system-theme', fn (RouteContext $ctx): ResponseInterface => $this->systemTheme());
         $router->add('POST', '/api/settings/slash-tools', fn (RouteContext $ctx): ResponseInterface => $this->setSlashTools($ctx->body()));
         $router->add('POST', '/api/settings/spell-check', fn (RouteContext $ctx): ResponseInterface => $this->setSpellCheck($ctx->body()));
+        $router->add('POST', '/api/settings/auto-close-tags', fn (RouteContext $ctx): ResponseInterface => $this->setAutoCloseTags($ctx->body()));
         $router->add('POST', '/api/settings/last-site', fn (RouteContext $ctx): ResponseInterface => $this->setLastSite($ctx->body()));
         $router->add('POST', '/api/settings/request-log', fn (RouteContext $ctx): ResponseInterface => $this->setRequestLog($ctx->body()));
         $router->add('POST', '/api/settings/metadata-cache', fn (RouteContext $ctx): ResponseInterface => $this->setMetadataCache($ctx->body()));
@@ -209,6 +212,14 @@ final class SettingsController extends Controller
         $enabled = $this->spellCheck->set($this->bool($body, 'enabled', true));
 
         return Json::ok(['spellCheck' => $enabled]);
+    }
+
+    /** @param array<string, mixed> $body */
+    public function setAutoCloseTags(array $body): ResponseInterface
+    {
+        $mode = $this->autoCloseTags->set($this->str($body, 'mode', AutoCloseTagsService::FULL));
+
+        return Json::ok(['autoCloseTags' => $mode]);
     }
 
     /**

@@ -15,6 +15,7 @@ use Boson\Component\Http\Static\StaticProviderInterface;
 use Grafida\Application\Container;
 use Grafida\Application\Kernel;
 use Grafida\Display\DisplayModeService;
+use Grafida\Editor\AutoCloseTagsService;
 use Grafida\Editor\SlashToolsService;
 use Grafida\Editor\SpellCheckService;
 use Grafida\Field\FieldSupport;
@@ -62,6 +63,11 @@ final class AppProvider implements ServiceProviderInterface
         $container->share(
             SpellCheckService::class,
             static fn (Container $c): SpellCheckService => new SpellCheckService($c->get(SettingsRepository::class))
+        );
+
+        $container->share(
+            AutoCloseTagsService::class,
+            static fn (Container $c): AutoCloseTagsService => new AutoCloseTagsService($c->get(SettingsRepository::class))
         );
 
         $container->share(

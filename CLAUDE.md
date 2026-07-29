@@ -223,6 +223,17 @@ window-free in tests (a null dialog makes the endpoint return 503).
   open editor's body attribute so no re-init is needed). ⚠️ Turning it back **on** at runtime only
   marks text edited afterwards, not already-loaded content — an inherent WebKit quirk. See the
   spell-checking note under `assets/private/` (gh-24).
+- `src/Editor/AutoCloseTagsService.php` — persists how the **source-code editor** closes HTML tags
+  (`settings` key `auto_close_tags`, sent as `bootstrap`'s `autoCloseTags`, written via
+  `POST /api/settings/auto-close-tags`). Same shape as `SlashToolsService` (generic key/value store,
+  **no migration**), but the value is a **three-way choice**, not a boolean — `full` (default) /
+  `closing` / `off` — because CodeMirror's `closetag` addon has two independent halves and they are
+  genuinely useful separately (gh-52): `whenOpening` inserts `</p>` when you finish typing `<p>`,
+  `whenClosing` completes a closing tag once you have typed its `</`. An on/off toggle would have
+  had to make "off" mean "off, except the `</` completion", which no label can carry honestly.
+  The SPA maps the three onto `true` / `{whenOpening: false}` / `false` in `autoCloseTagsOption()`;
+  `AUTO_CLOSE_TAGS_CHOICES` in `app.js` must stay in step with `AutoCloseTagsService::AVAILABLE`,
+  which snaps an unknown value back to `full`.
 - `src/Markdown/`, `src/I18n/` — Markdown import; language service. `I18n\UiStrings::KEYS` is the
   canonical list of UI string keys shipped to the SPA (used by `BootstrapController` and
   `SettingsController`) — so a key the SPA never reads (`GRAFIDA_MSG_VERSION_NOTE`, resolved

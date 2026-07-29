@@ -24,6 +24,7 @@ use Grafida\Article\DraftRepository;
 use Grafida\Debug\RequestLog;
 use Grafida\Debug\RequestLogService;
 use Grafida\Display\DisplayModeService;
+use Grafida\Editor\AutoCloseTagsService;
 use Grafida\Editor\SlashToolsService;
 use Grafida\Editor\SpellCheckService;
 use Grafida\Field\FieldSupport;
@@ -77,6 +78,7 @@ final class ControllerProvider implements ServiceProviderInterface
                 displayMode: $c->get(DisplayModeService::class),
                 slashTools: $c->get(SlashToolsService::class),
                 spellCheck: $c->get(SpellCheckService::class),
+                autoCloseTags: $c->get(AutoCloseTagsService::class),
                 aiDefaults: $c->get(Defaults::class),
                 aiServices: $c->get(AiServiceManager::class),
                 aiTools: $c->get(AiToolRepository::class),
@@ -153,6 +155,7 @@ final class ControllerProvider implements ServiceProviderInterface
                 displayMode: $c->get(DisplayModeService::class),
                 slashTools: $c->get(SlashToolsService::class),
                 spellCheck: $c->get(SpellCheckService::class),
+                autoCloseTags: $c->get(AutoCloseTagsService::class),
                 lastSite: $c->get(LastSiteService::class),
                 urlOpener: $c->get(UrlOpener::class),
                 updates: $c->get(UpdateService::class),

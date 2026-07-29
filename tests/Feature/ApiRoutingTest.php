@@ -188,6 +188,41 @@ final class ApiRoutingTest extends TestCase
         self::assertTrue($boot['data']['slashTools']);
     }
 
+    public function testAutoCloseTagsDefaultsToFull(): void
+    {
+        [, $boot] = $this->call($this->kernel(), 'GET', '/api/bootstrap');
+
+        self::assertSame('full', $boot['data']['autoCloseTags']);
+    }
+
+    public function testAutoCloseTagsPersists(): void
+    {
+        $kernel = $this->kernel();
+
+        [$status, $json] = $this->call($kernel, 'POST', '/api/settings/auto-close-tags', json_encode(['mode' => 'closing']));
+
+        self::assertSame(200, $status);
+        self::assertSame('closing', $json['data']['autoCloseTags']);
+
+        [, $boot] = $this->call($kernel, 'GET', '/api/bootstrap');
+        self::assertSame('closing', $boot['data']['autoCloseTags']);
+
+        [, $json] = $this->call($kernel, 'POST', '/api/settings/auto-close-tags', json_encode(['mode' => 'off']));
+        self::assertSame('off', $json['data']['autoCloseTags']);
+    }
+
+    /** An unknown mode must snap back to the default rather than be stored as-is. */
+    public function testAutoCloseTagsRejectsUnknownMode(): void
+    {
+        $kernel = $this->kernel();
+
+        [, $json] = $this->call($kernel, 'POST', '/api/settings/auto-close-tags', json_encode(['mode' => 'sometimes']));
+        self::assertSame('full', $json['data']['autoCloseTags']);
+
+        [, $boot] = $this->call($kernel, 'GET', '/api/bootstrap');
+        self::assertSame('full', $boot['data']['autoCloseTags']);
+    }
+
     public function testSpellCheckDefaultsToEnabled(): void
     {
         [, $boot] = $this->call($this->kernel(), 'GET', '/api/bootstrap');
