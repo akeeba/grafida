@@ -27,8 +27,16 @@
                     "title": "Requirements"
                 },
                 {
+                    "slug": "Why-it-exists",
+                    "title": "Why does it exist?"
+                },
+                {
                     "slug": "Community-and-help",
                     "title": "Community and help"
+                },
+                {
+                    "slug": "Legal-notices",
+                    "title": "Legal notices"
                 }
             ]
         },
@@ -42,15 +50,78 @@
             ]
         },
         {
+            "title": "Reference",
+            "children": [
+                {
+                    "slug": "Navigation",
+                    "title": "Navigation"
+                },
+                {
+                    "slug": "Sites",
+                    "title": "Sites",
+                    "children": [
+                        {
+                            "slug": "Connection-Troubleshooting",
+                            "title": "Connection Troubleshooting"
+                        }
+                    ]
+                },
+                {
+                    "slug": "Articles",
+                    "title": "Articles",
+                    "children": [
+                        {
+                            "slug": "Editing-Articles",
+                            "title": "Editing Articles"
+                        }
+                    ]
+                },
+                {
+                    "slug": "Media-Manager",
+                    "title": "Media Manager"
+                },
+                {
+                    "slug": "Settings",
+                    "title": "Settings"
+                },
+                {
+                    "slug": "Request-Log",
+                    "title": "Request Log"
+                },
+                {
+                    "slug": "AI",
+                    "title": "AI",
+                    "children": [
+                        {
+                            "slug": "AI-Overview",
+                            "title": "Overview"
+                        },
+                        {
+                            "slug": "AI-Services",
+                            "title": "Services"
+                        },
+                        {
+                            "slug": "AI-Tools",
+                            "title": "Tools"
+                        },
+                        {
+                            "slug": "AI-Chat",
+                            "title": "Chat"
+                        }
+                    ]
+                },
+                {
+                    "slug": "Request-Log",
+                    "title": "Request Log"
+                }
+            ]
+        },
+        {
             "title": "Appendices",
             "children": [
                 {
                     "slug": "Custom-API-Access",
                     "title": "Custom API access"
-                },
-                {
-                    "slug": "Legal-notices",
-                    "title": "Legal notices"
                 },
                 {
                     "slug": "GPL",

@@ -139,8 +139,19 @@ Any element anywhere in the SPA carrying **`data-help-page="Some-Slug"`** opens 
 that page — a document-level delegation in `initHelpLinks()`, excluding `#help-page` itself so a
 link inside a rendered page is not handled twice. A contextual help button is therefore **pure
 markup** in `view/index.html`: it localises its tooltip through `applyStrings()`'s existing
-`data-i18n-title` pass and needs no JavaScript of its own. Add buttons as pages appear; do not add
-one pointing at a page that does not exist yet.
+`data-i18n-title` pass and needs no JavaScript of its own.
+
+Every screen reachable from the sidebar carries one, pointing at that screen's own **Reference**
+page: Sites, Articles, Media Manager, Settings and Request Log. The Help screen itself does not —
+`Help.md` documents it, but that page is already visible in the screen's own table of contents, so a
+button there would be pure noise. A new screen gets a button *and* a Reference page; never a button
+pointing at a page that does not exist yet.
+
+⚠️ **Write the button as a SIBLING of the screen's action container, never inside it.**
+`#media-header-actions`, `#requestlog-actions` and `#help-actions` are all cleared and rebuilt by
+their render functions (`renderMediaHeaderActions()`, `renderRequestLogScreen()`,
+`renderHelpActions()`), which would destroy a static button placed within them — silently, and only
+from the second render onwards.
 
 ## Publishing to the wiki (`scripts/sync-wiki.sh`)
 

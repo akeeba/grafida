@@ -90,11 +90,11 @@ Joomla! is an excellent Content _Management_ System. However, its plethora of co
 
 Inexperienced users find the tiny content area surrounded by a swarm of inscrutable options utterly bewildering. Experienced users find the tiny content area unusable, having to use external tools for authoring, resulting in excessive copying and pasting. Nobody's happy – which is why we see the overuse (and abuse) of page builders on sites that can't have possibly benefited from using one. They put content first.
 
-You know what else puts content first? Desktop content authoring applications made for WordPress. Remember Windows Live Writer? MarsEdit? What if we could bring that to Joomla? After all, modern Joomla has a rich API which should allow make that possible. 
+You know what else puts content first? Desktop content authoring applications made for WordPress. Remember Windows Live Writer? MarsEdit? What if we could bring that to Joomla? After all, modern Joomla has a rich API which should allow making that possible. 
 
 ### Focused content authoring
 
-The driving force behind Grafida is making _content authoring_ simple, but powerful. A title. A big content area. Sit down and work on your words. You need some AI assistance to elucidate your point? Configure it once, and it's right there when you need it. It's like a word processor, but it “speaks” the native data type of your CMS. When you're done, you hit Publish. Spotted a problem? Fix it, hit Publish again. No fuss, no mess, no copy-pasting shenanigans, no stress.
+The driving force behind Grafida is making _content authoring_ simple but powerful. A title. A big content area. Sit down and work on your words. You need some AI assistance to elucidate your point? Configure it once, and it's right there when you need it. It's like a word processor, but it “speaks” the native data type of your CMS. When you're done, you hit Publish. Spotted a problem? Fix it, hit Publish again. No fuss, no mess, no copy-pasting shenanigans, no stress.
 
 You need to _manage_ your content? Log into your site with your browser. Manage your content with the plethora of options Joomla and its extensions give you. Tell Joomla how to show the article page. Who can edit it. Add OpenGraph images. Work your SEO magic. You don't really need to touch the content for most, if not all, of that anyway.
 

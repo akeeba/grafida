@@ -104,10 +104,18 @@
                     <!--
                         Contextual help. Any element carrying data-help-page opens the
                         Help screen on that page — see initHelpLinks() in app.js; there
-                        is deliberately no JS to write per button.
+                        is deliberately no JS to write per button. Every screen reachable
+                        from the sidebar carries one, pointing at that screen's own
+                        Reference page.
+
+                        Each of these is written as a SIBLING of the screen's action
+                        container rather than inside it: those containers are cleared and
+                        rebuilt by their render functions (renderMediaHeaderActions(),
+                        renderRequestLogScreen(), …), which would destroy a static button
+                        placed within them.
                     -->
                     <button type="button" class="btn btn-secondary btn-icon-only"
-                            data-help-page="Custom-API-Access" data-i18n-title="GRAFIDA_BTN_HELP">
+                            data-help-page="Sites" data-i18n-title="GRAFIDA_BTN_HELP">
                         <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
                     </button>
                     <button id="btn-add-site" class="btn btn-primary">
@@ -124,6 +132,10 @@
             <div class="screen-header">
                 <h2 data-i18n="GRAFIDA_NAV_ARTICLES">Articles</h2>
                 <div id="articles-toolbar">
+                    <button type="button" class="btn btn-secondary btn-icon-only"
+                            data-help-page="Articles" data-i18n-title="GRAFIDA_BTN_HELP">
+                        <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
+                    </button>
                     <button id="btn-import-draft" class="btn btn-secondary" disabled>
                         <i class="fa-solid fa-file-import" aria-hidden="true"></i>
                         <span data-i18n="GRAFIDA_BTN_IMPORT_DRAFT">Import from file…</span>
@@ -141,7 +153,13 @@
         <section id="media-screen" class="screen" role="main">
             <div class="screen-header">
                 <h2 data-i18n="GRAFIDA_NAV_MEDIA">Media Manager</h2>
-                <div id="media-header-actions" class="btn-group"></div>
+                <div class="screen-actions">
+                    <button type="button" class="btn btn-secondary btn-icon-only"
+                            data-help-page="Media-Manager" data-i18n-title="GRAFIDA_BTN_HELP">
+                        <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
+                    </button>
+                    <div id="media-header-actions" class="btn-group"></div>
+                </div>
             </div>
             <div id="media-container"></div>
         </section>
@@ -266,6 +284,12 @@
         <section id="settings-screen" class="screen" role="main">
             <div class="screen-header">
                 <h2 data-i18n="GRAFIDA_LBL_SETTINGS">Settings</h2>
+                <div class="screen-actions">
+                    <button type="button" class="btn btn-secondary btn-icon-only"
+                            data-help-page="Settings" data-i18n-title="GRAFIDA_BTN_HELP">
+                        <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
+                    </button>
+                </div>
             </div>
             <div class="card settings-card">
                 <p class="card-title" data-i18n="GRAFIDA_LBL_UI_LANGUAGE">Interface Language</p>
@@ -400,7 +424,13 @@
         <section id="requestlog-screen" class="screen" role="main">
             <div class="screen-header">
                 <h2 data-i18n="GRAFIDA_NAV_REQUEST_LOG">Request Log</h2>
-                <div class="screen-actions" id="requestlog-actions"></div>
+                <div class="screen-actions">
+                    <button type="button" class="btn btn-secondary btn-icon-only"
+                            data-help-page="Request-Log" data-i18n-title="GRAFIDA_BTN_HELP">
+                        <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
+                    </button>
+                    <div class="screen-actions" id="requestlog-actions"></div>
+                </div>
             </div>
             <p class="text-muted" data-i18n="GRAFIDA_MSG_REQUEST_LOG_DESC"></p>
             <div id="requestlog-list"></div>
