@@ -47,6 +47,7 @@
     "build": {
         "directories": [
             "assets/private",
+            "docs",
             "language",
             "storage/migrations",
             "src/Ai/resources"

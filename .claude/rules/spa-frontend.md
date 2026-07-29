@@ -362,6 +362,34 @@ ship inside the app.
   changed, so the two selectors' independent `change` events never clobber each other; the response
   carries the **effective**, clamped values, which the SPA writes back so a server-side clamp is
   visible rather than silently reverted on the next render).
+  **The Help screen** (`#help-screen`, `loadHelpScreen()` / `renderHelpToc()` / `openHelpPage()`)
+  shows the documentation bundled in `docs/` — the same Markdown files that are published as the
+  project's GitHub wiki. Two panes, each scrolling independently: the table of contents (a
+  recursively rendered tree from `docs/_manifest.json`, with a filter box that keeps a node whenever
+  any *descendant* matches, or the only route to a matching page would be hidden) and the rendered
+  page. `#help-screen` sets `overflow: hidden` so the screen itself never grows a second scrollbar
+  around the one that matters. `State.helpContents` is fetched once per session (it cannot change
+  without a new build) and `State.helpSlug` remembers the open page, so leaving and re-entering the
+  screen comes back to where you were. ⚠️ Three things:
+  - **`openHelpPage()` writes the rendered Markdown with `innerHTML`** — the only whole-document
+    `innerHTML` in the app. Safe *because of where it comes from*: `docs/` ships inside the binary,
+    is never user input, and PHP has already applied GitHub's own escaping (`DisallowedRawHtml`).
+    Never point it at anything fetched from a site.
+  - ⚠️ **No link inside a rendered page may be followed normally**, for the same reason the TinyMCE
+    Help dialog ships no link-only tabs (gh-21): the webview opens no new window, and a same-window
+    navigation would replace the SPA with no way back. `initHelpLinks()` routes `data-help-external`
+    anchors through `api.openUrl()`, `data-help-page` anchors through `openHelpPage()`, lets a bare
+    `#fragment` through to the browser, and **swallows everything else** — the catch-all
+    `preventDefault()` is what stops an unclassified link (a `mailto:`, or whatever a future change
+    fails to tag) from navigating the webview away.
+  - **Contextual help is pure markup.** Any element anywhere in the app carrying
+    `data-help-page="Some-Slug"` opens the Help screen on that page, via a document-level delegation
+    in `initHelpLinks()` that excludes `#help-page` itself (so a link inside a rendered page is not
+    handled twice). A contextual help button therefore needs no JavaScript of its own and localises
+    its tooltip through `applyStrings()`'s existing `data-i18n-title` pass.
+  The documentation is **English only** — one source shared with a wiki that has a flat page
+  namespace — so `applyStrings()` re-renders only the screen's chrome, never the page or its titles.
+  The rest is in `.claude/rules/documentation.md`.
   **Collapsible/resizable layout** (`initLayoutControls()` in `app.js`): the left **`#sidebar`**
   and the editor metadata **`#editor-sidebar`** ("Article properties") each carry an `.icon-toggle`
   button (`#sidebar-toggle` / `#editor-sidebar-toggle`) that toggles a `.collapsed` class — the left

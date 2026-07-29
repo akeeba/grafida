@@ -38,7 +38,7 @@ As per the information in the article linked above, the only way you can use thi
 
 - A Joomla **5.4 or later** site with the Web Services API enabled and an API token for an account
   authorised for API access. Super Users work by default. Non-Super-User accounts can be configured
-  for Grafida; see [Custom API access](docs/Custom%20API%20access.md).
+  for Grafida; see [Custom API access](https://github.com/akeeba/grafida/wiki/Custom-API-Access).
 - To run a pre-built release: **macOS 14+**, **Windows 10+**, or **Linux** with GTK4 and
   WebKitGTK 6.0 (`libgtk-4-1`, `libwebkitgtk-6.0-4`).
 
@@ -52,6 +52,17 @@ As per the information in the article linked above, the only way you can use thi
    where the introtext should end.
 5. Click **Publish** to send the article to your site, or just keep editing — drafts are saved
    locally and automatically.
+
+## Documentation
+
+The documentation lives in [`docs/`](docs/) and is published in two places, from that one source:
+
+- **Inside the application** — the **Help** item in the sidebar. It ships with the binary, so it
+  works offline and with no site configured.
+- **On the web** — the [GitHub wiki](https://github.com/akeeba/grafida/wiki).
+
+The wiki is generated; please open a pull request against `docs/` rather than editing wiki pages,
+or your changes will be overwritten by the next release.
 
 ### Code signing
 

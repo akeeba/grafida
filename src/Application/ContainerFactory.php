@@ -41,6 +41,7 @@ final class ContainerFactory
             'db.path'        => Paths::databaseFile(),
             'migrations.dir' => Resources::migrationsDir(),
             'base.path'      => Resources::base(),
+            'docs.dir'       => Resources::docsDir(),
             'dialog'         => null,
             'secret.store'   => null,
         ];

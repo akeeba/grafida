@@ -248,10 +248,18 @@ The version comes from the CHANGELOG's top entry; `-Dversion=X.Y.Z` overrides it
    already names the version leaves nothing to commit and this step is skipped.
 6. **Tag:** `git tag X.Y.Z -sm "Tagging X.Y.Z"` (signed), then `git push origin X.Y.Z`.
 7. **Publish:** `phing release -Dversion=X.Y.Z` — repackages all platforms, creates and publishes a
-   GitHub release with the six assets, generates `grafida.json` and uploads it over FTPS to the
-   BunnyCDN `updates/` directory.
+   GitHub release with the six assets, generates `grafida.json`, uploads it over FTPS to the
+   BunnyCDN `updates/` directory, and finally pushes `docs/` to the GitHub wiki.
 8. **Verify:** `curl https://cdn.akeeba.com/updates/grafida.json` reports the new version, and
    `gh release view X.Y.Z --repo akeeba/grafida` shows `draft=false` with all six assets.
+
+The wiki step is **last on purpose**: it is the only step writing to a repository other than the
+release itself, and a wiki that lags the release by a minute is a far smaller problem than a
+release that never got published because a wiki clone failed. It is also a standalone target —
+`phing wiki` / `composer docs:wiki` — so a documentation fix does not have to wait for a version
+bump. See `.claude/rules/documentation.md`; the one thing to know from here is that the wiki is a
+**separate git repository** (`akeeba/grafida.wiki.git`) which GitHub creates lazily, so the very
+first run needs one page saved through the web UI or the clone fails.
 
 ⚠️ **Non-fatal noise to expect:** the Windows `signtool verify` step prints `Timestamp Server
 Signature verification: failed` / `Signature verification: failed` when run on macOS. The Azure

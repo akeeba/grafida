@@ -60,7 +60,9 @@ window-free in tests (a null dialog makes the endpoint return 503).
   parameters are the app's only configuration seams — override them and you get a different
   app without touching a constructor:
   `db.path` (default `Paths::databaseFile()`; `':memory:'` in tests), `migrations.dir`,
-  `base.path`, `static.provider`, `dialog` (nullable), and `secret.store` — which is
+  `base.path`, `docs.dir` (default `Resources::docsDir()` — note it does **not** go through
+  `Resources::base()`, since the docs are read straight out of the phar rather than extracted),
+  `static.provider`, `dialog` (nullable), and `secret.store` — which is
   **tri-state**: `null` → `SecretStoreFactory::secureStore()` (production), `false` → no store
   (forces the insecure-plaintext fallback path), a `SecretStore` instance → used as-is.
   The `DatabaseInterface` factory **connects *and* migrates**, so every consumer receives a
@@ -234,6 +236,26 @@ window-free in tests (a null dialog makes the endpoint return 503).
   The SPA maps the three onto `true` / `{whenOpening: false}` / `false` in `autoCloseTagsOption()`;
   `AUTO_CLOSE_TAGS_CHOICES` in `app.js` must stay in step with `AutoCloseTagsService::AVAILABLE`,
   which snaps an unknown value back to `full`.
+- `src/Help/HelpService.php` — the **in-app documentation** (gh-55). `docs/` is a **single source
+  with two consumers**: the sidebar's **Help** screen and the project's **GitHub wiki**, which
+  `scripts/sync-wiki.sh` (`phing wiki` / `composer docs:wiki`, and step 4 of `phing release`)
+  publishes to. The wiki is the dumber consumer, so **it dictates the source format** — one flat
+  directory of `.md` files whose names are the wiki page names, **no YAML front matter** (a wiki
+  renders it as visible junk), and inter-page links written as bare relative page names. The table
+  of contents is `docs/_manifest.json`, a **tree** (`{slug?, title, children?}`, max depth 4; a
+  node with no `slug` is a heading). It is not a convenience: `glob()` does not work on `phar://`,
+  so a manifest-driven index is what lets `Resources::docsDir()` read the docs straight out of the
+  compiled binary with no extraction step. Endpoints `GET /api/help`, `/api/help/page/{key}`,
+  `/api/help/image/{file}`; none of them touches a site, the network or the database, so the Help
+  screen works with nothing configured at all.
+  ⚠️ **Detail is in `.claude/rules/documentation.md`**, which loads when you touch `docs/`,
+  `src/Help/` or `scripts/sync-wiki.sh`. Two rules worth carrying without it: **no link in a
+  documentation page may be followed normally** — Boson's webview opens no new window and a
+  same-window navigation would replace the SPA with no way back, so an external URL leaves through
+  `api.openUrl()` and anything unclassified has its click swallowed (`mailto:` is deliberately
+  *not* tagged external, because `UrlOpener` accepts http(s) only and would answer with an error
+  toast); and **the manifest nests but the files do not** — a wiki has a flat page namespace, so
+  the hierarchy lives in the manifest and never as subdirectories.
 - `src/Markdown/`, `src/I18n/` — Markdown import; language service. `I18n\UiStrings::KEYS` is the
   canonical list of UI string keys shipped to the SPA (used by `BootstrapController` and
   `SettingsController`) — so a key the SPA never reads (`GRAFIDA_MSG_VERSION_NOTE`, resolved
@@ -320,6 +342,8 @@ window-free in tests (a null dialog makes the endpoint return 503).
   (en-GB) sorts first, the rest by endonym. So every `.ini` MUST carry `GRAFIDA_LANGUAGE_ENDONYM`,
   and adding a translation needs no code change (the list is sent to the SPA as `bootstrap`'s
   `availableLanguages` tag => endonym map).
+- `docs/` — the user documentation, in Markdown. Shipped inside every binary (it is in
+  `boson.json`'s `build.directories`) **and** published as the GitHub wiki; see `src/Help/` above.
 - `storage/migrations/*.sql` — schema. `.plans/` — implementation step notes (gitignored).
 - `build/glossaries/` — per-language translation glossaries.
 - `build/icon/` — application icon. `grafida.svg` is the **single master** (clipart pencil
@@ -451,6 +475,7 @@ safety-critical prohibition resident, so those never depend on a rules file bein
 | `.claude/rules/drafts-and-articles.md` | `src/Article/**`, the draft/article controllers |
 | `.claude/rules/joomla-api-and-references.md` | `src/Reference/**`, `src/Joomla/**`, `src/Publish/**`, `src/Field/**`, `src/Site/**` |
 | `.claude/rules/internal-api.md` | `src/Http/**`, `src/Application/**`, `src/Debug/**` |
+| `.claude/rules/documentation.md` | `docs/**`, `src/Help/**`, `scripts/sync-wiki.sh` |
 | `.claude/rules/build-and-packaging.md` | `build/**`, `scripts/**`, `build.xml`, `boson.json`, `composer.json`, CHANGELOG, RELEASENOTES.md |
 
 ⚠️ A new rules file's `paths:` must actually cover the code it describes, or it will silently

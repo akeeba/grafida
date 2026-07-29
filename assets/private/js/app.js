@@ -52,6 +52,13 @@ const State = {
     // How long cached site metadata may be reused before a background refresh,
     // in minutes. 0 means never refresh automatically. Default 1 hour.
     metadataCacheTtl: 60,
+    // The bundled documentation's table of contents ({home, pages}), fetched on
+    // the first visit to the Help screen and kept for the session — it ships
+    // inside the binary and cannot change without a new build. `helpSlug` is the
+    // page currently shown, so leaving and re-entering the screen comes back to
+    // where you were.
+    helpContents: null,
+    helpSlug: null,
     secureStore: true,
     supportedFieldTypes: [],
     app: {},
@@ -748,6 +755,8 @@ const api = {
     openStorageFolder: () => apiFetch('POST', '/api/settings/storage/open'),
     resetStorage: () => apiFetch('POST', '/api/settings/storage/reset'),
     openUrl: (url) => apiFetch('POST', '/api/open-url', { url }),
+    getHelpContents: () => apiFetch('GET', '/api/help'),
+    getHelpPage: (slug) => apiFetch('GET', `/api/help/page/${encodeURIComponent(slug)}`),
     setRequestLog: (enabled) => apiFetch('POST', '/api/settings/request-log', { enabled }),
     setMetadataCache: (payload) => apiFetch('POST', '/api/settings/metadata-cache', payload),
     getRequestLog: () => apiFetch('GET', '/api/request-log'),
@@ -6638,6 +6647,15 @@ function applyStrings() {
     renderSidebarFooter();
     renderUpdateNotice();
     renderThemeSwitch();
+    // The documentation itself is English-only (one source shared with the wiki,
+    // which has nowhere to put a translated set), so a language switch leaves the
+    // page and its table of contents alone — but the chrome around them is
+    // rebuilt in JS and would otherwise keep the old language until the screen
+    // was re-entered.
+    if (State.helpContents) {
+        renderHelpToc();
+        renderHelpActions();
+    }
 }
 
 // ============================================================
@@ -6744,6 +6762,232 @@ async function exportRequestLogHandler() {
     } catch (err) {
         showToast(err.message, 'error');
     }
+}
+
+// ============================================================
+//  HELP SCREEN
+// ============================================================
+//
+// The documentation bundled in docs/ (see src/Help/HelpService.php), which is
+// also what gets published as the project's GitHub wiki. Everything here reads
+// files that shipped inside the binary — no site, no network, no database — so
+// the Help screen works with nothing configured at all, which is exactly when
+// someone is most likely to open it.
+//
+// The pages are English-only, deliberately: they are one source shared with the
+// wiki, whose flat page namespace has nowhere to put a translated set. So the
+// table of contents shows the manifest's own titles untranslated while the
+// chrome around it (the filter box, the buttons, the error states) follows the
+// interface language like everything else.
+
+/** GitHub wiki base for "read this page on the web". */
+const HELP_WIKI_URL = 'https://github.com/akeeba/grafida/wiki/';
+
+/**
+ * Opens the Help screen, optionally on a specific page. This is the entry point
+ * the contextual help buttons use (see helpBtn()), so it does the screen switch
+ * itself rather than leaving that to the caller.
+ */
+function openHelp(slug = null) {
+    showScreen('help');
+    loadHelpScreen(slug);
+}
+
+/**
+ * Loads the table of contents (once per session — it cannot change without a
+ * new build) and shows a page: the requested one, whatever was last open, or
+ * the manifest's home page.
+ */
+async function loadHelpScreen(slug = null) {
+    const tocList = document.getElementById('help-toc-list');
+    const pane = document.getElementById('help-page');
+    if (!tocList || !pane) return;
+
+    if (!State.helpContents) {
+        clearNode(pane);
+        try {
+            State.helpContents = await api.getHelpContents();
+        } catch (err) {
+            pane.appendChild(errorState(err, { onRetry: () => loadHelpScreen(slug) }));
+            return;
+        }
+    }
+
+    renderHelpToc();
+    openHelpPage(slug || State.helpSlug || State.helpContents.home);
+}
+
+/**
+ * Does this node, or anything below it, match the filter? A parent has to
+ * survive whenever a child does, or filtering would hide the only route to a
+ * matching page.
+ */
+function helpNodeMatches(node, needle) {
+    if (!needle) return true;
+    if (node.title.toLowerCase().includes(needle)) return true;
+    if (node.slug && node.slug.toLowerCase().includes(needle)) return true;
+    return (node.children || []).some(child => helpNodeMatches(child, needle));
+}
+
+/**
+ * Renders one level of the table of contents into `parent`, recursing into
+ * children. A node with a `slug` is a link; one without is a heading for the
+ * nodes below it — which is how a section can exist without inventing a landing
+ * page for it. Depth drives the indent, capped so a deep tree cannot push the
+ * labels out of a 250px column.
+ */
+function renderHelpTocNodes(parent, nodes, needle, depth) {
+    nodes.forEach(node => {
+        if (!helpNodeMatches(node, needle)) return;
+
+        const indent = { paddingLeft: `${10 + Math.min(depth, 3) * 12}px` };
+
+        if (node.slug) {
+            const link = el('a', 'help-toc-item', node.title);
+            link.href = '#';
+            link.dataset.slug = node.slug;
+            link.style.paddingLeft = indent.paddingLeft;
+            link.classList.toggle('active', node.slug === State.helpSlug);
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                openHelpPage(node.slug);
+            });
+            parent.appendChild(link);
+        } else {
+            const heading = el('div', 'help-toc-group', node.title);
+            heading.style.paddingLeft = indent.paddingLeft;
+            parent.appendChild(heading);
+        }
+
+        if (node.children && node.children.length) {
+            renderHelpTocNodes(parent, node.children, needle, depth + 1);
+        }
+    });
+}
+
+/** Rebuilds the table of contents from the manifest tree, honouring the filter box. */
+function renderHelpToc() {
+    const tocList = document.getElementById('help-toc-list');
+    if (!tocList || !State.helpContents) return;
+
+    const filterEl = document.getElementById('help-filter');
+    const needle = (filterEl ? filterEl.value : '').trim().toLowerCase();
+    const tree = State.helpContents.tree || [];
+
+    clearNode(tocList);
+    renderHelpTocNodes(tocList, tree, needle, 0);
+
+    if (!tocList.childNodes.length) {
+        tocList.appendChild(stateBlock('info', 'magnifying-glass', t('GRAFIDA_MSG_NO_HELP_MATCHES')));
+    }
+}
+
+/**
+ * Fetches one page and paints it.
+ *
+ * ⚠️ The rendered Markdown is written with innerHTML — the only place in the
+ * SPA that does so with a whole document. It is safe *because of where it comes
+ * from*: docs/ ships inside the binary and is never user input, and PHP renders
+ * it with the same DisallowedRawHtml extension GitHub applies, so <script> and
+ * friends arrive already escaped. Do not point this at anything fetched from a
+ * site.
+ */
+async function openHelpPage(slug) {
+    const pane = document.getElementById('help-page');
+    if (!pane) return;
+
+    State.helpSlug = slug;
+    renderHelpToc();
+    renderHelpActions();
+    clearNode(pane);
+
+    let page;
+    try {
+        page = await api.getHelpPage(slug);
+    } catch (err) {
+        pane.appendChild(errorState(err, { onRetry: () => openHelpPage(slug) }));
+        return;
+    }
+
+    pane.innerHTML = page.html;
+    pane.scrollTop = 0;
+}
+
+/** The Help screen's own toolbar: read the current page on the GitHub wiki. */
+function renderHelpActions() {
+    const actions = document.getElementById('help-actions');
+    if (!actions) return;
+    clearNode(actions);
+
+    if (!State.helpSlug) return;
+
+    const webBtn = iconBtn('up-right-from-square', t('GRAFIDA_BTN_HELP_ON_WEB'), 'btn', 'btn-secondary');
+    webBtn.addEventListener('click', () => {
+        api.openUrl(HELP_WIKI_URL + encodeURIComponent(State.helpSlug)).catch(err => showToast(err.message, 'error'));
+    });
+    actions.appendChild(webBtn);
+}
+
+/**
+ * One delegated click handler for every link inside a rendered page.
+ *
+ * ⚠️ **No link in a documentation page may be followed normally.** Boson's
+ * webview opens no new window, so a `target="_blank"` anchor does nothing at
+ * all, and a same-window navigation would replace the entire SPA with the
+ * remote page — with no way back, since there is no chrome and no history UI.
+ * Every external URL therefore leaves through `api.openUrl()`
+ * (`Support\UrlOpener`, which hands it to the OS browser), exactly as the
+ * About dialog's licence link and the sidebar's Visit site button do.
+ *
+ * PHP tags each anchor at render time (HelpService::rewriteReferences()) and
+ * this reads those tags. The final branch is the safety net: an anchor with
+ * neither tag and a non-fragment href — a `mailto:`, or anything a future
+ * change fails to classify — has its click swallowed rather than being allowed
+ * to navigate. A bare `#fragment` is the one thing let through, because
+ * scrolling the pane is precisely what the browser should do with it.
+ */
+function initHelpLinks() {
+    const pane = document.getElementById('help-page');
+    if (!pane) return;
+
+    pane.addEventListener('click', (e) => {
+        const link = e.target.closest('a');
+        if (!link || !pane.contains(link)) return;
+
+        if (link.dataset.helpExternal) {
+            e.preventDefault();
+            api.openUrl(link.getAttribute('href')).catch(err => showToast(err.message, 'error'));
+            return;
+        }
+
+        if (link.dataset.helpPage) {
+            e.preventDefault();
+            openHelpPage(link.dataset.helpPage);
+            return;
+        }
+
+        if (!(link.getAttribute('href') || '').startsWith('#')) {
+            e.preventDefault();
+        }
+    });
+
+    // Contextual help: anything anywhere else in the app carrying
+    // `data-help-page` opens the Help screen on that page. Making this a
+    // document-level delegation rather than a JS button factory means a
+    // contextual help button is pure markup — it localises its tooltip through
+    // applyStrings()'s existing data-i18n-title pass and needs no wiring of its
+    // own. The `#help-page` exclusion is what keeps a link inside a rendered
+    // page from being handled twice: the pane's own handler above already has
+    // it, and it must not also trigger a screen switch.
+    document.addEventListener('click', (e) => {
+        const trigger = e.target.closest('[data-help-page]');
+        if (!trigger || pane.contains(trigger)) return;
+        e.preventDefault();
+        openHelp(trigger.dataset.helpPage);
+    });
+
+    const filterEl = document.getElementById('help-filter');
+    if (filterEl) filterEl.addEventListener('input', renderHelpToc);
 }
 
 // ============================================================
@@ -8177,6 +8421,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (screen === 'articles') loadArticlesScreen();
             if (screen === 'media') loadMediaScreen();
             if (screen === 'settings') renderSettingsScreen();
+            if (screen === 'help') loadHelpScreen();
             if (screen === 'requestlog') renderRequestLogScreen();
         });
     });
@@ -8304,6 +8549,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnModalClose) btnModalClose.addEventListener('click', closeModal);
 
     initLayoutControls();
+    initHelpLinks();
 
     bootstrap();
 });

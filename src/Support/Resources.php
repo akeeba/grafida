@@ -54,6 +54,30 @@ final class Resources
     }
 
     /**
+     * Directory containing the bundled documentation (`docs/`), read by
+     * {@see \Grafida\Help\HelpService} for the in-app Help screen.
+     *
+     * Unlike the language files and the migrations this is deliberately **not**
+     * extracted through {@see self::sync()} and does not go through
+     * {@see self::base()}: nothing here needs a function that the phar stream
+     * wrapper cannot serve. The pages are read with `file_get_contents()`, which
+     * handles `phar://` perfectly well, and they are enumerated from
+     * `docs/_manifest.json` rather than with `glob()` — which is the one call
+     * that would have forced an extraction. Copying a few hundred KiB of
+     * Markdown into the data directory on every launch to gain nothing would be
+     * pure waste.
+     */
+    public static function docsDir(): string
+    {
+        $pharUrl = \Phar::running(true);
+
+        // Inside a phar the separator is always '/', never DIRECTORY_SEPARATOR.
+        return $pharUrl === ''
+            ? \dirname(__DIR__, 2) . \DIRECTORY_SEPARATOR . 'docs'
+            : $pharUrl . '/docs';
+    }
+
+    /**
      * Copies a directory tree from $source (which may be a phar:// URL) to the
      * real-filesystem $destination, overwriting files whose size differs. Small
      * and idempotent: it runs on every launch.

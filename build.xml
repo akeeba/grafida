@@ -454,6 +454,18 @@
 	<target name="all" depends="package"
 			description="Alias for 'package' — build and package every platform" />
 
+	<!--
+	Publishes docs/ to the GitHub wiki, which is a separate repository nothing else in this build
+	touches. Kept as its own target as well as a step of `release` so the wiki can be refreshed
+	between releases (a documentation fix should not wait for a version bump). Needs push access to
+	<repo>.wiki.git — the same SSH key as the main repository.
+	-->
+	<target name="wiki" description="Publish docs/ to the GitHub wiki">
+		<exec executable="bash" dir="${dirs.root}" passthru="true" checkreturn="true">
+			<arg value="scripts/sync-wiki.sh" />
+		</exec>
+	</target>
+
 	<target name="release" depends="all"
 			description="Build, publish a GitHub release with the artifacts, and push grafida.json to the CDN">
 		<!-- The version is the topmost CHANGELOG entry (same source the git-* targets stamp into the app). -->
@@ -499,6 +511,12 @@
 				<include name="grafida.json" />
 			</fileset>
 		</ftpsupload>
+
+		<!-- 4. Publish the documentation to the GitHub wiki. Last, and deliberately so: it is the
+		     only step that writes to a repository other than the release itself, and a wiki that
+		     lags the release by a minute is a far smaller problem than a release that never got
+		     published because the wiki clone failed. -->
+		<phing phingfile="${phing.file}" target="wiki" inheritAll="true" />
 
 		<echo>Release ${version} complete.</echo>
 	</target>

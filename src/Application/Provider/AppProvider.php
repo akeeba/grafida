@@ -20,6 +20,7 @@ use Grafida\Editor\SlashToolsService;
 use Grafida\Editor\SpellCheckService;
 use Grafida\Field\FieldSupport;
 use Grafida\FrontController;
+use Grafida\Help\HelpService;
 use Grafida\Http\ApiController;
 use Grafida\Http\Transport;
 use Grafida\I18n\LanguageService;
@@ -76,6 +77,13 @@ final class AppProvider implements ServiceProviderInterface
         );
 
         $container->share(MarkdownService::class, static fn (): MarkdownService => new MarkdownService());
+
+        $container->share(HelpService::class, static function (Container $c): HelpService {
+            /** @var string $docsDir */
+            $docsDir = $c->get('docs.dir');
+
+            return new HelpService($docsDir);
+        });
 
         $container->share(FieldSupport::class, static fn (): FieldSupport => new FieldSupport());
 

@@ -173,3 +173,6 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | created / modified (article row) | Creado / Modificado | Prefix on an article row's date line (gh-53); the value is the formatted timestamp. Distinct from the sort labels GRAFIDA_SORT_CREATED/_MODIFIED (« Fecha de creación / Fecha de modificación »), which name a column rather than label a value. GRAFIDA_LBL_ARTICLE_CREATED / _MODIFIED. |
 | HTML tag (markup) | etiqueta HTML | Un elemento de marcado como `<p>` en el editor de código fuente (gh-52). ⚠️ No confundir con el término de Joomla «Etiquetas» (tags, taxonomía): aquí se trata de marcado. GRAFIDA_LBL_AUTO_CLOSE_TAGS. |
 | close tags for me | Cerrar las etiquetas HTML por mí | El ajuste del editor de código fuente, con tres valores: «Etiquetas de apertura y cierre» / «Solo etiquetas de cierre» / «Desactivado» (gh-52). |
+| help (screen / documentation) | Ayuda | La pantalla de navegación que muestra la documentación integrada. GRAFIDA_NAV_HELP. |
+| documentation | documentación | Las páginas Markdown que se entregan con la aplicación y que también se publican como wiki de GitHub. Las páginas en sí permanecen en inglés; solo se traduce la interfaz de la pantalla. |
+| page (documentation) | página | Un artículo de documentación en la tabla de contenidos; nunca «artículo» (reservado para el contenido de Joomla!). |

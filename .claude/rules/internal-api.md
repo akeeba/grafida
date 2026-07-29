@@ -27,14 +27,20 @@ two-space continuation indent are the original bullet formatting.
   stream-wrapper fallback (`requestStream()`, used when ext-curl is absent) always constructs with
   `curlErrno = 0`, so it degrades to the generic `transport` code — it has no machine-readable cause
   to classify.
-  `Router` holds a real route table — `{name}` placeholders compile to anchored regexes, and
+  `Router` holds a real route table — `{name}` placeholders compile to anchored regexes (`{key}` →
+  `[A-Za-z0-9_\-]+`, `{file}` → that plus a short extension, anything else → `\d+`; none of the
+  three admits a `/` or a bare `..`, so a traversal attempt matches no pattern and dies at the
+  router's own 404 rather than reaching a handler), and
   handlers resolve their controller **from the container on match**, so a request builds one
   controller, not nine. A path that matches with an unregistered method returns **405**; an
   unmatched path **404**. `RouteContext` carries the matched parameters, the parsed body and
   the request. The handlers live in `src/Http/Controller/`: `BootstrapController`,
   `SiteController`, `ArticleController`, `DraftController`, `MediaController`,
-  `AiServiceController`, `AiChatController`, `SettingsController` — each a container service
-  taking **only** the collaborators it uses (3–7 each; the old `ApiController` had 24). The
+  `AiServiceController`, `AiChatController`, `SettingsController`, `HelpController` — each a
+  container service taking **only** the collaborators it uses (1–7 each; the old `ApiController`
+  had 24). `HelpController` (`/api/help…`, the bundled documentation — see
+  `.claude/rules/documentation.md`) is the extreme case and a useful reminder of the shape: one
+  dependency, no site, no network, no database. The
   abstract `Controller` base is deliberately **dependency-free** (only the `str()`/`int()` body
   parsers); the shared site/article helpers (`requireSite`, `connectedSite`, `siteArray`,
   `withCategoryTitles`, the JSON:API relationship readers) live in `Grafida\Http\SiteContext`,

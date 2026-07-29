@@ -164,3 +164,6 @@ Eigennamen (Grafida, Joomla!, API, Markdown, HTML, TinyMCE) werden nicht überse
 | created / modified (article row) | Erstellt / Geändert | Prefix on an article row's date line (gh-53); the value is the formatted timestamp. Distinct from the sort labels GRAFIDA_SORT_CREATED/_MODIFIED (« Erstellungsdatum / Änderungsdatum »), which name a column rather than label a value. GRAFIDA_LBL_ARTICLE_CREATED / _MODIFIED. |
 | HTML tag (markup) | HTML-Tag | Ein Markup-Element wie `<p>` im Quellcode-Editor (gh-52). ⚠️ Nicht mit dem Joomla-Begriff „Schlagwörter" (tags) verwechseln — hier geht es um Auszeichnung, nicht um Taxonomie. GRAFIDA_LBL_AUTO_CLOSE_TAGS. |
 | close tags for me | HTML-Tags automatisch schließen | Die Einstellung des Quellcode-Editors mit drei Werten: „Öffnende und schließende Tags" / „Nur schließende Tags" / „Aus" (gh-52). |
+| help (screen / documentation) | Hilfe | Der Navigationsbildschirm, der die integrierte Dokumentation anzeigt. GRAFIDA_NAV_HELP. |
+| documentation | Dokumentation | Die mit der Anwendung ausgelieferten Markdown-Seiten, die zugleich als GitHub-Wiki veröffentlicht werden. Die Seiten selbst bleiben englisch — übersetzt wird nur die Oberfläche des Bildschirms. |
+| page (documentation) | Seite | Ein Dokumentationsartikel im Inhaltsverzeichnis; nicht „Beitrag" (für Joomla!-Inhalte reserviert). |

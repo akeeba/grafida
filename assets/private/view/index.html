@@ -75,6 +75,10 @@
                 <i class="nav-icon fa-solid fa-gear" aria-hidden="true"></i>
                 <span data-i18n="GRAFIDA_NAV_SETTINGS">Settings</span>
             </a>
+            <a data-screen="help" href="#" role="menuitem">
+                <i class="nav-icon fa-solid fa-book" aria-hidden="true"></i>
+                <span data-i18n="GRAFIDA_NAV_HELP">Help</span>
+            </a>
             <a data-screen="requestlog" href="#" role="menuitem" id="nav-request-log" hidden>
                 <i class="nav-icon fa-solid fa-list-check" aria-hidden="true"></i>
                 <span data-i18n="GRAFIDA_NAV_REQUEST_LOG">Request Log</span>
@@ -96,10 +100,21 @@
         <section id="sites-screen" class="screen" role="main">
             <div class="screen-header">
                 <h2 data-i18n="GRAFIDA_NAV_SITES">Sites</h2>
-                <button id="btn-add-site" class="btn btn-primary">
-                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
-                    <span data-i18n="GRAFIDA_BTN_ADD_SITE">Add Site</span>
-                </button>
+                <div class="screen-actions">
+                    <!--
+                        Contextual help. Any element carrying data-help-page opens the
+                        Help screen on that page — see initHelpLinks() in app.js; there
+                        is deliberately no JS to write per button.
+                    -->
+                    <button type="button" class="btn btn-secondary btn-icon-only"
+                            data-help-page="Custom-API-Access" data-i18n-title="GRAFIDA_BTN_HELP">
+                        <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
+                    </button>
+                    <button id="btn-add-site" class="btn btn-primary">
+                        <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                        <span data-i18n="GRAFIDA_BTN_ADD_SITE">Add Site</span>
+                    </button>
+                </div>
             </div>
             <div id="sites-list"></div>
         </section>
@@ -336,6 +351,29 @@
                 <div id="ai-system-prompt-section"></div>
                 <hr class="divider">
                 <div id="ai-tools-list"></div>
+            </div>
+        </section>
+
+        <!-- ===== HELP SCREEN ===== -->
+        <!--
+            The documentation bundled in docs/ — the same Markdown files that are
+            published as the project's GitHub wiki. Two panes: the table of
+            contents on the left (with a filter box), the rendered page on the
+            right. See src/Help/HelpService.php.
+        -->
+        <section id="help-screen" class="screen" role="main">
+            <div class="screen-header">
+                <h2 data-i18n="GRAFIDA_NAV_HELP">Help</h2>
+                <div class="screen-actions" id="help-actions"></div>
+            </div>
+            <div id="help-layout">
+                <aside id="help-toc">
+                    <input type="search" id="help-filter" class="form-control"
+                           data-i18n-placeholder="GRAFIDA_LBL_HELP_FILTER"
+                           data-i18n-aria="GRAFIDA_LBL_HELP_FILTER">
+                    <nav id="help-toc-list" data-i18n-aria="GRAFIDA_NAV_HELP"></nav>
+                </aside>
+                <article id="help-page" class="help-page" tabindex="-1"></article>
             </div>
         </section>
 

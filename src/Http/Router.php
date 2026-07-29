@@ -19,9 +19,16 @@ use Boson\Contracts\Http\ResponseInterface;
  *
  * Routes are registered as `(method, pattern, handler)`; `{name}` placeholders
  * in the pattern are compiled to a named capture group. A placeholder named
- * `key` (the AI tool key) matches `[A-Za-z0-9_\-]+`; every other placeholder
- * is treated as a numeric id and matches only digits, mirroring the `(\d+)`
- * groups the hand-rolled `preg_match` chain used before this class existed.
+ * `key` (the AI tool key, a documentation page slug) matches `[A-Za-z0-9_\-]+`
+ * and one named `file` (a documentation image) matches that plus a short
+ * extension; every other placeholder is treated as a numeric id and matches
+ * only digits, mirroring the `(\d+)` groups the hand-rolled `preg_match` chain
+ * used before this class existed.
+ *
+ * None of the three character classes admits a `/` or a `.` on its own, so a
+ * path segment can never carry a `..` traversal into a handler — the file-name
+ * validation a handler does on top of that is defence in depth, not the only
+ * guard.
  *
  * Every pattern is compiled fully-anchored (`^...$`), so distinct routes
  * cannot collide regardless of registration order — a request path either
@@ -95,7 +102,11 @@ final class Router
         $regex = preg_replace_callback(
             '/\{([A-Za-z0-9_]+)\}/',
             static function (array $m): string {
-                $charClass = $m[1] === 'key' ? '[A-Za-z0-9_\-]+' : '\d+';
+                $charClass = match ($m[1]) {
+                    'key'   => '[A-Za-z0-9_\-]+',
+                    'file'  => '[A-Za-z0-9_\-]+\.[A-Za-z0-9]{1,5}',
+                    default => '\d+',
+                };
 
                 return '(?P<' . $m[1] . '>' . $charClass . ')';
             },

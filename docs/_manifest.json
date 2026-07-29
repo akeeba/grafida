@@ -1,0 +1,35 @@
+{
+    "_comment": [
+        "Table of contents for the documentation in docs/. This one file drives BOTH consumers:",
+        "the in-app Help screen (Grafida\\Help\\HelpService reads it) and the generated _Sidebar.md",
+        "on the GitHub wiki (scripts/sync-wiki.sh writes it). Adding a page means adding its .md",
+        "file here AND to this list — nothing is discovered by scanning, because glob() does not",
+        "work inside the compiled binary's phar.",
+        "",
+        "A node is either a page, a heading, or a page that is also a heading:",
+        "",
+        "  slug     = the file name without .md, and the wiki page name. [A-Za-z0-9_-] only.",
+        "             Omit it for a node that only groups others and has no page of its own.",
+        "  title    = the label in the table of contents (the page's own H1 is what the page shows).",
+        "  children = nested nodes, to a maximum depth of 4. Order is display order at every level.",
+        "",
+        "The files themselves stay in ONE flat directory whatever the nesting says — the wiki has a",
+        "flat page namespace and cannot represent a folder, so the tree lives here and only here."
+    ],
+    "home": "Home",
+    "pages": [
+        {
+            "slug": "Home",
+            "title": "Introduction"
+        },
+        {
+            "title": "Getting Started",
+            "children": [
+                {
+                    "slug": "Custom-API-Access",
+                    "title": "Custom API access"
+                }
+            ]
+        }
+    ]
+}

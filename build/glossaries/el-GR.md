@@ -164,3 +164,6 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | created / modified (article row) | Δημιουργήθηκε / Τροποποιήθηκε | Prefix on an article row's date line (gh-53); the value is the formatted timestamp. Distinct from the sort labels GRAFIDA_SORT_CREATED/_MODIFIED (« Ημερομηνία δημιουργίας / Ημερομηνία τροποποίησης »), which name a column rather than label a value. GRAFIDA_LBL_ARTICLE_CREATED / _MODIFIED. |
 | HTML tag (markup) | ετικέτα HTML | Στοιχείο σήμανσης όπως το `<p>` στον επεξεργαστή πηγαίου κώδικα (gh-52). ⚠️ Να μην συγχέεται με τον όρο του Joomla «Ετικέτες» (tags) — εδώ πρόκειται για σήμανση, όχι για ταξινόμηση. GRAFIDA_LBL_AUTO_CLOSE_TAGS. |
 | close tags for me | Αυτόματο κλείσιμο ετικετών HTML | Η ρύθμιση του επεξεργαστή πηγαίου κώδικα, με τρεις τιμές: «Ετικέτες ανοίγματος και κλεισίματος» / «Μόνο ετικέτες κλεισίματος» / «Ανενεργό» (gh-52). |
+| help (screen / documentation) | Βοήθεια | Η οθόνη πλοήγησης που εμφανίζει την ενσωματωμένη τεκμηρίωση. GRAFIDA_NAV_HELP. |
+| documentation | τεκμηρίωση | Οι σελίδες Markdown που συνοδεύουν την εφαρμογή· δημοσιεύονται και ως wiki του GitHub. Οι ίδιες οι σελίδες παραμένουν στα αγγλικά — μεταφράζεται μόνο το περιβάλλον της οθόνης. |
+| page (documentation) | σελίδα | Ένα άρθρο τεκμηρίωσης στον πίνακα περιεχομένων· όχι «άρθρο» (δεσμευμένο για το περιεχόμενο του Joomla!). |

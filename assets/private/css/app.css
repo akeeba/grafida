@@ -3109,6 +3109,228 @@ body.resizing-col {
     gap: 10px;
 }
 
+/* ------------------------------------------------------------------ */
+/*  Help screen                                                        */
+/*  Two independently scrolling panes: the table of contents and the   */
+/*  rendered documentation page. The screen itself stops scrolling     */
+/*  (`.screen` is overflow:auto) so there is never a second scrollbar  */
+/*  around the one that matters.                                       */
+/* ------------------------------------------------------------------ */
+
+#help-screen {
+    overflow: hidden;
+}
+
+#help-layout {
+    flex: 1;
+    /* Without this a grid child refuses to shrink below its content, and the
+       page pane grows the screen instead of scrolling inside it. */
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    gap: 20px;
+}
+
+#help-toc {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+#help-toc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.help-toc-group {
+    font-family: var(--font-title);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin: 14px 0 4px;
+}
+
+.help-toc-group:first-child {
+    margin-top: 0;
+}
+
+.help-toc-item {
+    display: block;
+    padding: 7px 10px;
+    border-radius: var(--radius);
+    color: var(--color-text);
+    text-decoration: none;
+    font-size: 13px;
+    line-height: 1.35;
+    transition: background var(--transition);
+}
+
+.help-toc-item:hover {
+    background: var(--color-surface-2);
+}
+
+.help-toc-item.active {
+    background: var(--color-surface-2);
+    color: var(--color-text-brand);
+    font-weight: 600;
+}
+
+.help-page {
+    min-height: 0;
+    overflow-y: auto;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 24px 28px;
+    line-height: 1.65;
+}
+
+/* The rendered Markdown. These are bare element selectors on purpose — the
+   HTML comes from CommonMark and carries no classes of its own. */
+.help-page > :first-child {
+    margin-top: 0;
+}
+
+.help-page h1,
+.help-page h2,
+.help-page h3,
+.help-page h4 {
+    font-family: var(--font-title);
+    color: var(--color-text);
+    line-height: 1.25;
+    margin: 1.6em 0 0.6em;
+}
+
+.help-page h1 { font-size: 24px; }
+.help-page h2 { font-size: 19px; }
+.help-page h3 { font-size: 16px; }
+.help-page h4 { font-size: 14px; }
+
+.help-page h2,
+.help-page h3 {
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 0.3em;
+}
+
+.help-page p,
+.help-page ul,
+.help-page ol {
+    margin: 0 0 1em;
+}
+
+.help-page ul,
+.help-page ol {
+    padding-left: 1.6em;
+}
+
+.help-page li {
+    margin-bottom: 0.35em;
+}
+
+.help-page a {
+    color: var(--color-text-brand);
+    text-decoration: none;
+}
+
+.help-page a:hover {
+    text-decoration: underline;
+}
+
+.help-page code {
+    background: var(--color-surface-2);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 0.9em;
+}
+
+.help-page pre {
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    overflow-x: auto;
+    margin: 0 0 1em;
+}
+
+.help-page pre code {
+    background: none;
+    padding: 0;
+}
+
+.help-page blockquote {
+    margin: 0 0 1em;
+    padding: 2px 14px;
+    border-left: 3px solid var(--color-border);
+    color: var(--color-text-muted);
+}
+
+.help-page table {
+    border-collapse: collapse;
+    margin: 0 0 1em;
+    /* A wide table scrolls the page pane rather than the window; the pane is
+       the only thing in this screen allowed to have a scrollbar. */
+    display: block;
+    overflow-x: auto;
+}
+
+.help-page th,
+.help-page td {
+    border: 1px solid var(--color-border);
+    padding: 6px 10px;
+    text-align: left;
+}
+
+.help-page th {
+    background: var(--color-surface-2);
+    font-weight: 600;
+}
+
+.help-page img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius);
+}
+
+.help-page kbd {
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.85em;
+    font-family: var(--font-main);
+}
+
+.help-page hr {
+    border: none;
+    border-top: 1px solid var(--color-border);
+    margin: 1.6em 0;
+}
+
+/* A button whose whole content is its icon; its accessible name comes from the
+   data-i18n-title pass in applyStrings(). Used by the contextual help buttons. */
+.btn-icon-only {
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+@media (max-width: 900px) {
+    #help-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+    }
+
+    #help-toc {
+        max-height: 30vh;
+    }
+}
+
 /* Scrollbar styling (webkit) */
 ::-webkit-scrollbar {
     width: 6px;

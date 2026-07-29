@@ -28,12 +28,14 @@ use Grafida\Editor\AutoCloseTagsService;
 use Grafida\Editor\SlashToolsService;
 use Grafida\Editor\SpellCheckService;
 use Grafida\Field\FieldSupport;
+use Grafida\Help\HelpService;
 use Grafida\Http\ApiController;
 use Grafida\Http\Controller\AiChatController;
 use Grafida\Http\Controller\AiServiceController;
 use Grafida\Http\Controller\ArticleController;
 use Grafida\Http\Controller\BootstrapController;
 use Grafida\Http\Controller\DraftController;
+use Grafida\Http\Controller\HelpController;
 use Grafida\Http\Controller\MediaController;
 use Grafida\Http\Controller\SettingsController;
 use Grafida\Http\Controller\SiteController;
@@ -60,7 +62,7 @@ use Grafida\Update\UpdateService;
 use Joomla\DI\ServiceProviderInterface;
 
 /**
- * Registers the nine per-domain controllers `ApiController` dispatches to —
+ * Registers the per-domain controllers `ApiController` dispatches to —
  * each wired with only the collaborators its own handlers use, which is what
  * keeps any single controller from growing back into a 24-dependency god
  * object — and `ApiController` itself, now just a thin dispatcher over them.
@@ -167,6 +169,12 @@ final class ControllerProvider implements ServiceProviderInterface
             );
         });
 
+        $container->share(HelpController::class, static function (Container $c): HelpController {
+            return new HelpController(
+                help: $c->get(HelpService::class),
+            );
+        });
+
         $container->share(ApiController::class, static function (Container $c): ApiController {
             return new ApiController(
                 bootstrap: $c->get(BootstrapController::class),
@@ -177,6 +185,7 @@ final class ControllerProvider implements ServiceProviderInterface
                 aiServiceController: $c->get(AiServiceController::class),
                 aiChatController: $c->get(AiChatController::class),
                 settingsController: $c->get(SettingsController::class),
+                helpController: $c->get(HelpController::class),
             );
         });
     }

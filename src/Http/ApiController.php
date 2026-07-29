@@ -18,6 +18,7 @@ use Grafida\Http\Controller\AiServiceController;
 use Grafida\Http\Controller\ArticleController;
 use Grafida\Http\Controller\BootstrapController;
 use Grafida\Http\Controller\DraftController;
+use Grafida\Http\Controller\HelpController;
 use Grafida\Http\Controller\MediaController;
 use Grafida\Http\Controller\SettingsController;
 use Grafida\Http\Controller\SiteController;
@@ -49,6 +50,7 @@ final class ApiController
         private readonly AiServiceController $aiServiceController,
         private readonly AiChatController $aiChatController,
         private readonly SettingsController $settingsController,
+        private readonly HelpController $helpController,
     ) {
         $this->router = $this->buildRouter();
     }
@@ -105,6 +107,7 @@ final class ApiController
         $this->aiServiceController->registerRoutes($router);
         $this->aiChatController->registerRoutes($router);
         $this->settingsController->registerRoutes($router);
+        $this->helpController->registerRoutes($router);
 
         return $router;
     }
