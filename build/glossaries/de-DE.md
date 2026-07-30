@@ -168,3 +168,4 @@ Eigennamen (Grafida, Joomla!, API, Markdown, HTML, TinyMCE) werden nicht überse
 | documentation | Dokumentation | Die mit der Anwendung ausgelieferten Markdown-Seiten, die zugleich als GitHub-Wiki veröffentlicht werden. Die Seiten selbst bleiben englisch — übersetzt wird nur die Oberfläche des Bildschirms. |
 | page (documentation) | Seite | Ein Dokumentationsartikel im Inhaltsverzeichnis; nicht „Beitrag" (für Joomla!-Inhalte reserviert). |
 | table of contents | Inhaltsverzeichnis | Das Seitenverzeichnis im Hilfebildschirm; ein-/ausklappbar und in der Breite veränderbar. GRAFIDA_BTN_TOGGLE_CONTENTS. |
+| paste as plain text | Als unformatierten Text einfügen | Das Tastenkürzel Cmd/Strg+Shift+V: fügt die Zwischenablage mit einem Anschlag als unformatierten Text ein. Nicht der TinyMCE-Menüpunkt „Als Text einfügen“, der ein Moduswechsel ist. GRAFIDA_LBL_HELP_SC_PASTE_TEXT. |

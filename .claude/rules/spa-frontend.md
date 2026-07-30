@@ -192,6 +192,42 @@ ship inside the app.
   machinery.)
   Code and Pre use literal **Alt+Shift+C/P** shortcuts on every platform (registered by
   `js/editor/codeformats.js`); the older Blockquote shortcut remains literal Ctrl+Shift+Q.
+  **Cmd/Ctrl+Shift+V pastes the clipboard as plain text in one keystroke** —
+  `bindPastePlainShortcut()` in `app.js`, which is deliberately four lines long:
+  `preventDefault()`, then fetch the clipboard from the backend, then insert. Everything
+  interesting about it is *why* it is that short.
+  It is **not** `mceTogglePlainTextPaste`, the command behind **Edit ▸ Paste as text**: that
+  toggles a *mode* and would need a second Cmd/Ctrl+V to paste anything. Insertion goes through
+  TinyMCE's own `mceInsertClipboardContent` with a **`text`** payload (`{text: …}`), which is what
+  the paste plugin itself uses, so entity escaping and the blank-line→paragraph / newline→`<br>`
+  conversion behave identically to a real paste. Don't hand-roll that conversion.
+  ⚠️ **Nothing in the page may read or trigger the clipboard without the user confirming it.**
+  Three routes look obvious and all three are shut, which is the whole reason the backend is
+  involved:
+  - `navigator.clipboard.readText()` — WKWebView answers an unprivileged read with a **system beep
+    and a one-item "Paste" callout that must be clicked**. Worse than the menu item it replaces.
+    (A Chromium harness cannot reproduce this: Chromium binds the chord itself, so the fallback is
+    never reached. It was reported from the running app.)
+  - `execCommand('paste')` / TinyMCE's `execCommand('Paste')` — refused outright;
+    `queryCommandSupported('paste')` is `false`. Note TinyMCE's returns **`true`** while pasting
+    nothing, so this failure looks like success.
+  - toggle-the-mode-then-paste — founders on the same refusal. TinyMCE can only *strip* a paste the
+    user performs; it can never perform one. That is precisely why Edit ▸ Paste as text is a mode.
+  - a real `paste` event — only exists on a webview that binds the chord natively, which WKWebView
+    and WebKitGTK do not.
+  So `GET /api/clipboard/text` → `Grafida\Clipboard\ClipboardService` reads it server-side, and the
+  SPA end is `api.getClipboardText()`. **Do not "simplify" this back into the page.**
+  ⚠️ The `preventDefault()` is **unconditional and not cosmetic**. On macOS Cmd+Shift+V is an AppKit
+  *menu* key equivalent (Edit ▸ Paste and Match Style); a Boson window has no menu bar, so the key
+  otherwise reaches no responder and **the system beeps**. Cancelling marks it handled and silences
+  that — and, on Chromium, also suppresses the native paste-as-plain-text command that would
+  otherwise fire *as well*, which is what keeps one keystroke to one paste on every platform.
+  Cancelling is also why this is a raw `keydown` handler and not `addShortcut()`.
+  An earlier version branched on `Env.browser.isChromium()` to consume Chromium's native paste event
+  as a fast path, with a `setTimeout` fallback behind it and armed/handled flags to prevent a double
+  paste. It worked, and it was deleted: the backend read is a few milliseconds on every platform
+  (Windows included, see below), so the branch bought nothing but the need to reason about
+  microtask-versus-task ordering against the webview's default action.
   `codeformats.js` also appends the inline-backtick Code pattern through `text_patterns_lookup`
   (so TinyMCE's defaults survive) and handles a bare triple-backtick paragraph on Enter itself:
   TinyMCE's public enter-triggered block pattern deliberately skips a marker with no following text,

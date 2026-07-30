@@ -110,6 +110,30 @@ final class ApiRoutingTest extends TestCase
         );
     }
 
+    /**
+     * The editor's Cmd/Ctrl+Shift+V shortcut reads the clipboard here rather
+     * than through the web Clipboard API (which WKWebView gates behind a
+     * click), so this route is load-bearing for that feature.
+     */
+    public function testClipboardTextEndpoint(): void
+    {
+        [$status, $json] = $this->call($this->kernel(), 'GET', '/api/clipboard/text');
+
+        // A CI box with no clipboard tool legitimately fails the read; what must
+        // hold either way is that the shape is right and the two outcomes stay
+        // distinguishable (a string, or an error — never a silent empty success).
+        if ($status === 200) {
+            self::assertTrue($json['ok']);
+            self::assertIsString($json['data']['text']);
+
+            return;
+        }
+
+        self::assertSame(500, $status);
+        self::assertFalse($json['ok']);
+        self::assertArrayHasKey('error', $json);
+    }
+
     public function testBootstrapReturnsAppMetadata(): void
     {
         [$status, $json] = $this->call($this->kernel(), 'GET', '/api/bootstrap');

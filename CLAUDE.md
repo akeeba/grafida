@@ -241,6 +241,25 @@ window-free in tests (a null dialog makes the endpoint return 503).
   `data-i18n-title` pass — `renderThemeSwitch()` only flips `.active`/`aria-pressed`.
   `applyStrings()` also honours **`data-i18n-aria`** — aria-label only, for a
   container that needs an accessible name but must not sprout a hover tooltip.
+- `src/Clipboard/` — `ClipboardService` reads the OS clipboard as plain text behind
+  `GET /api/clipboard/text`: `pbpaste` (macOS), `wl-paste`/`xclip`/`xsel` (Linux, first one
+  installed wins) and on Windows **`WindowsClipboard`**, a direct FFI read of `CF_UNICODETEXT`
+  via user32/kernel32, with `powershell Get-Clipboard -Raw` only as the no-FFI fallback — the
+  third instance of the pattern set by `Secret\WindowsDpapi` and `Display\WindowsThemeReader`,
+  for the same reason: a PowerShell spawn costs about a second, the kernel is single-threaded, and
+  this runs under a *keystroke*. ⚠️ Its `decodeUtf16LE()` is `public static` and FFI-free so the one
+  fiddly part is testable off Windows — **the NUL terminator must be found on a code-unit boundary**,
+  since scanning for a zero *byte* truncates at `U+0100` or mid-surrogate (an emoji).
+  It backs the editor's **Cmd/Ctrl+Shift+V paste-as-plain-text** shortcut, and it exists because
+  ⚠️ **`navigator.clipboard.readText()` is not usable on the webviews we ship**: WKWebView answers
+  an unprivileged clipboard *read* with a system beep and a one-item "Paste" callout the user must
+  click, turning a keystroke into a mouse trip. The clipboard is not a web resource in a desktop
+  app, so it is read the same way as the OS appearance and the secret store — a short-lived
+  subprocess, no prompt. Returns **null** for an unreadable clipboard but the **empty string** for
+  an empty one, and the two must not be conflated (empty = paste nothing, unreadable = tell the
+  user). Line endings are normalised to `\n`, because TinyMCE's plain-text conversion splits on it
+  and a stray `\r` survives into the pasted paragraph. See the shortcut's own notes in
+  `.claude/rules/spa-frontend.md` for which webview owns the chord and why that decides everything.
 - `src/Editor/SlashToolsService.php` — persists whether the editor's slash-command menu is
   enabled (`settings` key `slash_tools`, **default on**), sent to the SPA as the `bootstrap`
   payload's `slashTools` key and written via `POST /api/settings/slash-tools`. Same shape as

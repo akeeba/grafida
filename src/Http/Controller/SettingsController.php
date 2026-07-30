@@ -13,6 +13,7 @@ namespace Grafida\Http\Controller;
 
 use Boson\Api\Dialog\DialogApiInterface;
 use Boson\Contracts\Http\ResponseInterface;
+use Grafida\Clipboard\ClipboardService;
 use Grafida\Debug\RequestLog;
 use Grafida\Debug\RequestLogService;
 use Grafida\Debug\RequestRecord;
@@ -37,7 +38,7 @@ use Grafida\Update\UpdateService;
  * Handles the miscellaneous settings/system endpoints: language, display
  * mode, the editor's slash commands, storage maintenance, the update checker,
  * Markdown conversion, the native URL opener, the Request Log (gh-37's Debug
- * setting), and the native file/directory dialogs.
+ * setting), the OS clipboard reader, and the native file/directory dialogs.
  */
 final class SettingsController extends Controller
 {
@@ -55,6 +56,7 @@ final class SettingsController extends Controller
         private readonly RequestLog $requestLog,
         private readonly RequestLogService $requestLogService,
         private readonly MetadataCacheService $metadataCache,
+        private readonly ClipboardService $clipboard,
         private readonly ?DialogApiInterface $dialog = null,
     ) {}
 
@@ -78,8 +80,30 @@ final class SettingsController extends Controller
         $router->add('POST', '/api/settings/storage/open', fn (RouteContext $ctx): ResponseInterface => $this->openStorageFolder());
         $router->add('POST', '/api/settings/storage/reset', fn (RouteContext $ctx): ResponseInterface => $this->resetStorage());
         $router->add('POST', '/api/open-url', fn (RouteContext $ctx): ResponseInterface => $this->openUrl($ctx->body()));
+        $router->add('GET', '/api/clipboard/text', fn (RouteContext $ctx): ResponseInterface => $this->clipboardText());
         $router->add('POST', '/api/dialog/open-file', fn (RouteContext $ctx): ResponseInterface => $this->openFile($ctx->body()));
         $router->add('POST', '/api/dialog/select-directory', fn (RouteContext $ctx): ResponseInterface => $this->selectDirectory($ctx->body()));
+    }
+
+    /**
+     * The OS clipboard as plain text, for the editor's Cmd/Ctrl+Shift+V
+     * "paste as plain text" shortcut.
+     *
+     * ⚠️ This exists because reading the clipboard from JavaScript is not free
+     * on the webviews we ship — WKWebView demands a click on a "Paste" callout
+     * first. {@see ClipboardService} has the detail. An unreadable clipboard is
+     * an error rather than an empty string, so the SPA can tell the user why
+     * nothing was pasted instead of silently doing nothing.
+     */
+    public function clipboardText(): ResponseInterface
+    {
+        $text = $this->clipboard->readText();
+
+        if ($text === null) {
+            return Json::error('Could not read the clipboard', 500);
+        }
+
+        return Json::ok(['text' => $text]);
     }
 
     /** @param array<string, mixed> $body */

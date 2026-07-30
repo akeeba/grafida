@@ -755,6 +755,9 @@ const api = {
     openStorageFolder: () => apiFetch('POST', '/api/settings/storage/open'),
     resetStorage: () => apiFetch('POST', '/api/settings/storage/reset'),
     openUrl: (url) => apiFetch('POST', '/api/open-url', { url }),
+    // The OS clipboard, read by the backend rather than by JavaScript — see
+    // bindPastePlainShortcut() for why.
+    getClipboardText: () => apiFetch('GET', '/api/clipboard/text'),
     getHelpContents: () => apiFetch('GET', '/api/help'),
     getHelpPage: (slug) => apiFetch('GET', `/api/help/page/${encodeURIComponent(slug)}`),
     setRequestLog: (enabled) => apiFetch('POST', '/api/settings/request-log', { enabled }),
@@ -3625,6 +3628,7 @@ function grafidaHelpTab() {
         ['GRAFIDA_LBL_HELP_SC_CODE', 'Alt + Shift + C'],
         ['GRAFIDA_LBL_HELP_SC_PRE', 'Alt + Shift + P'],
         ['GRAFIDA_LBL_HELP_SC_QUOTE', 'Ctrl + Shift + Q'],
+        ['GRAFIDA_LBL_HELP_SC_PASTE_TEXT', 'Meta + Shift + V'],
         // The source editor's find chords are CodeMirror's platform defaults,
         // and its replace chord is the one that differs between them (gh-34).
         ['GRAFIDA_LBL_HELP_SC_FIND', 'Meta + F'],
@@ -4375,6 +4379,8 @@ async function initTinyMCE(draft) {
             editor.addShortcut('ctrl+shift+q', 'Blockquote block', () => {
                 editor.execCommand('mceToggleFormat', false, 'blockquote');
             });
+            bindPastePlainShortcut(editor);
+
             // meta+s is TinyMCE's own alias for ctrl+s on Windows/Linux and
             // cmd+s on macOS. The editor's iframe has its own document, so the
             // document-level Ctrl/Cmd+S listener in app.js never fires while
@@ -5014,6 +5020,76 @@ function codeSearchPhrases() {
         'Jump to line:': t('GRAFIDA_LBL_CM_JUMP_TO_LINE'),
         '(Use line:column or scroll% syntax)': t('GRAFIDA_LBL_CM_JUMP_HINT'),
     };
+}
+
+/**
+ * Recognise the "paste as plain text" chord: Ctrl/Cmd + Shift + V, with no
+ * other modifiers. Matches on both `key` and `keyCode` because Shift changes
+ * neither for a letter but a non-Latin layout changes `key` (in the editor
+ * iframe the native event is what we get, as with isSettingsShortcut()).
+ */
+function isPastePlainShortcut(e) {
+    if (!hasPrimaryModifier(e) || e.altKey || !e.shiftKey) return false;
+    return e.key === 'v' || e.key === 'V' || e.keyCode === 86;
+}
+
+/**
+ * Turn clipboard text into the article body, stripped of all formatting, in a
+ * single keystroke — Cmd+Shift+V on macOS, Ctrl+Shift+V elsewhere. This is NOT
+ * Edit ▸ Paste as text, which is a *mode* toggle (mceTogglePlainTextPaste) and
+ * would need a second Cmd+V to paste anything.
+ *
+ * Insertion goes through TinyMCE's own `mceInsertClipboardContent` with a
+ * `text` payload — the same command the paste plugin uses for a plain-text
+ * paste — so entity escaping, the blank-line-to-paragraph / newline-to-<br>
+ * conversion and the PastePreProcess/PastePostProcess events all behave
+ * exactly as they do for a normal paste. Do not hand-roll that conversion.
+ *
+ * ⚠️ **The keystroke is ours alone on every platform, hence the unconditional
+ * `preventDefault()` — which is not cosmetic.** On macOS, Cmd+Shift+V is an
+ * AppKit *menu* key equivalent (Edit ▸ Paste and Match Style) and a Boson window
+ * has no menu bar, so the key otherwise reaches no responder and **the system
+ * beeps**; cancelling the event is what marks it handled and silences that.
+ * Cancelling is also why this is a raw keydown handler and not an
+ * `editor.addShortcut()` — no reason to hold the clipboard read inside
+ * addShortcut's callback when the handler needs the event object anyway.
+ *
+ * ⚠️ **The clipboard is read by the BACKEND, not by
+ * `navigator.clipboard.readText()`, and not from a `paste` event.** Nothing in
+ * the page may read or trigger the clipboard without the user confirming it:
+ * WKWebView answers an unprivileged `readText()` with a beep and a one-item
+ * "Paste" callout that has to be clicked, `execCommand('paste')` is refused
+ * outright (`queryCommandSupported('paste') === false`), and the toggle-then-
+ * paste trick founders on the same refusal — TinyMCE can only strip a paste the
+ * *user* performs, never perform one. A `paste` event is therefore only
+ * available on a webview that binds the chord natively, which WKWebView and
+ * WebKitGTK do not. So {@see api.getClipboardText} reads it server-side
+ * (`pbpaste` / `wl-paste` / Win32 FFI): no prompt, no callout, one code path on
+ * every platform. Do not "simplify" this back into the page.
+ */
+function bindPastePlainShortcut(editor) {
+    editor.on('keydown', (e) => {
+        if (!isPastePlainShortcut(e)) return;
+        e.preventDefault();
+        insertClipboardAsPlainText(editor);
+    });
+}
+
+/** Ask the backend for the clipboard and insert it as plain text. */
+async function insertClipboardAsPlainText(editor) {
+    let text;
+
+    try {
+        ({ text } = await api.getClipboardText());
+    } catch {
+        showToast(t('GRAFIDA_MSG_CLIPBOARD_READ_FAIL'), 'error');
+        return;
+    }
+
+    // An empty clipboard is a no-op, not an error worth a toast.
+    if (!text) return;
+
+    editor.execCommand('mceInsertClipboardContent', false, { text: text });
 }
 
 /**

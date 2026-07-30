@@ -177,3 +177,4 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | documentation | documentación | Las páginas Markdown que se entregan con la aplicación y que también se publican como wiki de GitHub. Las páginas en sí permanecen en inglés; solo se traduce la interfaz de la pantalla. |
 | page (documentation) | página | Un artículo de documentación en la tabla de contenidos; nunca «artículo» (reservado para el contenido de Joomla!). |
 | table of contents | tabla de contenidos | El índice de páginas de la pantalla de ayuda; se puede plegar y redimensionar. GRAFIDA_BTN_TOGGLE_CONTENTS. |
+| paste as plain text | Pegar como texto sin formato | El atajo Cmd/Ctrl+Mayús+V: pega el portapapeles como texto sin formato con una sola pulsación. No es la entrada «Pegar como texto» del menú de TinyMCE, que conmuta un modo. GRAFIDA_LBL_HELP_SC_PASTE_TEXT. |

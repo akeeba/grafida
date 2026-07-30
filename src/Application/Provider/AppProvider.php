@@ -14,6 +14,7 @@ namespace Grafida\Application\Provider;
 use Boson\Component\Http\Static\StaticProviderInterface;
 use Grafida\Application\Container;
 use Grafida\Application\Kernel;
+use Grafida\Clipboard\ClipboardService;
 use Grafida\Display\DisplayModeService;
 use Grafida\Editor\AutoCloseTagsService;
 use Grafida\Editor\SlashToolsService;
@@ -91,6 +92,8 @@ final class AppProvider implements ServiceProviderInterface
         $container->share(FieldCategoryScope::class, static fn (): FieldCategoryScope => new FieldCategoryScope());
 
         $container->share(UrlOpener::class, static fn (): UrlOpener => new UrlOpener());
+
+        $container->share(ClipboardService::class, static fn (): ClipboardService => new ClipboardService());
 
         $container->share(UpdateService::class, static function (Container $c): UpdateService {
             /** @var Transport $http */

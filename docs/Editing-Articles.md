@@ -150,6 +150,22 @@ Beyond TinyMCE's own shortcuts, Grafida adds a few. They are also listed in the 
 | Inline code format | <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd> | <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd> |
 | Preformatted block | <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> | <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> |
 | Blockquote block | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Q</kbd> | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Q</kbd> |
+| Paste as plain text | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>V</kbd> | <kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>V</kbd> |
+
+**Paste as plain text** pastes in one keystroke, with every trace of the original formatting
+removed — no fonts, no colours, no bold, no links, no stray markup from the word processor or web
+page you copied from. Blank lines become paragraphs and single line breaks stay line breaks, and
+that is all you get. There is no mode to switch on first and no second <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>
++ <kbd>V</kbd> to follow it with.
+
+> This is not the same as the editor's **Edit ▸ Paste as text** menu item. That one is a *switch*:
+> it turns plain-text pasting on and leaves it on for everything you paste afterwards, until you go
+> back and turn it off again. The shortcut affects one paste and nothing else, so your next ordinary
+> <kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>V</kbd> still keeps its formatting.
+
+> **Note for macOS users:** this shortcut is also what the system offers as *Paste and Match Style*
+> in applications that have an Edit menu. Grafida has no menu bar, so before this shortcut existed
+> the key combination did nothing but beep.
 
 ## Images in the article body
 

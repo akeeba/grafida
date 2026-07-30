@@ -37,6 +37,15 @@ parameters:
     -
       identifier: method.notFound
       path: src/Display/WindowsThemeReader.php
+    # WindowsClipboard is the same FFI story: PHPStan cannot see through the
+    # user32/kernel32 functions, and the HGLOBAL handles they trade in are plain
+    # `void *`, which it therefore types as mixed rather than FFI\CData.
+    -
+      identifier: method.notFound
+      path: src/Clipboard/WindowsClipboard.php
+    -
+      identifier: argument.type
+      path: src/Clipboard/WindowsClipboard.php
     # MacSpellCheck is the same FFI story: PHPStan cannot see through the
     # CoreFoundation functions or the extern CFPreferences constant symbols.
     -

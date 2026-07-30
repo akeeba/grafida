@@ -167,3 +167,4 @@ I nomi propri non si traducono: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | documentation | documentazione | Le pagine Markdown distribuite con l'applicazione, pubblicate anche come wiki GitHub. Le pagine restano in inglese: si traduce solo l'interfaccia della schermata. |
 | page (documentation) | pagina | Un articolo di documentazione nell'indice; mai «articolo» (riservato ai contenuti Joomla!). |
 | table of contents | indice | L'elenco delle pagine nella schermata della guida; comprimibile e ridimensionabile. «Indice», non «tavola dei contenuti» (calco dall'inglese). GRAFIDA_BTN_TOGGLE_CONTENTS. |
+| paste as plain text | Incolla come testo semplice | La scorciatoia Cmd/Ctrl+Maiusc+V: incolla gli appunti come testo semplice con una sola pressione. Non è la voce «Incolla come testo» del menu di TinyMCE, che commuta una modalità. GRAFIDA_LBL_HELP_SC_PASTE_TEXT. |

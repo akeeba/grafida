@@ -10,6 +10,7 @@ Grafida 0.3
 + Right-click an image in the editor for Edit image (crop/resize/rotate/flip a local picture), CSS class and Reset size (gh-43)
 + The in-article media browser can now also pick a Local media image, not yet published (gh-43)
 + The Articles list shows each article's created and modified date, on both tabs (gh-53)
++ Ctrl/Cmd+Shift+V pastes the clipboard into the editor as plain text, in a single keystroke
 + Settings: choose how the source code editor closes HTML tags — both halves, closing tags only, or off (gh-52)
 + Built-in Help screen with the documentation, also published as the GitHub wiki (gh-55)
 + Help screen: the contents list can be resized or hidden, for narrow screens (gh-55)

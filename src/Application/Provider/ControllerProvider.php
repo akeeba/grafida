@@ -23,6 +23,7 @@ use Grafida\Article\DraftExportService;
 use Grafida\Article\DraftRepository;
 use Grafida\Debug\RequestLog;
 use Grafida\Debug\RequestLogService;
+use Grafida\Clipboard\ClipboardService;
 use Grafida\Display\DisplayModeService;
 use Grafida\Editor\AutoCloseTagsService;
 use Grafida\Editor\SlashToolsService;
@@ -167,6 +168,7 @@ final class ControllerProvider implements ServiceProviderInterface
                 requestLog: $c->get(RequestLog::class),
                 requestLogService: $c->get(RequestLogService::class),
                 metadataCache: $c->get(MetadataCacheService::class),
+                clipboard: $c->get(ClipboardService::class),
                 dialog: $dialog,
             );
         });
