@@ -307,6 +307,19 @@ ship inside the app.
   (`null` = every category) in the references payload, so the actual Joomla rule is **not**
   reimplemented here. A field with no `categoryIds` array at all stays visible everywhere (an
   unknown assignment must never hide a field the user may have typed into).
+  ⚠️ **A `media` field's control is the one that does not expose a `.value`.** Its value is a
+  three-subfield record collapsing into a JSON string (see `CLAUDE.md`'s `src/Field/` bullet), so
+  `buildMediaFieldInput()` keeps the record in a closure and hangs a **`_getMediaValue()`** getter on
+  the container — the same trick `buildTagsInput()`'s `_getTags` uses — and `collectDraftFormData()`
+  has a `media` branch beside the `checkboxes`/`radio` ones. `encodeMediaFieldValue()` /
+  `decodeMediaFieldValue()` mirror PHP's `MediaFieldValue`, `MEDIA_FIELD_KEYS`' order included:
+  the collected object is JSON-compared against `State.editorBaseline`, so a control that
+  re-serialised its keys in a different order would read as an edit nobody made. The control itself
+  is deliberately `buildImageBlock()` minus the parts `accessiblemedia` has no room for (no caption,
+  no CSS class — those are `#__content.images` subfields) and with **one** Browse button rather than
+  two, since `openMediaBrowser(siteId, {allowUpload: true})`'s own footer already covers picking a
+  file off this machine. A local pick is held as the shared `grafida-media://N` sentinel and its
+  local URL cached in `State.mediaPreviews`, exactly as the intro/full-text picker does.
   ⚠️ **`collectDraftFormData()` therefore cannot build `fields` from the rendered inputs alone.**
   It seeds the object from `State.currentDraft.fields`, keeping only entries that carry a value,
   before the rendered inputs overwrite it — otherwise changing category would wipe the fields

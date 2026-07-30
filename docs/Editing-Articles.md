@@ -205,6 +205,14 @@ its parent categories, or to no category at all. Change the Category and the lis
 anything you had already typed into a field that belongs to another category is kept, so switching
 back and forth loses nothing. An article with no category set sees every field.
 
+A field of type **Media** gets the same picture control the *Intro image* below it does: a preview,
+a **Browse media…** button that opens Grafida's media browser — either tab, so a picture already on
+your site or a local one that has not been published yet — a **Clear** button, an editable path, and
+the alt text with its *Image is decorative* checkbox. A local picture is uploaded to your site when
+you publish the article, exactly as an intro image is; until then it stays on your computer and the
+field works offline. Because Joomla stores the picture and the alt text together in one value, both
+are always written; clearing the picture clears the field.
+
 **Created by Alias** is the by-line Joomla shows instead of the publishing account's name. Leave it
 empty to credit the account whose API token you are using.
 
@@ -221,8 +229,8 @@ The *Full article image* block below it is identical.
 
 ### Custom fields Grafida cannot edit
 
-Grafida edits the common core field types: calendar, checkboxes, colour, integer, list, radio,
-text, textarea and URL. Anything else — editor, media, SQL, subform, user, user group list, image
+Grafida edits the common core field types: calendar, checkboxes, colour, integer, list, media,
+radio, text, textarea and URL. Anything else — editor, SQL, subform, user, user group list, image
 list — is listed as unsupported below the fields it can edit. Like the editable fields, this list
 only covers the article's own category.
 

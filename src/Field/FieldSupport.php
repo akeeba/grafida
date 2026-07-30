@@ -20,8 +20,14 @@ final class FieldSupport
 {
     /**
      * The subset of core field types Grafida renders and edits. Any other type
-     * (editor, media, sql, subform, user, usergrouplist, imagelist, ...) is
-     * considered unsupported.
+     * (editor, sql, subform, user, usergrouplist, imagelist, ...) is considered
+     * unsupported.
+     *
+     * `media` is in the list because Grafida has a media picker of its own —
+     * the same one the intro/full-text images use, offline blobs included — so
+     * the field is editable without a site-side media manager. Its value is a
+     * record rather than a string; {@see MediaFieldValue} is the only thing
+     * that should read or write it.
      */
     public const SUPPORTED = [
         'calendar',
@@ -29,6 +35,7 @@ final class FieldSupport
         'color',
         'integer',
         'list',
+        'media',
         'radio',
         'text',
         'textarea',

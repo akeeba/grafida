@@ -217,6 +217,22 @@ two-space continuation indent are the original bullet formatting.
   (`quickbars_insert_toolbar: false`, gh-6): the toolbar it pops up on every empty line offers a
   `quickimage` button that clicks that same dead `<input type="file">`. The `quickbars` plugin stays
   loaded — its selection and image context toolbars are unaffected.
+  A **`media` custom field** carries the same `grafida-media://N` sentinel, and for the same reason —
+  Grafida's media browser can pick a picture that is still local — so `resolveMediaField()` resolves
+  it through the very same `uploadBlob()`, and follows `resolveImages()`'s rule for a blob that has
+  since been deleted: **drop the reference**, because publishing `grafida-media://5` as a `src` on a
+  live site is worse than an empty field. (An upload that *fails* still aborts the publish, as
+  everywhere else — `uploadBlob()` returns null only for a blob that is not there any more; this is
+  deliberately *not* the inline-body-image rule, which aborts, because a sidebar image reference and
+  an image embedded in the prose fail differently.) Where an intro image's resolved value is the bare
+  relative `src`, a media field's is the full value **Joomla's own media field would hold** —
+  `images/x.jpg#joomlaImage://local-images/x.jpg?width=800&height=600` (`joomlaImageValue()`) — since
+  `HTMLHelper::cleanImageURL()` reads that fragment to give the rendered `<img>` its `width`/`height`
+  and `loading="lazy"`. ⚠️ The fragment is emitted **only when the upload response gave an
+  adapter-qualified path** (com_media's `getFile()` prefixes every path it returns with `<adapter>:`),
+  because without one we would be naming an adapter we guessed at; the value is perfectly valid
+  without it, the site just renders no dimensions. The record shape itself — and why a partial one is
+  no save at all — is `Field\MediaFieldValue`'s; see `CLAUDE.md`'s `src/Field/` bullet.
   a local pick is inserted as `<img src="boson://app/api/media/{id}/raw?rev=…"
   data-grafida-media-id="N">` (`GRAFIDA_MEDIA_ATTR`, mirroring `InlineMedia::ATTRIBUTE`) — **not**
   a `data:` URI (gh-36, see `src/Media/` above) — so `PublishService` uploads the referenced blob

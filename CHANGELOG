@@ -1,5 +1,6 @@
 Grafida 0.3
 ================================================================================
++ Custom fields of type Media can now be edited, using Grafida's own media browser — site media or a local picture uploaded on publish
 + Media Manager: new Local Media tab to crop, resize, rename and delete images before they are published (gh-36)
 + Diagnose Connection: see the exact request and response when a site connection fails (gh-37)
 + Optional Request Log: record the last 20 requests to the site, with JSON export (gh-37)

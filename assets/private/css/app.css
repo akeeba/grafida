@@ -1692,6 +1692,14 @@ input[type="color"].form-control {
     margin: 0;
 }
 
+/* A `media` custom field: the intro/full-text image block's layout, minus its
+   own heading (the field's label is already the form group's). */
+.media-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
 /* Media library browser */
 .modal:has(.media-browser) {
     width: 760px;

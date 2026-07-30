@@ -181,3 +181,37 @@ what we cache about a site, and the API contracts that govern reading it. Verbat
   article unpublishable — which is the bug this exists for. Note the category tree is read
   **best-effort** there: it only ever *widens* the scope, so an unreachable site with a cold
   category cache must not fail the publish over it.
+- **A `media` custom field's value is an `accessiblemedia` record, not a path** — and getting that
+  wrong loses data with no error anywhere. `plg_fields_media::onCustomFieldsPrepareDom()` sets the
+  form field's type to **`accessiblemedia`**, a non-repeatable `SubformField` over three subfields:
+  `imagefile` (the media path), `alt_text`, and `alt_empty` (Joomla's "the alt text is intentionally
+  empty", i.e. a decorative image). So `#__fields_values.value` holds a **JSON object string**,
+  `{"imagefile":"images/x.jpg","alt_text":"A cat","alt_empty":""}`, and
+  `Field\MediaFieldValue::decode()`/`encode()` is the only thing that may read or write it. Four
+  things follow, in descending order of how quietly they bite:
+  - ⚠️ **A write must carry the whole record.** `AccessiblemediaField::setup()` returns **false** for
+    an array/object value lacking `imagefile` *or* `alt_text`, and `Form::filter()` only writes a
+    field to its output when `loadField()` returned an object — so a partial record is not a partial
+    save, it is *no* save, with nothing logged and a 200 back. `encode()` therefore always emits all
+    three keys, in a fixed order (which the SPA mirrors, because `collectDraftFormData()`'s output is
+    JSON-compared against the editor baseline for dirty detection).
+  - ⚠️ **An empty picture must be the empty string, not an empty record.**
+    `plg_system_fields::onContentAfterSave()` reads a zero-length value as "remove this field's
+    value" and JSON-encodes anything else — `{"imagefile":"", …}` would store a record describing
+    nothing, and Joomla's own template only tests `empty($field->value['imagefile'])`, so the field
+    would render blank while still holding a value. It also means an **omitted** key is not "clear
+    it": the plugin falls back to `$field->rawvalue`, so a field we do not send keeps what the site
+    has.
+  - **A JSON string is accepted as readily as a nested object**, and is what we send.
+    `SubformField::filter()` `json_decode`s a string value before handing it to the subform's own
+    `Form::filter()`, and `setup()`'s `is_string()` branch short-circuits before the
+    `imagefile`/`alt_text` property check — so the string form cannot trip the first trap above at
+    all.
+  - **A Joomla 3 field holds a bare path** and no JSON. `plg_fields_media::checkValue()` still
+    carries that fallback (`['imagefile' => $value, 'alt_text' => '']`), so `decode()` does too;
+    treating an unparseable value as empty would blank such a field on the next publish.
+  Note this is orthogonal to the fields *list* endpoint: the type arrives as plain `"media"`, and
+  nothing about the assignment or the `fieldparams` (`directory`, `preview`, `image_class`) needs the
+  item request. `PublishService::resolveMediaField()` is where a value is resolved on the way out —
+  see `.claude/rules/media-and-publish.md` for the offline-blob upload and the `#joomlaImage://`
+  fragment.

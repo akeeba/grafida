@@ -3084,7 +3084,7 @@ function renderCustomFields(draft) {
         supported.forEach(field => {
             const val = (draft.fields || {})[field.name];
             try {
-                const fg = formGroup(field.label, buildFieldInput(field, val));
+                const fg = formGroup(field.label, buildFieldInput(field, val, draft.siteId));
                 fg.dataset.fieldName = field.name;
                 sec.appendChild(fg);
             } catch (err) {
@@ -3407,7 +3407,7 @@ function fieldOptionRows(fieldparams) {
     return [];
 }
 
-function buildFieldInput(field, currentValue) {
+function buildFieldInput(field, currentValue, siteId) {
     const name = `field-${field.name}`;
     const options = fieldOptionRows(field.fieldparams);
 
@@ -3470,6 +3470,8 @@ function buildFieldInput(field, currentValue) {
             });
             return sel;
         }
+        case 'media':
+            return buildMediaFieldInput(name, currentValue, siteId);
         case 'radio': {
             const wrap = el('div', 'radio-group');
             wrap.id = name;
@@ -4730,6 +4732,219 @@ function boundImageInput(key) {
     input.value = State.editorImages[key] || '';
     input.addEventListener('input', () => { State.editorImages[key] = input.value; });
     return input;
+}
+
+// --------------------------------------------------------
+//  The `media` custom field
+// --------------------------------------------------------
+
+/**
+ * The three subfields of a `media` custom field's value, in the order PHP's
+ * `Field\MediaFieldValue::encode()` writes them. The order is load-bearing:
+ * `collectDraftFormData()`'s output is JSON-compared against the editor
+ * baseline, so a field that re-serialises its key order differently would read
+ * as an edit nobody made.
+ */
+const MEDIA_FIELD_KEYS = ['imagefile', 'alt_text', 'alt_empty'];
+
+/**
+ * Normalise whatever a `media` field's stored value happens to be into the
+ * full record. Mirrors `Field\MediaFieldValue::decode()` — see that class for
+ * why there are three shapes to understand: Joomla stores the value of the
+ * `accessiblemedia` subform as a JSON object string, a hand-written definition
+ * may hand over the decoded object, and a field created in Joomla 3 holds a
+ * bare path and nothing else.
+ */
+function decodeMediaFieldValue(raw) {
+    let src = raw;
+
+    if (typeof src === 'string') {
+        const trimmed = src.trim();
+        if (trimmed === '') {
+            src = {};
+        } else {
+            try {
+                const parsed = JSON.parse(trimmed);
+                src = parsed && typeof parsed === 'object' ? parsed : { imagefile: trimmed };
+            } catch {
+                // Not JSON, so it is a Joomla 3 bare path.
+                src = { imagefile: trimmed };
+            }
+        }
+    }
+    if (!src || typeof src !== 'object') src = {};
+
+    const text = (v) => (typeof v === 'string' ? v.trim() : (typeof v === 'number' ? String(v) : ''));
+    const decorative = src.alt_empty === true ? '1' : text(src.alt_empty);
+
+    return {
+        imagefile: text(src.imagefile),
+        alt_text: text(src.alt_text),
+        alt_empty: decorative !== '' && decorative !== '0' ? '1' : '',
+    };
+}
+
+/**
+ * Serialise the record back to what Joomla stores. Mirrors
+ * `Field\MediaFieldValue::encode()`: an empty picture collapses to the empty
+ * string (which is how `plg_system_fields` is told to clear the field — alt
+ * text on its own describes nothing), and the whole record is always written,
+ * never just `imagefile`. ⚠️ A *partial* record is not a partial save but no
+ * save at all: `AccessiblemediaField::setup()` fails on an object missing
+ * `imagefile` or `alt_text`, and `Form::filter()` silently drops a field whose
+ * setup failed.
+ */
+function encodeMediaFieldValue(record) {
+    const value = decodeMediaFieldValue(record);
+    if (value.imagefile === '') return '';
+
+    return JSON.stringify(Object.fromEntries(MEDIA_FIELD_KEYS.map(k => [k, value[k]])));
+}
+
+/**
+ * The editor control for a `media` custom field — the one core field type
+ * Grafida can offer only because it has a media picker of its own (the same
+ * `openMediaBrowser()` the intro/full-text images and TinyMCE's Source-field
+ * browse button use, offline blobs included).
+ *
+ * It is deliberately the intro/full-text image block minus the parts Joomla's
+ * `accessiblemedia` subform has no room for: a preview, one Browse button, a
+ * Clear button, the editable path, the alt text and the decorative toggle. No
+ * caption, no CSS class — those are `#__content.images` subfields, not part of
+ * this value.
+ *
+ * The record is kept in a closure and read back through `_getMediaValue()`
+ * rather than off an `<input>`, because it is three inputs and a JSON string;
+ * `collectDraftFormData()` has the matching branch.
+ */
+function buildMediaFieldInput(id, currentValue, siteId) {
+    const record = decodeMediaFieldValue(currentValue);
+
+    const wrap = el('div', 'media-field');
+    wrap.id = id;
+    wrap._getMediaValue = () => encodeMediaFieldValue(record);
+
+    // Repainted in place after a pick / clear, exactly as the Images section
+    // is: the Clear button only exists while there is something to clear, and
+    // the path input has to follow a pick it did not make itself. The record
+    // and `_getMediaValue` live on the container, so emptying it is safe.
+    const rerender = () => {
+        clearNode(wrap);
+        wrap.appendChild(buildMediaFieldBody(record, siteId, rerender));
+    };
+    rerender();
+
+    return wrap;
+}
+
+/** One rendering of the media-field control, over the shared record. */
+function buildMediaFieldBody(record, siteId, rerender) {
+    const frag = document.createDocumentFragment();
+
+    const preview = el('div', 'image-preview');
+    const img = document.createElement('img');
+    img.alt = '';
+    const empty = el('span', 'image-preview-empty', t('GRAFIDA_MSG_NO_IMAGE'));
+    const showPreview = (src) => {
+        if (src) {
+            img.src = src;
+            img.style.display = '';
+            empty.style.display = 'none';
+        } else {
+            img.removeAttribute('src');
+            img.style.display = 'none';
+            empty.style.display = '';
+        }
+    };
+    preview.appendChild(img);
+    preview.appendChild(empty);
+    showPreview(mediaFieldPreviewUrl(record.imagefile, siteId));
+    frag.appendChild(preview);
+
+    // One button, not two: the browser's own "Choose file…" footer button
+    // (`allowUpload`) already covers picking a file off this machine, and the
+    // sidebar has no room to repeat it.
+    const actions = el('div', 'image-actions');
+    const browseBtn = iconBtn('folder-open', t('GRAFIDA_BTN_BROWSE_MEDIA'), 'btn', 'btn-sm', 'btn-secondary');
+    browseBtn.addEventListener('click', async () => {
+        const picked = await openMediaBrowser(siteId, { allowUpload: true });
+        if (!picked || typeof picked.url !== 'string' || picked.url === '') return;
+
+        if (picked.mediaId) {
+            // An offline blob: hold the same sentinel the intro/full-text
+            // images use, so PublishService uploads it on publish, and cache
+            // the local URL so the preview can paint it right away.
+            const ref = MEDIA_REF_PREFIX + picked.mediaId;
+            State.mediaPreviews[ref] = picked.url;
+            record.imagefile = ref;
+        } else {
+            record.imagefile = relativeImagePath(picked.url, siteId);
+        }
+        rerender();
+    });
+    actions.appendChild(browseBtn);
+    if (record.imagefile) {
+        const clearBtn = iconBtn('xmark', t('GRAFIDA_BTN_CLEAR_IMAGE'), 'btn', 'btn-sm', 'btn-secondary');
+        clearBtn.addEventListener('click', () => {
+            record.imagefile = '';
+            rerender();
+        });
+        actions.appendChild(clearBtn);
+    }
+    frag.appendChild(actions);
+
+    // The path, editable — a media path typed or pasted by hand is as valid as
+    // a browsed one. An offline blob shows blank, as in the Images section:
+    // `grafida-media://7` is our own bookkeeping, not something to hand-edit.
+    const pathInput = document.createElement('input');
+    pathInput.type = 'text';
+    pathInput.className = 'form-control';
+    pathInput.value = record.imagefile.startsWith(MEDIA_REF_PREFIX) ? '' : record.imagefile;
+    pathInput.addEventListener('input', () => {
+        record.imagefile = pathInput.value.trim();
+        showPreview(mediaFieldPreviewUrl(record.imagefile, siteId));
+    });
+    frag.appendChild(formGroup(t('GRAFIDA_LBL_IMAGE_URL'), pathInput));
+
+    const altInput = document.createElement('input');
+    altInput.type = 'text';
+    altInput.className = 'form-control';
+    altInput.value = record.alt_text;
+    altInput.disabled = record.alt_empty === '1';
+    altInput.addEventListener('input', () => { record.alt_text = altInput.value; });
+    frag.appendChild(formGroup(t('GRAFIDA_LBL_IMAGE_ALT'), altInput));
+
+    const decorative = el('label', 'image-decorative');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = record.alt_empty === '1';
+    cb.addEventListener('change', () => {
+        record.alt_empty = cb.checked ? '1' : '';
+        altInput.disabled = cb.checked;
+    });
+    decorative.appendChild(cb);
+    decorative.appendChild(el('span', null, t('GRAFIDA_LBL_IMAGE_DECORATIVE')));
+    frag.appendChild(decorative);
+
+    return frag;
+}
+
+/**
+ * The URL to preview a media field's picture with. An offline blob resolves
+ * from the preview cache, falling back to minting its local raw URL off the
+ * sentinel's id — the same self-healing `buildImageBlock()` needs for a
+ * reloaded draft, whose blob metadata was never fetched (the `rev` token is a
+ * cache buster the server never validates, see `localMediaUrl()`).
+ */
+function mediaFieldPreviewUrl(value, siteId) {
+    const url = imagePreviewUrl(value, siteId);
+    if (url) return url;
+    if (!value || !value.startsWith(MEDIA_REF_PREFIX)) return null;
+
+    const raw = localMediaUrl(parseInt(value.slice(MEDIA_REF_PREFIX.length), 10), null);
+    if (raw) State.mediaPreviews[value] = raw;
+
+    return raw;
 }
 
 /**
@@ -6292,6 +6507,10 @@ function collectDraftFormData() {
         } else if (field.type === 'radio') {
             const checked = fieldEl.querySelector('input[type="radio"]:checked');
             fields[field.name] = checked ? checked.value : '';
+        } else if (field.type === 'media') {
+            // Three inputs collapsing into one JSON record, so the control
+            // hands it over itself rather than exposing a `.value`.
+            fields[field.name] = fieldEl._getMediaValue ? fieldEl._getMediaValue() : '';
         } else {
             fields[field.name] = fieldEl.value;
         }

@@ -15,6 +15,7 @@ use Grafida\Article\Draft;
 use Grafida\Article\DraftRepository;
 use Grafida\Field\FieldCategoryScope;
 use Grafida\Field\FieldSupport;
+use Grafida\Field\MediaFieldValue;
 use Grafida\Html\ContentSplitter;
 use Grafida\Html\InlineMedia;
 use Grafida\I18n\LanguageService;
@@ -35,7 +36,8 @@ use Grafida\Support\App;
  *   2. Upload offline images and swap their local (boson://) or data: URI src for public URLs.
  *   3. Create any tags that do not yet exist and resolve all tags to IDs.
  *   4. Split the HTML into introtext / fulltext on the read-more marker.
- *   5. Map supported custom-field values into `com_fields`.
+ *   5. Map supported custom-field values into `com_fields`, uploading the offline
+ *      picture behind a `media` field the same way as an intro/full-text image.
  *   6. POST a new article (or PATCH an existing one) and remember its remote ID.
  */
 final class PublishService
@@ -173,7 +175,7 @@ final class PublishService
         if ($tagIds !== []) {
             $attributes['tags'] = $tagIds;
         }
-        $mappedFields = $this->mapFields($draft->fields, $fieldDefs);
+        $mappedFields = $this->mapFields($draft->fields, $fieldDefs, $site, $base, $token);
         if ($mappedFields !== []) {
             $attributes['com_fields'] = $mappedFields;
         }
@@ -538,27 +540,108 @@ final class PublishService
      *
      * @return array<string, mixed>
      */
-    private function mapFields(array $values, array $fieldDefs): array
+    private function mapFields(array $values, array $fieldDefs, Site $site, string $base, string $token): array
     {
-        $supportedNames = [];
+        // Keyed by field name, valued by the *lowercased* type, because a
+        // `media` field's value is not sent as it was stored — see below.
+        $supportedTypes = [];
         foreach ($fieldDefs as $def) {
             $defName = $def['name'] ?? null;
             $defType = $def['type'] ?? null;
             $name    = is_string($defName) ? $defName : '';
             $type    = is_string($defType) ? $defType : '';
             if ($name !== '' && $this->fields->isSupported($type)) {
-                $supportedNames[$name] = true;
+                $supportedTypes[$name] = strtolower($type);
             }
         }
 
         $out = [];
         foreach ($values as $name => $value) {
-            if (isset($supportedNames[$name])) {
-                $out[$name] = $value;
+            if (!isset($supportedTypes[$name])) {
+                continue;
             }
+
+            $out[$name] = $supportedTypes[$name] === 'media'
+                ? $this->resolveMediaField($value, $site, $base, $token)
+                : $value;
         }
 
         return $out;
+    }
+
+    /**
+     * Resolves a `media` custom field's value into what Joomla stores: the
+     * `accessiblemedia` record, JSON-encoded, its picture a real media path.
+     *
+     * A picture chosen from Grafida's own media picker while offline is held as
+     * the same `grafida-media://N` sentinel the intro/full-text images use, so
+     * it is uploaded here through the shared blob upload. If its blob has since
+     * vanished the reference is **dropped** rather than published — exactly as
+     * {@see resolveImages()} does, and for the same reason: the alternative is
+     * a live article whose `src` is `grafida-media://5`. (An upload that *fails*
+     * still aborts the publish, as everywhere else — `uploadBlob()` returns null
+     * only for a blob that is not there any more.)
+     *
+     * An uploaded picture is described the way Joomla's own media field
+     * describes one, `#joomlaImage://` fragment included, so the site renders
+     * it with `width`/`height` and `loading="lazy"` — see
+     * {@see joomlaImageValue()}.
+     */
+    private function resolveMediaField(mixed $value, Site $site, string $base, string $token): string
+    {
+        $record = MediaFieldValue::decode($value);
+        $file   = $record['imagefile'];
+
+        if ($file === '' || !str_starts_with($file, self::MEDIA_REF_PREFIX)) {
+            return MediaFieldValue::encode($record);
+        }
+
+        $mediaId = (int) substr($file, strlen(self::MEDIA_REF_PREFIX));
+        $info    = $mediaId > 0 ? $this->uploadBlob($mediaId, $site, $base, $token) : null;
+
+        $record['imagefile'] = $info === null ? '' : $this->joomlaImageValue($info);
+
+        return MediaFieldValue::encode($record);
+    }
+
+    /**
+     * The value Joomla's own media field would hold for an uploaded picture:
+     * `images/x.jpg#joomlaImage://local-images/x.jpg?width=800&height=600`.
+     *
+     * The fragment is what `HTMLHelper::cleanImageURL()` reads to give the
+     * rendered `<img>` its `width`/`height` (and, with both, `loading="lazy"`);
+     * it is stripped from the `src` itself. It is only emitted when the upload
+     * response gave us an **adapter-qualified** path — `getFile()` prefixes
+     * every path it returns with `<adapter>:`, so a path without one means we
+     * fell back to a guess and would be naming an adapter that may not exist.
+     * Without the fragment the value is still perfectly valid; the site just
+     * renders the picture without dimensions.
+     *
+     * @param array{src: string, dataPath: ?string, width: ?int, height: ?int} $info
+     */
+    private function joomlaImageValue(array $info): string
+    {
+        $src         = $info['src'];
+        $adapterPath = $info['dataPath'] ?? '';
+        $width       = $info['width'] ?? 0;
+        $height      = $info['height'] ?? 0;
+
+        if ($src === '' || !str_contains($adapterPath, ':') || $width < 1 || $height < 1) {
+            return $src;
+        }
+
+        // "local-images:/grafida/x.jpg" → "local-images/grafida/x.jpg", the
+        // adapter-then-path form Joomla's media field JS writes.
+        [$adapter, $rel] = explode(':', $adapterPath, 2);
+
+        return sprintf(
+            '%s#joomlaImage://%s/%s?width=%d&height=%d',
+            $src,
+            $adapter,
+            ltrim($rel, '/'),
+            $width,
+            $height,
+        );
     }
 
     private function safeName(string $filename, int $mediaId): string

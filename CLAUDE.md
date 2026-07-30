@@ -118,7 +118,8 @@ window-free in tests (a null dialog makes the endpoint return 503).
   easily broken from outside: `TemplateDiscovery` needs the **template styles API**, not just a
   home-page scan — a child template that ships only an `editor.css` renders no asset URL of its
   own and is structurally invisible to any page scan (gh-3).
-- `src/Field/` — `FieldSupport` (supported field-type subset + required-unsupported guard) and
+- `src/Field/` — `FieldSupport` (supported field-type subset + required-unsupported guard),
+  `MediaFieldValue` and
   `FieldCategoryScope` (gh-56), which works out **which fields Joomla actually uses for a category** —
   assigned to it, to one of its ancestors, or to no category at all; `-1` ("Only Use In Subform")
   never. ⚠️ **The fields *list* endpoint does not carry the assignment and the API accepts no
@@ -129,6 +130,22 @@ window-free in tests (a null dialog makes the endpoint return 503).
   whatever the user typed into it. `annotate()` expands the assignment **downwards** into
   `categoryIds` (null = all) so the SPA re-scopes on a category change with an `includes()` test and
   the tree walk has exactly one implementation.
+  **`media` is a supported type** — the one core field type Grafida can offer only because it has a
+  media picker of its own (`openMediaBrowser()`, both tabs), so no site-side media manager is needed.
+  ⚠️ **Its value is a record, not a path.** `plg_fields_media` renders the form field as
+  **`accessiblemedia`**, a non-repeatable subform of `imagefile` / `alt_text` / `alt_empty`, and
+  `#__fields_values.value` holds it as a JSON object string. `MediaFieldValue::decode()`/`encode()`
+  is the only thing that should read or write it (mirrored in `app.js` by
+  `decodeMediaFieldValue()`/`encodeMediaFieldValue()`); it understands all three shapes that reach
+  us — the JSON string, an already-decoded object, and a **Joomla 3 bare path**, whose fallback
+  `plg_fields_media::checkValue()` still carries. Two traps: **a write must carry the whole record**
+  (`AccessiblemediaField::setup()` returns false for an object missing `imagefile` *or* `alt_text`,
+  and `Form::filter()` drops a field whose setup failed — so a partial record is not a partial save
+  but *no* save, and nothing errors), and an empty `imagefile` must collapse to the **empty string**,
+  which is how `plg_system_fields` is told to clear the value. A picture picked offline is held as the
+  same `grafida-media://N` sentinel the intro/full-text images use;
+  `PublishService::resolveMediaField()` uploads it and rewrites the value the way Joomla's own media
+  field does, `#joomlaImage://` fragment included — see `.claude/rules/media-and-publish.md`.
 - `src/Article/` — `Draft` entity + repository (local drafts), the alias (URL slug) preview, the
   two-tab Articles screen (Local / Remote) and the portable **`.grafida`** export format. A draft
   remembers the `site_id` + `remote_id` it mirrors; drafts are only written to the DB on the first
