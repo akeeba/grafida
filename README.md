@@ -39,8 +39,11 @@ As per the information in the article linked above, the only way you can use thi
 - A Joomla **5.4 or later** site with the Web Services API enabled and an API token for an account
   authorised for API access. Super Users work by default. Non-Super-User accounts can be configured
   for Grafida; see [Custom API access](https://github.com/akeeba/grafida/wiki/Custom-API-Access).
-- To run a pre-built release: **macOS 14+**, **Windows 10+**, or **Linux** with GTK4 and
-  WebKitGTK 6.0 (`libgtk-4-1`, `libwebkitgtk-6.0-4`).
+- To run a pre-built release: **macOS 15 Sequoia+**, **Windows 10+** (with the Microsoft Edge
+  WebView2 Runtime, which ships with Windows 11 and current Windows 10), or **Linux** with GTK4
+  and WebKitGTK 6.0 (`libgtk-4-1`, `libwebkitgtk-6.0-4`). The macOS floor is set by the prebuilt
+  Boson webview library, which is linked against a macOS 15 SDK and cannot be loaded by macOS 14
+  Sonoma or earlier ([gh-58](https://github.com/akeeba/grafida/issues/58)).
 
 ## Usage
 
@@ -171,6 +174,17 @@ macOS and Linux (`brew install makensis`) — no Wine, Docker, or Windows host n
 **The application version is the topmost entry of the [`CHANGELOG`](CHANGELOG)** (e.g. `Grafida
 0.1`). The Phing `git-*` targets stamp it into `App::VERSION` before compiling, so the binary and
 the About dialog report it; set `GRAFIDA_VERSION=…` to override the CHANGELOG.
+
+**Bringing your own webview library.** The minimum macOS version above is not ours to choose: the
+`boson-php/saucer` package ships a prebuilt `libboson-darwin-universal.dylib` linked with a
+deployment target of macOS 15, and the compiler copies it verbatim into every macOS binary. The
+minimum lives in one place, `App::MIN_MACOS`, from where `scripts/make-macos-app.sh` writes it into
+the bundle's `LSMinimumSystemVersion` and a start-up check enforces it; a unit test fails if the
+vendored library's floor ever rises above it. If you re-link that library for an older system, set
+`GRAFIDA_BOSON_LIBRARY=/path/to/libboson.dylib` and Grafida will load yours and skip the macOS
+version check. Note that `LSMinimumSystemVersion` is enforced by LaunchServices *before* PHP runs,
+so this unlocks `Grafida.app/Contents/MacOS/grafida` and the PHAR, not a Finder double-click of the
+shipped `.app`.
 
 `boson compile` (under the hood) bundles a PHP runtime and produces a self-contained executable.
 End users do not need PHP installed. The bundled language files and SQL migrations are extracted

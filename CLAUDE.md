@@ -384,6 +384,25 @@ window-free in tests (a null dialog makes the endpoint return 503).
   disclaimer — sent to the SPA in the `bootstrap` payload's `app` key), and `UrlOpener`
   (opens an external http(s) URL in the OS default browser; backs `POST /api/open-url`).
   The sidebar footer shows the version and opens an About dialog using this metadata.
+  `App` also holds **`MIN_MACOS`** (+ `MIN_MACOS_NAME`), the single source of truth for the
+  minimum macOS version — see `src/Startup/` below.
+- `src/Startup/` — the two things that run **before the Boson application exists**, and therefore
+  before the webview, the container, the database and the SPA: `StartupCheck` (is this OS able to
+  load the webview library at all?) and `FailureReporter` (say why we are dying). Wired straight
+  into `index.php`: the pre-flight sits right after the autoloader, and `new Application(...)` — the
+  single call that dlopens the native library, checks its ABI and creates the window — is the
+  **only** thing inside the `try`, so an application bug further down keeps its ordinary stack
+  trace. Both exit `StartupCheck::EXIT_UNSUPPORTED` (69, `EX_UNAVAILABLE`).
+  ⚠️ Three rules that are not guessable from the code. **Nothing here can be translated** — it runs
+  before `UiStrings`, so the text is hard-coded English, like `App::JOOMLA_DISCLAIMER`; **the checks
+  fail open** (an undetectable or unparseable OS version lets the launch proceed, because refusing
+  to start on a machine we merely could not identify is worse than the crash we are preventing, and
+  the `catch` explains it a moment later anyway); and **stderr is not a user-facing channel** — a
+  macOS `.app` sends it to unified logging and `index.php` has already hidden the Windows console —
+  so the message also goes to a native alert (`osascript`, `MessageBoxA`, `zenity`/`kdialog`), with
+  the stack trace kept to stderr. `App::MIN_MACOS` is dictated by the prebuilt Boson library we
+  vendor, not by our own code; the coupling and its regression guard are in
+  `.claude/rules/build-and-packaging.md` (gh-58).
 - `assets/private/` — SPA (`view/index.html`, `css/`, `js/`, `js/tinymce/`).
   ⚠️ **The front-end notes live in `.claude/rules/spa-frontend.md`**, which loads automatically
   whenever you work under `assets/private/`. Everything about the TinyMCE 8 wiring (including the

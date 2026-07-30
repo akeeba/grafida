@@ -45,10 +45,23 @@ update the workflow (splitting `EXTENSIONS` per-OS if they ever diverge), push,
    extension list, and skim `AssemblyTargetTask` / `FindCustomSfxPathnameTask`
    in the compiler for changes to the assembly format or the custom-`sfx`
    config key our `compile-target.php` relies on.
-2. Rebuild, sign, notarise, and launch-test. If anything smells wrong, verify
+2. **Check the macOS library's deployment target.**
+   `vtool -show-build vendor/boson-php/saucer/bin/libboson-darwin-universal.dylib`
+   reports `minos` for **both** slices. Upstream builds it on `macos-latest` with
+   no `CMAKE_OSX_DEPLOYMENT_TARGET`, so this silently follows whatever SDK the
+   GitHub runner had and can rise on any bump — locking out every user of the
+   current macOS. If it exceeds `App::MIN_MACOS`, `composer test` says so
+   (`tests/Unit/Startup/MacosDeploymentFloorTest.php`): raise the constant with
+   `App::MIN_MACOS_NAME`, `docs/Requirements.md` and `README.md`. Also confirm
+   both `x86_64` and `arm64` slices are still there — the same test pins that,
+   since losing the Intel slice would break `build/macos/amd64` with no other
+   warning. ⚠️ `vtool -set-build-version` can rewrite the load command but
+   **cannot** remove the libc++ symbol dependency behind it (gh-58): a patched
+   library still fails to `dlopen` on the older system.
+3. Rebuild, sign, notarise, and launch-test. If anything smells wrong, verify
    the stub first (stale-binary check below), then run the app with
    `MICRO_TRACE_OPEN=1` to watch the payload-offset hooks.
-3. Also re-test whether the detour is still needed at all — if a stock Boson
+4. Also re-test whether the detour is still needed at all — if a stock Boson
    binary ever signs cleanly, retire the fork (see the end of 01).
 
 ## Keeping the fork healthy

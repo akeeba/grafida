@@ -26,6 +26,32 @@ final class App
     /** Application version (semantic versioning). */
     public const VERSION = '0.3';
 
+    /**
+     * Oldest macOS version Grafida can run on.
+     *
+     * ⚠️ This number is **not ours to choose**. boson-php/saucer ships a prebuilt
+     * `libboson-darwin-universal.dylib` and the compiler copies it verbatim into every macOS
+     * binary; upstream builds it on the latest runner with no `CMAKE_OSX_DEPLOYMENT_TARGET`,
+     * so it is linked `minos 15.0` against a libc++ symbol that simply does not exist on
+     * earlier systems. On anything older the library cannot be loaded at all and the app dies
+     * inside `FFI::cdef()` (gh-58).
+     *
+     * Three consumers: {@see \Grafida\Startup\StartupCheck} (the runtime pre-flight),
+     * `scripts/make-macos-app.sh` (`LSMinimumSystemVersion`, read out of this file with sed),
+     * and `DylibDeploymentTargetTest`, which fails the suite if the shipped library's floor
+     * ever rises above this value. Re-check on every boson-php bump with
+     * `vtool -show-build vendor/boson-php/saucer/bin/libboson-darwin-universal.dylib`.
+     */
+    public const MIN_MACOS = '15.0';
+
+    /**
+     * {@see MIN_MACOS} as a person would say it, for the start-up alerts.
+     *
+     * Apple's marketing name cannot be derived from the number, so it is written out — and it
+     * must move whenever `MIN_MACOS` does, which is why the two sit together.
+     */
+    public const MIN_MACOS_NAME = 'macOS 15 Sequoia';
+
     /** Copyright line. */
     public const COPYRIGHT = 'Copyright © 2026 Nicholas K. Dionysopoulos';
 

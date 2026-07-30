@@ -30,6 +30,14 @@ if [ ! -x "$BIN" ]; then
 fi
 
 VERSION="${GRAFIDA_VERSION:-$(sed -nE "s/.*VERSION = '([^']+)'.*/\1/p" "$ROOT/src/Support/App.php" | head -1)}"
+# LSMinimumSystemVersion is dictated by the prebuilt libboson dylib we bundle, not by us — see
+# App::MIN_MACOS, which is the single source of truth (gh-58). Read it from there rather than
+# hard-coding it here, or the plist and the app's own pre-flight check will drift apart.
+MIN_MACOS="$(sed -nE "s/.*MIN_MACOS = '([^']+)'.*/\1/p" "$ROOT/src/Support/App.php" | head -1)"
+if [ -z "$MIN_MACOS" ]; then
+  echo "Could not read App::MIN_MACOS from src/Support/App.php — refusing to guess LSMinimumSystemVersion." >&2
+  exit 1
+fi
 # The bundle is written beside its source binary (per-arch) so building both the
 # arm64 and amd64 .app/.dmg in one run does not clobber a single shared path.
 APP="$SRC_DIR/Grafida.app"
@@ -37,7 +45,7 @@ MACOS="$APP/Contents/MacOS"
 
 RES="$APP/Contents/Resources"
 
-echo "Assembling $APP (arch: $ARCH, version: $VERSION)"
+echo "Assembling $APP (arch: $ARCH, version: $VERSION, minimum macOS: $MIN_MACOS)"
 rm -rf "$APP"
 mkdir -p "$MACOS" "$RES"
 
@@ -121,7 +129,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleIconFile</key><string>Grafida</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
-    <key>LSMinimumSystemVersion</key><string>14.0</string>
+    <key>LSMinimumSystemVersion</key><string>${MIN_MACOS}</string>
     <key>NSHighResolutionCapable</key><true/>
     <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
     <key>NSHumanReadableCopyright</key><string>Copyright (c) 2026 Nicholas K. Dionysopoulos. GNU GPL v3 or later.</string>

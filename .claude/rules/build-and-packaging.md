@@ -123,6 +123,24 @@ warn+skip), but a failing compile or a genuine packaging-tool error is fatal. Pi
   a fallback only when FFI is unavailable.
 - PHAR: `scripts/make-phar-dist.sh` copies the compiler's `build/phar/grafida.phar` to `Grafida-<v>.phar`.
 
+**⚠️ The minimum macOS version is set by the vendored library, not by us.** `boson-php/saucer`
+ships a prebuilt `libboson-darwin-universal.dylib` which `boson compile` copies verbatim into
+every macOS target (`vendor/boson-php/compiler/src/Target/BuiltinTarget.php` — there is no `sfx`-style
+config key to override it), and upstream builds it on `macos-latest` with **no
+`CMAKE_OSX_DEPLOYMENT_TARGET`**, so its floor is whatever SDK the runner had: currently `minos 15.0`,
+importing a libc++ symbol that does not exist earlier. `vtool -set-build-version` cannot lower it —
+the symbol dependency is real (gh-58). Our own artefacts are fine (`minos 12.0`).
+So **`App::MIN_MACOS` is the single source of truth**, with three consumers: `make-macos-app.sh`
+seds it into `Info.plist`'s `LSMinimumSystemVersion` (a failed read is **fatal** — an *empty* value
+means "no minimum" to LaunchServices, which is how gh-58 got as far as launching and then crashing),
+`Grafida\Startup\StartupCheck` enforces it at run time for the launches LaunchServices does not gate
+(the PHAR, and the binary run from a terminal), and `tests/Unit/Startup/MacosDeploymentFloorTest.php`
+fails the suite when the vendored library's floor rises above it — the blind spot that produced the
+bug. It parses the Mach-O in PHP (`tests/Support/MachO.php`) rather than shelling out to `vtool`, so
+the guard also fires on a Linux or Windows `composer test`. See the checklist step in
+`build/readme/03-sfx-maintenance.md`. Escape hatch for a self-built library: `GRAFIDA_BOSON_LIBRARY`
+(feeds `ApplicationCreateInfo::$library`), which also switches the run-time gate off.
+
 **Binaries-only build (no packaging):** `build.xml` (root) is a **Phing** buildfile whose default
 target `git` (also `composer build:git`) compiles the native binary for **every** platform but stops
 short of the installers/DMG — `git` depends on six per-platform targets (`git-macos-arm`,

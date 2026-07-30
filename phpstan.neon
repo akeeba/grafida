@@ -46,6 +46,11 @@ parameters:
     -
       identifier: argument.type
       path: src/Clipboard/WindowsClipboard.php
+    # FailureReporter is the same FFI story for its one user32 call (the alert it puts
+    # up when the webview library will not load and the console is already hidden).
+    -
+      identifier: method.notFound
+      path: src/Startup/FailureReporter.php
     # MacSpellCheck is the same FFI story: PHPStan cannot see through the
     # CoreFoundation functions or the extern CFPreferences constant symbols.
     -

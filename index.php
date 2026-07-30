@@ -19,8 +19,28 @@ use Boson\Window\WindowDecoration;
 use Grafida\Application\ContainerFactory;
 use Grafida\Editor\MacSpellCheck;
 use Grafida\FrontController;
+use Grafida\Startup\FailureReporter;
+use Grafida\Startup\StartupCheck;
 
 require __DIR__ . '/vendor/autoload.php';
+
+// The webview library Boson bundles is built for the macOS version in App::MIN_MACOS and cannot
+// be loaded by anything older, where the app died inside FFI::cdef() with a PHP fatal error nobody
+// ever saw (gh-58). The app bundle's LSMinimumSystemVersion stops a Finder launch with Apple's own
+// alert, but the PHAR has no bundle and running the binary from a terminal bypasses LaunchServices
+// — so say why, here, before we mutate any process state (the hidden console, the spell-check
+// default) and before anything can throw. ⚠️ It sits ahead of the console-hiding block below only
+// because it spawns nothing off macOS; a probe that runs a subprocess on Windows belongs AFTER
+// that block, or it flashes a console window (see the note on it).
+$startup  = new StartupCheck();
+$reporter = new FailureReporter();
+$tooOld   = $startup->unsupportedMacOs();
+
+if ($tooOld !== null) {
+    $reporter->report($tooOld);
+
+    exit(StartupCheck::EXIT_UNSUPPORTED);
+}
 
 // Windows: grafida.exe runs on a console-subsystem PHP runtime (the phpmicro
 // SFX is a CLI build), so Windows hands the process a console window. Grafida is
@@ -51,9 +71,13 @@ if (\PHP_OS_FAMILY === 'Windows' && \extension_loaded('ffi')) {
 // before the webview boots. Best-effort; a failure just leaves spell checking off, as before.
 MacSpellCheck::enable();
 
-$app = new Application(new ApplicationCreateInfo(
+$createInfo = new ApplicationCreateInfo(
     schemes: ['boson'],
     debug: (bool) filter_var(getenv('BOSON_DEBUG'), \FILTER_VALIDATE_BOOLEAN, \FILTER_NULL_ON_FAILURE),
+    // Normally null, so Boson finds the library it ships. GRAFIDA_BOSON_LIBRARY exists because
+    // that library's minimum macOS is upstream's choice, not ours (gh-58): someone who re-links
+    // it for an older system can point us at their copy.
+    library: $startup->libraryOverride(),
     window: new WindowCreateInfo(
         title: 'Grafida',
         width: 1280,
@@ -72,7 +96,23 @@ $app = new Application(new ApplicationCreateInfo(
             devTools: (bool) filter_var(getenv('BOSON_DEBUG'), \FILTER_VALIDATE_BOOLEAN, \FILTER_NULL_ON_FAILURE),
         ),
     ),
-));
+);
+
+// Everything native fails inside this constructor: the library load, Boson's ABI check, and the
+// creation of the window and webview. So an uncaught throwable here is a missing or incompatible
+// OS component — too old a macOS (gh-58), no WebKitGTK on Linux, no WebView2 runtime on Windows —
+// never a Grafida bug, and PHP's own handling of it is a fatal error nobody sees because there is
+// no console. Deliberately narrow: the container, the controller and $app->run() below stay
+// UNWRAPPED, so a genuine application error keeps its normal, traceable behaviour. Note it must
+// be \Throwable, not \Exception: FFI\Exception extends \Error. The full throwable goes to stderr
+// either way, so there is nothing for a debug flag to reveal.
+try {
+    $app = new Application($createInfo);
+} catch (\Throwable $e) {
+    $reporter->report(FailureReporter::describe($e), (string) $e);
+
+    exit(StartupCheck::EXIT_UNSUPPORTED);
+}
 
 $static = new FilesystemStaticProvider([
     __DIR__ . '/assets/private',
