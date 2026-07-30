@@ -2760,7 +2760,16 @@ async function openDraftInEditor(draft) {
 async function openEditorScreen(draft) {
     showScreen('editor');
 
-    renderEditorSidebar(draft);
+    // ⚠️ Tear the previous article's editor down FIRST, before anything that
+    // could fail. This used to be left to initTinyMCE(), the last step — so a
+    // sidebar that threw half-way (one malformed custom field is enough)
+    // aborted the open with the *previous* article still on screen, while
+    // State.currentDraft already pointed at the new one. "New Article" then
+    // showed the article you had just backed out of, and saving it would have
+    // written that body into the new draft.
+    resetEditorScreen();
+
+    renderEditorSidebarSafely(draft);
     await initTinyMCE(draft);
 
     // Snapshot the freshly-loaded form so we can detect unsaved changes later.
@@ -2823,6 +2832,56 @@ function loadEditorSiteData(draft) {
     }
 }
 
+/**
+ * Renders the editor sidebar, absorbing a failure to build it.
+ *
+ * ⚠️ **Used by the two callers that create TinyMCE straight afterwards**, which
+ * a throw here would otherwise skip — leaving the screen with no editor on it at
+ * all. A sidebar that cannot be built is a bad sidebar, not a dead editor: the
+ * article body is what the user came here for. renderCustomFields() contains the
+ * failure this actually catches (a field definition the site sent in a shape we
+ * did not anticipate) field by field, so reaching here means something rarer.
+ */
+function renderEditorSidebarSafely(draft) {
+    try {
+        renderEditorSidebar(draft);
+    } catch (err) {
+        console.error('Grafida: the editor sidebar failed to render', err);
+        showToast(t('GRAFIDA_MSG_SIDEBAR_FAILED'), 'error');
+    }
+}
+
+/**
+ * Empties the editor screen: destroys the TinyMCE instance and blanks the
+ * sidebar, the title and the alias.
+ *
+ * ⚠️ **Called before an article is loaded, not after it is left.** Everything
+ * on this screen belongs to one article, so anything still standing when the
+ * next one is opened belongs to the wrong one — and the screen is on display
+ * throughout, since openEditorScreen() shows it and then builds it. Leaving the
+ * teardown to initTinyMCE() (which does its own, for the callers that re-create
+ * the editor in place) meant every step before it could fail with the previous
+ * article still rendered and State.currentDraft already re-pointed.
+ */
+function resetEditorScreen() {
+    if (State.tinyMCEEditor) {
+        try { State.tinyMCEEditor.remove(); } catch {}
+        State.tinyMCEEditor = null;
+    }
+
+    const wrapper = document.getElementById('tinymce-wrapper');
+    if (wrapper) clearNode(wrapper);
+
+    const sidebar = document.getElementById('editor-sidebar-inner');
+    if (sidebar) clearNode(sidebar);
+
+    const titleInput = document.getElementById('editor-title-input');
+    if (titleInput) titleInput.value = '';
+
+    const aliasInput = document.getElementById('editor-alias-input');
+    if (aliasInput) aliasInput.value = '';
+}
+
 /** The site the editor is currently open on, or null. */
 function editorSiteId() {
     return State.currentDraft ? State.currentDraft.siteId : null;
@@ -2837,8 +2896,25 @@ function editorSiteId() {
 function repaintEditorSidebar(siteId) {
     if (State.activeScreen !== 'editor' || editorSiteId() !== siteId) return;
 
+    const wasDirty = isEditorDirty();
     const current = collectDraftFormData();
     renderEditorSidebar({ ...State.currentDraft, ...current });
+
+    // ⚠️ **A repaint must never be mistaken for an edit.** The reference data
+    // this paints in decides *which* custom fields the sidebar renders, and
+    // collectDraftFormData() reads `fields` back off exactly those inputs — so a
+    // field list arriving after State.editorBaseline was taken adds keys the
+    // baseline could not possibly contain, and an untouched article starts
+    // asking to be saved on the way out. preserveUnknownOption() closes the same
+    // hole for the drop-downs, which can only ever *relabel* a value they
+    // already carry; the custom fields are the half it cannot reach, because
+    // there is no placeholder for a field nobody had told us about yet.
+    //
+    // Only when nothing had been edited: re-baselining a dirty form would
+    // silently adopt the user's unsaved changes as the saved state.
+    if (!wasDirty && State.editorBaseline !== null) {
+        State.editorBaseline = JSON.stringify(collectDraftFormData());
+    }
 }
 
 /**
@@ -2994,20 +3070,35 @@ function renderCustomFields(draft) {
     const supported = fieldsForCategory(all.supported, draft.catid);
     const unsupported = fieldsForCategory(all.unsupported, draft.catid);
 
+    // A field definition comes from the site verbatim, so one of them being a
+    // shape we did not anticipate is a permanent possibility — and one that
+    // must cost that field alone. Before this guard it cost the whole sidebar
+    // and, since the throw propagated out of openEditorScreen(), TinyMCE with
+    // it. A field we could not build joins the unsupported notice: from the
+    // user's side "Grafida cannot edit this one here" is exactly what happened.
+    const undisplayable = [];
+
     if (supported.length > 0) {
         const sec = el('div', null);
         sec.appendChild(el('div', 'section-title', 'Custom Fields'));
         supported.forEach(field => {
             const val = (draft.fields || {})[field.name];
-            const fg = formGroup(field.label, buildFieldInput(field, val));
-            fg.dataset.fieldName = field.name;
-            sec.appendChild(fg);
+            try {
+                const fg = formGroup(field.label, buildFieldInput(field, val));
+                fg.dataset.fieldName = field.name;
+                sec.appendChild(fg);
+            } catch (err) {
+                console.error('Grafida: custom field "' + field.name + '" could not be rendered', err);
+                undisplayable.push(field);
+            }
         });
         host.appendChild(sec);
     }
 
-    if (unsupported.length > 0) {
-        const names = unsupported.map(f => f.label).join(', ');
+    const notEditable = [...unsupported, ...undisplayable];
+
+    if (notEditable.length > 0) {
+        const names = notEditable.map(f => f.label).join(', ');
         host.appendChild(el('div', 'unsupported-fields-notice',
             ...formatNodes(t('GRAFIDA_MSG_UNSUPPORTED_FIELDS'), names)
         ));
@@ -3079,7 +3170,7 @@ async function changeEditorSite(newSiteId) {
         State.editorCss = null;
     }
 
-    renderEditorSidebar(draft);
+    renderEditorSidebarSafely(draft);
     await initTinyMCE(draft);
 }
 
@@ -3294,9 +3385,31 @@ function buildTagsInput(availableTags, selectedTags) {
     return wrapper;
 }
 
+/**
+ * The option rows of a list / radio / checkboxes custom field, as an array.
+ *
+ * ⚠️ **Joomla does not store them as one.** `#__fields.fieldparams` holds the
+ * options as a *subform object* keyed `options0`, `options1`, … and reaches the
+ * SPA decoded verbatim (nothing between the API and here reshapes it), so
+ * iterating it directly threw — which, before renderCustomFields() contained
+ * it, took the whole editor down. An array is accepted all the same: PHP
+ * serialises an empty options set as `[]`, and a hand-written field definition
+ * may well use one.
+ *
+ * Each row is `{name, value}` — `name` is the *label*, not a machine name.
+ */
+function fieldOptionRows(fieldparams) {
+    const raw = (fieldparams || {}).options;
+
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === 'object') return Object.values(raw);
+
+    return [];
+}
+
 function buildFieldInput(field, currentValue) {
     const name = `field-${field.name}`;
-    const fp = field.fieldparams || {};
+    const options = fieldOptionRows(field.fieldparams);
 
     switch (field.type) {
         case 'calendar': {
@@ -3310,7 +3423,7 @@ function buildFieldInput(field, currentValue) {
         case 'checkboxes': {
             const wrap = el('div', 'checkbox-group');
             wrap.id = name;
-            (fp.options || []).forEach(opt => {
+            options.forEach(opt => {
                 const lbl = el('label', 'form-check');
                 const cb = document.createElement('input');
                 cb.type = 'checkbox';
@@ -3348,7 +3461,7 @@ function buildFieldInput(field, currentValue) {
             emptyOpt.value = '';
             emptyOpt.textContent = '—';
             sel.appendChild(emptyOpt);
-            (fp.options || []).forEach(opt => {
+            options.forEach(opt => {
                 const o = document.createElement('option');
                 o.value = opt.value || opt.name;
                 o.textContent = opt.label || opt.name;
@@ -3360,7 +3473,7 @@ function buildFieldInput(field, currentValue) {
         case 'radio': {
             const wrap = el('div', 'radio-group');
             wrap.id = name;
-            (fp.options || []).forEach(opt => {
+            options.forEach(opt => {
                 const lbl = el('label', 'form-check');
                 const rb = document.createElement('input');
                 rb.type = 'radio';

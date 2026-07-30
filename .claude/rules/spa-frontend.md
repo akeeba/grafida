@@ -323,6 +323,23 @@ ship inside the app.
   `parent_id` — the hidden ROOT node's id must not be assumed). The indent characters are
   load-bearing: HTML collapses leading whitespace in an `<option>`, so the space-padded
   labels this replaced rendered as a flat list.
+  ⚠️ **`openEditorScreen()` empties the screen before it fills it, and nothing it does may abort the
+  TinyMCE step.** `resetEditorScreen()` runs *first* — destroying the editor instance and blanking
+  the sidebar, title and alias — because everything on this screen belongs to one article, the
+  screen is on display the whole time it is being rebuilt, and `State.currentDraft` is already
+  re-pointed by the time we get here. Leaving the teardown to `initTinyMCE()` (the *last* step,
+  which still does its own for the callers that re-create the editor in place) meant any failure
+  before it left the **previous** article standing: pressing New Article after backing out of one
+  showed that article, and saving would have written its body into the new draft. The sidebar render
+  is then wrapped in a `try` (toast `GRAFIDA_MSG_SIDEBAR_FAILED`) so it can never skip the editor —
+  a bad sidebar is a bad sidebar, not a dead editor. The inner half of the same guarantee is in
+  **`renderCustomFields()`**, which builds each field in its own `try` and folds a field it could
+  not build into the unsupported-fields notice: a field definition arrives from the site verbatim,
+  so an unanticipated shape is a permanent possibility and must cost that field alone.
+  ⚠️ **`fieldOptionRows()` is why list / radio / checkboxes fields render at all.** Joomla stores a
+  field's options as a *subform object* keyed `options0`, `options1`, … — never an array — and
+  `#__fields.fieldparams` reaches the SPA decoded verbatim, nothing in between reshaping it, so
+  iterating it directly threw. Each row is `{name, value}`, where `name` is the **label**.
   ⚠️ **`openEditorScreen()` waits on nothing.** Writing an article is a *local* operation, so the
   sidebar is rendered and TinyMCE is created from whatever is already cached — including nothing at
   all — and `loadEditorSiteData()` then fills the reference data and the site stylesheet in
@@ -344,6 +361,15 @@ ship inside the app.
     (`GRAFIDA_OPT_NOT_LOADED`, or the tag itself for a language, which is self-explanatory).
   - **`repaintEditorSidebar(siteId)`** is the one form-preserving repaint (`collectDraftFormData()`
     merged back over the draft), shared with `applyRefreshedReferences()`. It never touches TinyMCE.
+    ⚠️ **It also re-takes `State.editorBaseline` when the form was not dirty going in**, which
+    `preserveUnknownOption()` cannot substitute for: that helper can only *relabel* a value a
+    drop-down already carries, and the custom fields are the half it cannot reach — the reference
+    data decides which of them are rendered at all, `collectDraftFormData()` reads `fields` back off
+    exactly those inputs, and a field list arriving after the snapshot therefore adds keys the
+    baseline could not possibly have contained. On a cold SPA reference cache (i.e. the first
+    article opened after launch, on any site with custom fields) that made an untouched article
+    prompt "Unsaved changes" on the way out. Re-baselining a *dirty* form is what the guard exists
+    to prevent — it would silently adopt the user's unsaved edits as the saved state.
   - **A late stylesheet is loaded into the content iframe** (`applyEditorCssToOpenEditor()` →
     `editor.dom.loadCSS()`), never applied by re-initialising TinyMCE, which would discard the undo
     history and cursor of someone already typing. The Styles drop-down is not rebuilt (its class

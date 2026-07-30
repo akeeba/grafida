@@ -29,6 +29,9 @@ Grafida 0.3
 # [HIGH] Opening an article before the site's metadata had loaded could strip its category, access level or language on save
 # [HIGH] Editor content stuck in dark mode when the site's editor.css switches on prefers-color-scheme (gh-38)
 # [HIGH] The editor showed every custom field the site has, not the ones the article's category uses — and a required field belonging to another category made publishing impossible (gh-56)
+# [HIGH] New Article opened with no editor at all, or with the article you had just backed out of — a single custom field the sidebar could not render took the whole editor down with it
+# [HIGH] A list, radio or checkboxes custom field could not be rendered at all, because Joomla does not store its options as a list
+# [MEDIUM] An untouched article asked to be saved on the way out, when the site's custom fields arrived after it opened
 # [MEDIUM] Offline, the whole Articles screen was replaced by an error — even the Local articles tab, which needs no network (gh-29)
 # [MEDIUM] The webview could cache Grafida's own API responses, showing stale data even after a restart (gh-35)
 # [MEDIUM] The Articles list's category, tag and language filters never picked up reloaded site metadata (gh-42)
