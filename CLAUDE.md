@@ -186,7 +186,10 @@ window-free in tests (a null dialog makes the endpoint return 503).
   as the localised "(… binary data …)" marker, and an empty body is omitted rather than
   shown blank.
 - `src/Media/` — offline image blobs (`media_blobs`) + `SiteImageFetcher`, the Media Manager
-  screen (Site + Local tabs) and the in-app crop/resize/rotate/flip image editor.
+  screen (Site + Local tabs), the in-app crop/resize/rotate/flip image editor, and
+  `MediaUploadTarget` — **where a publish uploads to** (gh-57), i.e. the per-site
+  `media_adapter`/`media_folder` settings (`storage/migrations/09_sites_media_target.sql`, Sites
+  form) and the automatic resolution behind them.
 - `src/Publish/PublishService.php` — the publish pipeline (media upload, tags, fields, split, POST/PATCH).
   ⚠️ **Both are detailed in `.claude/rules/media-and-publish.md`**, which loads when you touch
   `src/Media/`, `src/Publish/` or `src/Html/`. They are one pipeline and are documented together.
@@ -194,8 +197,11 @@ window-free in tests (a null dialog makes the endpoint return 503).
   serves** (`boson://app/api/media/{id}/raw?rev=…`), **not** an inlined `data:` URI (gh-36) — the
   latter is what froze the source editor on a couple of screenshots; `rewriteOfflineImages()`
   uploads **every** offline image on publish, tagged or not, so none leaks into the published HTML;
-  and the upload path is relative to the media adapter root (`grafida/<file>`, **not**
-  `images/grafida/<file>`, which writes to `images/images/…` and yields a broken image).
+  and the upload path **names its adapter and is relative to that adapter's root**
+  (`local-images:/grafida/<file>`, **not** `images/grafida/<file>`, which writes to `images/images/…`
+  and yields a broken image) — leaving the adapter out is gh-57: Joomla then resolves the path
+  against com_media's `file_path` parameter, `files` on a stock install, so every published image
+  landed in the site's *files* folder.
 - `src/Html/` — `ContentSplitter` (read-more split), `CssRebaser`, `InlineMedia`, `HtmlDocument`.
 - `src/Update/UpdateService.php` — the **update checker**. On startup the SPA calls
   `GET /api/update` (`api.checkUpdate()`) **fire-and-forget after the initial render**, so a slow

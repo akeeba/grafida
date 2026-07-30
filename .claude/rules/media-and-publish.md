@@ -259,10 +259,26 @@ two-space continuation indent are the original bullet formatting.
   Each uploaded image is rebuilt as the **same `<img>` Joomla's own media field emits** —
   `<img src="images/…" width=… height=… loading="lazy" data-path="local-images:/…">` (`mediaInfo()`): a
   site-root-relative `src`, the intrinsic `width`/`height`, and the `data-path` adapter linkage to the
-  Media-Manager entry. **The upload path is relative to the default Media adapter's root** (`grafida/<file>`,
-  NOT `images/grafida/<file>`): the default `local-images` adapter is rooted at the site's `images/`
-  directory, so an `images/`-prefixed path writes the file to `images/images/grafida/…` while the article
-  still points at `images/grafida/…` — a broken image. After a successful media upload `PublishService`
+  Media-Manager entry. **The upload path names its adapter and is relative to that adapter's root**
+  (`local-images:/grafida/<file>`, NOT `images/grafida/<file>`): the `local-images` adapter *is* the
+  site's `images/` directory, so an `images/`-prefixed path writes the file to
+  `images/images/grafida/…` while the article still points at `images/grafida/…` — a broken image.
+  ⚠️ **Naming the adapter is not decoration — leaving it out is gh-57.** A colon-less path is
+  resolved by `ProviderManagerHelperTrait::getDefaultAdapterName()` against `local-` + com_media's
+  **`file_path`** parameter, which `base.sql` stores as `files` on every stock install, and
+  `plg_filesystem_local` ships adapters for both `images` and `files` — so the default really is
+  `local-files`, and only a site that has *removed* the `files` adapter falls through to the
+  "first available local adapter" the old comment here assumed was the rule. (Joomla's own image
+  fields — `MediaField`, TinyMCE's upload dir — read the *other* parameter, `image_path` = `images`.)
+  `Media\MediaUploadTarget` owns the decision now: the per-site `media_adapter` / `media_folder`
+  settings (migration `09`, the Sites form's "Upload images to" / "Upload folder") when set,
+  otherwise `local-images` if the site reports it, else the first adapter it reports. Three
+  properties of it are load-bearing: automatic resolution is **memoised per site** (else it is one
+  `media/adapters` request *per uploaded image*), it degrades to the **empty prefix** — i.e.
+  pre-gh-57 behaviour — when the adapters cannot be listed at all (an unreachable site or a token
+  without the rights must still publish), and `mediaInfo()`'s last-resort `src` therefore runs the
+  sent path through `publicPath()` rather than using it raw, since that path may now carry an
+  adapter. After a successful media upload `PublishService`
   also **writes the rewritten HTML back into the local draft** (so the stored draft mirrors what was
   published and a re-publish does not upload the images again); `data-path` is added to the editor's
   `extended_valid_elements` so it survives a TinyMCE round-trip.

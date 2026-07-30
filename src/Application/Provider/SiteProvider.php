@@ -20,6 +20,7 @@ use Grafida\Http\SiteContext;
 use Grafida\I18n\LanguageService;
 use Grafida\Joomla\ApiClient;
 use Grafida\Media\InlineImageExtractor;
+use Grafida\Media\MediaUploadTarget;
 use Grafida\Media\LocalMediaSync;
 use Grafida\Media\MediaRepository;
 use Grafida\Media\SiteImageFetcher;
@@ -141,6 +142,11 @@ final class SiteProvider implements ServiceProviderInterface
         });
 
         $container->share(
+            MediaUploadTarget::class,
+            static fn (Container $c): MediaUploadTarget => new MediaUploadTarget($c->get(ApiClient::class))
+        );
+
+        $container->share(
             InlineImageExtractor::class,
             static fn (Container $c): InlineImageExtractor => new InlineImageExtractor($c->get(MediaRepository::class))
         );
@@ -159,6 +165,7 @@ final class SiteProvider implements ServiceProviderInterface
                 media: $c->get(MediaRepository::class),
                 language: $c->get(LanguageService::class),
                 inlineImages: $c->get(InlineImageExtractor::class),
+                mediaTarget: $c->get(MediaUploadTarget::class),
             );
         });
 

@@ -1363,6 +1363,35 @@ function buildSiteFormBody(site = null) {
     const cssGroup = formGroup(t('GRAFIDA_LBL_EDITOR_CSS_URL'), cssInput);
     cssGroup.appendChild(el('div', 'form-hint', t('GRAFIDA_MSG_EDITOR_CSS_URL_HINT')));
 
+    // Where the images in a published article are uploaded to (gh-57). The
+    // filesystem list can only be read from a site that already exists and is
+    // connected, so the select starts with "Automatic" plus whatever this site
+    // has stored — openEditSiteModal() appends the real list once it arrives,
+    // and an unreachable site is left showing its own setting rather than
+    // silently losing it.
+    const adapterSelect = document.createElement('select');
+    adapterSelect.id = 'modal-site-media-adapter';
+    adapterSelect.className = 'form-control';
+    adapterSelect.appendChild(mediaAdapterOption('', t('GRAFIDA_OPT_MEDIA_ADAPTER_AUTO')));
+
+    const storedAdapter = site && site.mediaAdapter ? String(site.mediaAdapter) : '';
+    if (storedAdapter) {
+        adapterSelect.appendChild(mediaAdapterOption(storedAdapter, storedAdapter));
+        adapterSelect.value = storedAdapter;
+    }
+
+    const folderInput = document.createElement('input');
+    folderInput.id = 'modal-site-media-folder';
+    folderInput.type = 'text';
+    folderInput.className = 'form-control';
+    folderInput.autocomplete = 'off';
+    folderInput.placeholder = 'grafida';
+    if (site) folderInput.value = site.mediaFolder || '';
+
+    const adapterGroup = formGroup(t('GRAFIDA_LBL_MEDIA_ADAPTER'), adapterSelect);
+    const folderGroup = formGroup(t('GRAFIDA_LBL_MEDIA_FOLDER'), folderInput);
+    folderGroup.appendChild(el('div', 'form-hint', t('GRAFIDA_MSG_MEDIA_UPLOAD_HINT')));
+
     // Test connection row
     const testBtn = iconBtn('plug', t('GRAFIDA_BTN_TEST_CONNECTION'), 'btn', 'btn-secondary');
     testBtn.id = 'btn-test-connection';
@@ -1386,9 +1415,57 @@ function buildSiteFormBody(site = null) {
         formGroup(t('GRAFIDA_LBL_URL'), urlInput),
         tokenGroup,
         cssGroup,
+        adapterGroup,
+        folderGroup,
         testRow,
         diagnoseResult,
     ];
+}
+
+/** One option of the site form's media-filesystem select. */
+function mediaAdapterOption(value, label) {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = label;
+    return opt;
+}
+
+/**
+ * Fills the site form's media-filesystem select from the site's own Media
+ * Manager. Best-effort and fire-and-forget: a site that cannot be reached (or a
+ * token that may not list filesystems) leaves the select as built — "Automatic"
+ * plus the stored value — which still saves correctly.
+ */
+async function loadSiteMediaAdapters(siteId, selected) {
+    let adapters;
+    try {
+        const data = await api.getMediaAdapters(siteId);
+        adapters = Array.isArray(data.adapters) ? data.adapters : [];
+    } catch {
+        return;
+    }
+
+    const sel = document.getElementById('modal-site-media-adapter');
+    if (!sel) return;
+
+    // Rebuild from scratch so the stored value's placeholder option (added
+    // before the list arrived) does not end up duplicating a real one.
+    clearNode(sel);
+    sel.appendChild(mediaAdapterOption('', t('GRAFIDA_OPT_MEDIA_ADAPTER_AUTO')));
+
+    let matched = false;
+    adapters.forEach(a => {
+        const path = String(a.path || '');
+        if (!path) return;
+        sel.appendChild(mediaAdapterOption(path, String(a.name || path)));
+        if (path === selected) matched = true;
+    });
+
+    // A stored filesystem the site no longer reports is kept and shown as-is,
+    // rather than silently reverting the setting to Automatic.
+    if (selected && !matched) sel.appendChild(mediaAdapterOption(selected, selected));
+
+    sel.value = selected || '';
 }
 
 function buildSiteFormFooter(saveHandler) {
@@ -1421,6 +1498,7 @@ function openEditSiteModal(id) {
     // Passing the site id lets a blank ("leave blank to keep") token field
     // fall back to the stored token server-side.
     document.getElementById('btn-diagnose-connection').addEventListener('click', () => diagnoseConnectionHandler(site.id));
+    loadSiteMediaAdapters(site.id, site.mediaAdapter || '');
 }
 
 async function testConnectionHandler() {
@@ -1519,6 +1597,8 @@ async function saveSiteHandler(id) {
     const urlEl = document.getElementById('modal-site-url');
     const tokenEl = document.getElementById('modal-site-token');
     const cssEl = document.getElementById('modal-site-editor-css');
+    const adapterEl = document.getElementById('modal-site-media-adapter');
+    const folderEl = document.getElementById('modal-site-media-folder');
     const title = titleEl ? titleEl.value.trim() : '';
     const url = urlEl ? urlEl.value.trim() : '';
     const token = tokenEl ? tokenEl.value.trim() : '';
@@ -1529,7 +1609,13 @@ async function saveSiteHandler(id) {
     }
 
     // Always sent: a cleared field clears the stored override.
-    const body = { title, url, editorCssUrl: cssEl ? cssEl.value.trim() : '' };
+    const body = {
+        title,
+        url,
+        editorCssUrl: cssEl ? cssEl.value.trim() : '',
+        mediaAdapter: adapterEl ? adapterEl.value : '',
+        mediaFolder: folderEl ? folderEl.value.trim() : '',
+    };
     if (token) body.token = token;
 
     // Saving a site is the one action that deliberately talks to it at length:

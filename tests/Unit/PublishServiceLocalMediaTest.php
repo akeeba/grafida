@@ -20,6 +20,7 @@ use Grafida\Joomla\ApiException;
 use Grafida\Media\InlineImageExtractor;
 use Grafida\Media\LocalMediaUrl;
 use Grafida\Media\MediaRepository;
+use Grafida\Media\MediaUploadTarget;
 use Grafida\Publish\PublishService;
 use Grafida\Reference\ReferenceRepository;
 use Grafida\Reference\ReferenceService;
@@ -94,6 +95,7 @@ final class PublishServiceLocalMediaTest extends TestCase
             $this->media,
             $language,
             new InlineImageExtractor($this->media),
+            new MediaUploadTarget($apiClient),
         );
     }
 
@@ -161,6 +163,66 @@ final class PublishServiceLocalMediaTest extends TestCase
         self::assertStringContainsString('data-path="grafida/photo.png"', $stored->html);
         self::assertStringContainsString('width="640"', $stored->html);
         self::assertStringNotContainsString('boson://', $stored->html);
+    }
+
+    /**
+     * gh-57: the upload must name the filesystem it is going to. The site here
+     * has picked one explicitly, so no adapter lookup is involved — what is
+     * asserted is that the choice reaches the wire.
+     */
+    public function testUploadPathCarriesTheSitesConfiguredAdapterAndFolder(): void
+    {
+        $mediaId = $this->media->store(1, null, 'photo.png', 'image/png', 'raw-bytes', 640, 480);
+        $meta    = $this->media->findMeta($mediaId);
+        self::assertNotNull($meta);
+        $localUrl = LocalMediaUrl::build($mediaId, $meta['updated_at'] ?? $meta['created_at']);
+
+        $draft = $this->draftWithHtml('<p><img src="' . $localUrl . '"></p>');
+
+        $this->transport->on(
+            'https://example.com/index.php/api/v1/media/files',
+            new HttpResponse(
+                201,
+                json_encode(['data' => ['type' => 'media', 'id' => '1', 'attributes' => [
+                    'path' => 'local-images:/blog/2026/photo.png',
+                    'url'  => 'images/blog/2026/photo.png',
+                ]]]),
+                ['Content-Type' => 'application/vnd.api+json'],
+            ),
+        );
+        $this->transport->on(
+            'https://example.com/index.php/api/v1/content/articles',
+            new HttpResponse(
+                201,
+                json_encode(['data' => ['type' => 'articles', 'id' => '42', 'attributes' => []]]),
+                ['Content-Type' => 'application/vnd.api+json'],
+            ),
+        );
+
+        $site = new Site(
+            id: 1,
+            title: 'Site',
+            baseUrl: 'https://example.com',
+            apiBase: 'https://example.com/index.php/api',
+            secretRef: null,
+            hasInsecureToken: true,
+            mediaAdapter: 'local-images:/',
+            mediaFolder: 'blog/2026',
+        );
+
+        $this->publishService()->publish($draft, $site);
+
+        $uploads = array_values(array_filter(
+            $this->transport->requests,
+            static fn (array $r): bool => $r['method'] === 'POST'
+                && $r['url'] === 'https://example.com/index.php/api/v1/media/files',
+        ));
+
+        self::assertCount(1, $uploads);
+        $body = json_decode((string) $uploads[0]['body'], true);
+        self::assertIsArray($body);
+        // safeName() prefixes the blob id, hence "1-photo.png".
+        self::assertSame('local-images:/blog/2026/' . $mediaId . '-photo.png', $body['path'] ?? null);
     }
 
     public function testDraftReferencingDeletedBlobFailsPublishInsteadOfLeakingLocalUrl(): void

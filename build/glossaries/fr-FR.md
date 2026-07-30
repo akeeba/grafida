@@ -169,3 +169,5 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | page (documentation) | page | Un article de documentation dans la table des matières ; jamais « article » (réservé au contenu Joomla!). |
 | table of contents | table des matières | L'index des pages de l'écran d'aide ; repliable et redimensionnable. GRAFIDA_BTN_TOGGLE_CONTENTS. |
 | paste as plain text | Coller comme texte brut | Le raccourci Cmd/Ctrl+Maj+V : colle le presse-papiers en texte brut d’une seule frappe. Ce n’est pas l’entrée « Coller comme texte » du menu TinyMCE, qui est une bascule de mode. GRAFIDA_LBL_HELP_SC_PASTE_TEXT. |
+| filesystem (Media Manager) | système de fichiers | Un adaptateur du gestionnaire de médias du site (p. ex. « local-images »). Le plugin Joomla! s'appelle « Système de fichiers - Local ». GRAFIDA_LBL_MEDIA_ADAPTER. |
+| upload folder | Dossier de destination | Le dossier, dans le système de fichiers choisi, où sont téléversées les images d'un article publié (gh-57). GRAFIDA_LBL_MEDIA_FOLDER. |

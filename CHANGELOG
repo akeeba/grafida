@@ -3,6 +3,7 @@ Grafida 0.3
 ! macOS 15 Sequoia is now the minimum; the bundled webview library cannot load on macOS 14 or earlier (gh-58)
 + Custom fields of type Media can now be edited, using Grafida's own media browser — site media or a local picture uploaded on publish
 + Media Manager: new Local Media tab to crop, resize, rename and delete images before they are published (gh-36)
++ Sites: choose which Media Manager filesystem and folder the images of a published article are uploaded to (gh-57)
 + Diagnose Connection: see the exact request and response when a site connection fails (gh-37)
 + Optional Request Log: record the last 20 requests to the site, with JSON export (gh-37)
 + Reload metadata button on the Articles page, keeping your filters (gh-42)
@@ -37,6 +38,7 @@ Grafida 0.3
 # [HIGH] The editor showed every custom field the site has, not the ones the article's category uses — and a required field belonging to another category made publishing impossible (gh-56)
 # [HIGH] New Article opened with no editor at all, or with the article you had just backed out of — a single custom field the sidebar could not render took the whole editor down with it
 # [HIGH] A list, radio or checkboxes custom field could not be rendered at all, because Joomla does not store its options as a list
+# [MEDIUM] Published images were uploaded to the site's files folder instead of its images folder (gh-57)
 # [MEDIUM] An untouched article asked to be saved on the way out, when the site's custom fields arrived after it opened
 # [MEDIUM] Offline, the whole Articles screen was replaced by an error — even the Local articles tab, which needs no network (gh-29)
 # [MEDIUM] The webview could cache Grafida's own API responses, showing stale data even after a restart (gh-35)

@@ -34,7 +34,7 @@ final class SiteRepository
             ->from($this->qn('sites'))
             ->order($this->qn('title') . ' COLLATE NOCASE');
 
-        /** @var list<array{id?: int|string|null, title: string, base_url: string, api_base: string|null, secret_ref: string|null, insecure_token: string|int|null, default_language?: string, editor_css_url?: string|null}> $rows */
+        /** @var list<array{id?: int|string|null, title: string, base_url: string, api_base: string|null, secret_ref: string|null, insecure_token: string|int|null, default_language?: string, editor_css_url?: string|null, media_adapter?: string|null, media_folder?: string|null}> $rows */
         $rows = $this->db->setQuery($query)->loadAssocList();
 
         return array_values(array_map(static fn (array $row): Site => Site::fromRow($row), $rows));
@@ -48,7 +48,7 @@ final class SiteRepository
             ->where($this->qn('id') . ' = :id')
             ->bind(':id', $id, ParameterType::INTEGER);
 
-        /** @var array{id?: int|string|null, title: string, base_url: string, api_base: string|null, secret_ref: string|null, insecure_token: string|int|null, default_language?: string, editor_css_url?: string|null}|null $row */
+        /** @var array{id?: int|string|null, title: string, base_url: string, api_base: string|null, secret_ref: string|null, insecure_token: string|int|null, default_language?: string, editor_css_url?: string|null, media_adapter?: string|null, media_folder?: string|null}|null $row */
         $row = $this->db->setQuery($query)->loadAssoc();
 
         return $row !== null ? Site::fromRow($row) : null;
@@ -76,6 +76,8 @@ final class SiteRepository
         ?string $insecureToken,
         string $defaultLanguage = '*',
         ?string $editorCssUrl = null,
+        ?string $mediaAdapter = null,
+        ?string $mediaFolder = null,
     ): int {
         $now = gmdate('Y-m-d H:i:s');
 
@@ -89,10 +91,15 @@ final class SiteRepository
                 $this->qn('insecure_token'),
                 $this->qn('default_language'),
                 $this->qn('editor_css_url'),
+                $this->qn('media_adapter'),
+                $this->qn('media_folder'),
                 $this->qn('created_at'),
                 $this->qn('updated_at'),
             ])
-            ->values(':title, :base_url, :api_base, :secret_ref, :insecure_token, :lang, :editor_css_url, :created_at, :updated_at')
+            ->values(
+                ':title, :base_url, :api_base, :secret_ref, :insecure_token, :lang, :editor_css_url, '
+                . ':media_adapter, :media_folder, :created_at, :updated_at'
+            )
             ->bind(':title', $title, ParameterType::STRING)
             ->bind(':base_url', $baseUrl, ParameterType::STRING)
             ->bind(':api_base', $apiBase, $apiBase === null ? ParameterType::NULL : ParameterType::STRING)
@@ -100,6 +107,8 @@ final class SiteRepository
             ->bind(':insecure_token', $insecureToken, $insecureToken === null ? ParameterType::NULL : ParameterType::STRING)
             ->bind(':lang', $defaultLanguage, ParameterType::STRING)
             ->bind(':editor_css_url', $editorCssUrl, $editorCssUrl === null ? ParameterType::NULL : ParameterType::STRING)
+            ->bind(':media_adapter', $mediaAdapter, $mediaAdapter === null ? ParameterType::NULL : ParameterType::STRING)
+            ->bind(':media_folder', $mediaFolder, $mediaFolder === null ? ParameterType::NULL : ParameterType::STRING)
             ->bind(':created_at', $now, ParameterType::STRING)
             ->bind(':updated_at', $now, ParameterType::STRING);
 
@@ -117,6 +126,8 @@ final class SiteRepository
         ?string $insecureToken,
         string $defaultLanguage = '*',
         ?string $editorCssUrl = null,
+        ?string $mediaAdapter = null,
+        ?string $mediaFolder = null,
     ): void {
         $now = gmdate('Y-m-d H:i:s');
 
@@ -129,6 +140,8 @@ final class SiteRepository
             ->set($this->qn('insecure_token') . ' = :insecure_token')
             ->set($this->qn('default_language') . ' = :lang')
             ->set($this->qn('editor_css_url') . ' = :editor_css_url')
+            ->set($this->qn('media_adapter') . ' = :media_adapter')
+            ->set($this->qn('media_folder') . ' = :media_folder')
             ->set($this->qn('updated_at') . ' = :now')
             ->where($this->qn('id') . ' = :id')
             ->bind(':title', $title, ParameterType::STRING)
@@ -138,6 +151,8 @@ final class SiteRepository
             ->bind(':insecure_token', $insecureToken, $insecureToken === null ? ParameterType::NULL : ParameterType::STRING)
             ->bind(':lang', $defaultLanguage, ParameterType::STRING)
             ->bind(':editor_css_url', $editorCssUrl, $editorCssUrl === null ? ParameterType::NULL : ParameterType::STRING)
+            ->bind(':media_adapter', $mediaAdapter, $mediaAdapter === null ? ParameterType::NULL : ParameterType::STRING)
+            ->bind(':media_folder', $mediaFolder, $mediaFolder === null ? ParameterType::NULL : ParameterType::STRING)
             ->bind(':now', $now, ParameterType::STRING)
             ->bind(':id', $id, ParameterType::INTEGER);
 

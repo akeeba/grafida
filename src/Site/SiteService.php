@@ -83,6 +83,8 @@ final class SiteService
         string $token,
         bool $allowInsecure = false,
         ?string $editorCssUrl = null,
+        ?string $mediaAdapter = null,
+        ?string $mediaFolder = null,
     ): Site {
         $root    = ApiClient::normaliseRoot($url);
         $apiBase = $this->testConnection($root, $token);
@@ -96,6 +98,8 @@ final class SiteService
             secretRef: $secretRef,
             insecureToken: $insecureToken,
             editorCssUrl: $editorCssUrl,
+            mediaAdapter: $mediaAdapter,
+            mediaFolder: $mediaFolder,
         );
 
         $site = $this->repository->find($id);
@@ -108,8 +112,9 @@ final class SiteService
      * Updates an existing site. A non-null $token replaces the stored token and
      * re-tests the connection.
      *
-     * $editorCssUrl is not treated like $token: it is written as given, so null
-     * clears the override rather than keeping the stored one.
+     * $editorCssUrl, $mediaAdapter and $mediaFolder are not treated like $token:
+     * they are written as given, so null clears the setting rather than keeping
+     * the stored one.
      *
      * @throws SecureStoreUnavailableException
      * @throws \Grafida\Joomla\ApiException
@@ -121,6 +126,8 @@ final class SiteService
         ?string $token,
         bool $allowInsecure = false,
         ?string $editorCssUrl = null,
+        ?string $mediaAdapter = null,
+        ?string $mediaFolder = null,
     ): Site {
         $existing = $this->repository->find($id);
 
@@ -158,6 +165,8 @@ final class SiteService
             insecureToken: $insecureToken,
             defaultLanguage: $existing->defaultLanguage,
             editorCssUrl: $editorCssUrl,
+            mediaAdapter: $mediaAdapter,
+            mediaFolder: $mediaFolder,
         );
 
         $site = $this->repository->find($id);

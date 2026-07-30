@@ -169,3 +169,5 @@ Eigennamen (Grafida, Joomla!, API, Markdown, HTML, TinyMCE) werden nicht überse
 | page (documentation) | Seite | Ein Dokumentationsartikel im Inhaltsverzeichnis; nicht „Beitrag" (für Joomla!-Inhalte reserviert). |
 | table of contents | Inhaltsverzeichnis | Das Seitenverzeichnis im Hilfebildschirm; ein-/ausklappbar und in der Breite veränderbar. GRAFIDA_BTN_TOGGLE_CONTENTS. |
 | paste as plain text | Als unformatierten Text einfügen | Das Tastenkürzel Cmd/Strg+Shift+V: fügt die Zwischenablage mit einem Anschlag als unformatierten Text ein. Nicht der TinyMCE-Menüpunkt „Als Text einfügen“, der ein Moduswechsel ist. GRAFIDA_LBL_HELP_SC_PASTE_TEXT. |
+| filesystem (Media Manager) | Dateisystem | Ein Medienverwaltungs-Adapter der Website (z. B. „local-images“). Joomla nennt das Plugin „Dateisystem – Lokal“. GRAFIDA_LBL_MEDIA_ADAPTER. |
+| upload folder | Upload-Ordner | Der Ordner im gewählten Dateisystem, in den die Bilder eines veröffentlichten Beitrags hochgeladen werden (gh-57). GRAFIDA_LBL_MEDIA_FOLDER. |

@@ -37,6 +37,14 @@ In most cases you can leave it empty.
 
 If you are not a Super User and / or your site is using a non-standard path for its template's media files **AND** you want your editor in Grafida to use the same text styling used across your site you will need to enter the relative path to the `editor.css` or equivalent file on your site, e.g. `media/custom_stuff/editor.css`. You can read more about this file and how it's used in Joomla co-founder [Brian Teeman's blog](https://brian.teeman.net/joomla/876-improve-the-joomla-content-editor).
 
+**Upload images to**. The Joomla filesystem (Media Manager “adapter”) which receives the images of the articles you publish. Leave it set to _Automatic_ and Grafida uploads to your site's images filesystem — the same place Joomla's own image fields use.
+
+Change it only if your site keeps its article images somewhere else, e.g. in a second local filesystem or a cloud filesystem provided by a third party plugin. The list is read from the site itself, so it is only available when editing a site you have already connected.
+
+Grafida deliberately does not leave this choice to Joomla. Joomla's REST API sends an upload with no filesystem named to whichever filesystem matches the **Path to Files Folder** option in Media Manager's Options, which is `files` on a stock Joomla installation — so your article images would end up in your site's `files` folder, not its `images` folder.
+
+**Upload folder**. The folder inside that filesystem where the images are uploaded, e.g. `blog/2026`. It is created if it does not exist. Leave it empty to use a folder named `grafida`.
+
 You can use the **Test Connection** button to check that the Site URL and API Token you have entered work properly.
 
 If the connection fails, click on **Diagnose Connection**. See [Connection Troubleshooting](Connection-Troubleshooting) for more information.

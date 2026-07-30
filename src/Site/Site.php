@@ -26,16 +26,21 @@ final readonly class Site
         public bool $hasInsecureToken,
         public string $defaultLanguage = '*',
         public ?string $editorCssUrl = null,
+        public ?string $mediaAdapter = null,
+        public ?string $mediaFolder = null,
     ) {}
 
     /**
      * @param array{id?: int|string|null, title: string, base_url: string, api_base: string|null,
      *             secret_ref: string|null, insecure_token: string|int|null, default_language?: string,
-     *             editor_css_url?: string|null} $row
+     *             editor_css_url?: string|null, media_adapter?: string|null,
+     *             media_folder?: string|null} $row
      */
     public static function fromRow(array $row): self
     {
         $editorCssUrl = $row['editor_css_url'] ?? null;
+        $mediaAdapter = $row['media_adapter'] ?? null;
+        $mediaFolder  = $row['media_folder'] ?? null;
 
         return new self(
             id: isset($row['id']) ? (int) $row['id'] : null,
@@ -46,6 +51,8 @@ final readonly class Site
             hasInsecureToken: $row['insecure_token'] !== null && $row['insecure_token'] !== '' && $row['insecure_token'] !== 0,
             defaultLanguage: $row['default_language'] ?? '*',
             editorCssUrl: $editorCssUrl !== '' ? $editorCssUrl : null,
+            mediaAdapter: $mediaAdapter !== '' ? $mediaAdapter : null,
+            mediaFolder: $mediaFolder !== '' ? $mediaFolder : null,
         );
     }
 
@@ -65,6 +72,8 @@ final readonly class Site
             'apiBase'         => $this->apiBase,
             'defaultLanguage' => $this->defaultLanguage,
             'editorCssUrl'    => $this->editorCssUrl,
+            'mediaAdapter'    => $this->mediaAdapter,
+            'mediaFolder'     => $this->mediaFolder,
             'insecure'        => $this->isInsecure(),
         ];
     }

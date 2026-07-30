@@ -144,6 +144,16 @@ what we cache about a site, and the API contracts that govern reading it. Verbat
   dedupes on the content hash: an unchanged re-publish adds no row, and a matching hash with a
   different note *updates* the existing row's note.
 - Media upload: `POST /v1/media/files` with `{path, content:<base64>}`; the response `url` is public.
+  ⚠️ **Always qualify `path` with an adapter** (`local-images:/grafida/x.jpg`), and never assume the
+  colon-less form means "the images folder" (gh-57). `MediumModel::save()` runs the path through
+  `ProviderManagerHelperTrait::resolveAdapterAndPath()`, whose default is `local-` + com_media's
+  **`file_path`** parameter — `"file_path":"files"` in `installation/sql/mysql/base.sql`, with
+  `plg_filesystem_local` shipping adapters for `images` *and* `files` — so on a stock site an
+  unqualified upload lands in `files/`. The "first available local adapter" fallback everyone
+  remembers only applies when `local-<file_path>` does not resolve. Joomla's own image fields use
+  the separate `image_path` parameter (`images`) instead, which is why the two disagree.
+  `GET /v1/media/adapters` lists the filesystems (`provider_id`, `name`, `path` like
+  `local-images:/`); a folder in the path is created by `File::write()` as needed.
 - Template styles: `GET /v1/templates/styles/site` (the `webservices/templates` plugin, **enabled out of
   the box** — `base.sql`'s `plg_webservices_templates` row has `enabled = 1`). Needs `core.manage` on
   com_templates, so it can return 403 for non-Super-User tokens; treat it as optional. The list view

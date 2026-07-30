@@ -62,6 +62,10 @@ The actions are:
 > references a picture Grafida no longer has cannot be published at all until you remove or replace
 > the image.
 
+Publishing an article uploads every local picture it uses to your site's Media Manager, into a
+`grafida` folder in your site's images filesystem. Both the filesystem and the folder are settings
+of the site — see **Upload images to** and **Upload folder** in [Sites](Sites).
+
 ## The image editor
 
 Both tabs — and the **Edit image** action on a picture inside an article — open the same editor.

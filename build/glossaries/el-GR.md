@@ -169,3 +169,5 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | page (documentation) | σελίδα | Ένα άρθρο τεκμηρίωσης στον πίνακα περιεχομένων· όχι «άρθρο» (δεσμευμένο για το περιεχόμενο του Joomla!). |
 | table of contents | πίνακας περιεχομένων | Το ευρετήριο σελίδων στην οθόνη Βοήθειας· συμπτύσσεται και αλλάζει μέγεθος. GRAFIDA_BTN_TOGGLE_CONTENTS. |
 | paste as plain text | Επικόλληση ως απλό κείμενο | Η συντόμευση Cmd/Ctrl+Shift+V: επικολλά το πρόχειρο ως απλό κείμενο με ένα πάτημα. Δεν είναι το «Επικόλληση ως κείμενο» του μενού του TinyMCE, που είναι εναλλαγή κατάστασης. GRAFIDA_LBL_HELP_SC_PASTE_TEXT. |
+| filesystem (Media Manager) | σύστημα αρχείων | Ένας προσαρμογέας της διαχείρισης πολυμέσων του ιστότοπου (π.χ. «local-images»). Το πρόσθετο της Joomla! λέγεται «Σύστημα αρχείων - Τοπικό». GRAFIDA_LBL_MEDIA_ADAPTER. |
+| upload folder | φάκελος μεταφόρτωσης | Ο φάκελος μέσα στο επιλεγμένο σύστημα αρχείων όπου μεταφορτώνονται οι εικόνες ενός δημοσιευμένου άρθρου (gh-57). GRAFIDA_LBL_MEDIA_FOLDER. |

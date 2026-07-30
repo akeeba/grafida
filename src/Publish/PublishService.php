@@ -23,6 +23,7 @@ use Grafida\Joomla\ApiClient;
 use Grafida\Media\ImageInfo;
 use Grafida\Media\InlineImageExtractor;
 use Grafida\Media\MediaRepository;
+use Grafida\Media\MediaUploadTarget;
 use Grafida\Reference\ReferenceService;
 use Grafida\Site\Site;
 use Grafida\Site\SiteService;
@@ -59,6 +60,7 @@ final class PublishService
         private readonly MediaRepository $media,
         private readonly LanguageService $language,
         private readonly InlineImageExtractor $inlineImages,
+        private readonly MediaUploadTarget $mediaTarget,
         private readonly FieldSupport $fields = new FieldSupport(),
         private readonly FieldCategoryScope $fieldScope = new FieldCategoryScope(),
         private readonly ContentSplitter $splitter = new ContentSplitter(),
@@ -338,11 +340,14 @@ final class PublishService
      * its details (or the cached details if it was already uploaded). Returns null
      * when the blob no longer exists.
      *
-     * The upload path is **relative to the default Media adapter's root** — i.e.
-     * `grafida/<file>`, NOT `images/grafida/<file>`. Joomla's default `local-images`
-     * adapter is rooted at the site's `images/` directory, so prefixing the path
-     * with `images/` writes the file to `images/images/grafida/...` while the
-     * article still points at `images/grafida/...` — a guaranteed broken image.
+     * The upload path is **adapter-qualified and relative to that adapter's
+     * root** — `local-images:/grafida/<file>`, never `images/grafida/<file>`.
+     * The `local-images` adapter *is* the site's `images/` directory, so an
+     * `images/`-prefixed path writes the file to `images/images/grafida/...`
+     * while the article still points at `images/grafida/...` — a broken image.
+     * Which adapter and which folder is {@see MediaUploadTarget}'s decision, and
+     * naming the adapter at all is the fix for gh-57: left to Joomla, a
+     * colon-less path lands in the site's *files* folder.
      *
      * @return array{src: string, dataPath: ?string, width: ?int, height: ?int}|null
      */
@@ -365,7 +370,8 @@ final class PublishService
             ];
         }
 
-        $path     = 'grafida/' . $this->safeName($blob['filename'], $mediaId);
+        $name     = $this->safeName($blob['filename'], $mediaId);
+        $path     = $this->mediaTarget->pathFor($site, $base, $token, $name);
         $resource = $this->api->uploadMedia($base, $token, $path, $blob['data']);
         $info     = $this->mediaInfo($resource, $site, $path, $width, $height);
 
@@ -380,10 +386,12 @@ final class PublishService
      * (e.g. "local-images:/grafida/x.jpg") and the image dimensions.
      *
      * @param array<string, mixed> $resource
+     * @param string               $sentPath The path we uploaded to, used only
+     *                                       when the response describes none.
      *
      * @return array{src: string, dataPath: ?string, width: ?int, height: ?int}
      */
-    private function mediaInfo(array $resource, Site $site, string $fallbackRelPath, ?int $width, ?int $height): array
+    private function mediaInfo(array $resource, Site $site, string $sentPath, ?int $width, ?int $height): array
     {
         $adapterPath = is_string($resource['path'] ?? null) ? $resource['path'] : '';
         $rawUrl      = is_string($resource['url'] ?? null) ? $resource['url'] : '';
@@ -393,18 +401,11 @@ final class PublishService
         $height = $this->intOrNull($resource['height'] ?? null) ?? $height;
 
         // Public src, relative to the site root — matching what Joomla's own media
-        // field inserts. Prefer the API-reported URL; otherwise derive it from the
-        // adapter path ("local-images:/grafida/x.jpg" → "images/grafida/x.jpg",
-        // the adapter name minus its "local-" prefix being the public sub-path).
-        if ($rawUrl !== '') {
-            $src = $this->relativeToSite($rawUrl, $site);
-        } elseif (str_contains($adapterPath, ':')) {
-            [$adapter, $rel] = explode(':', $adapterPath, 2);
-            $filePath        = preg_replace('#^local-#', '', $adapter) ?? $adapter;
-            $src             = trim($filePath, '/') . '/' . ltrim($rel, '/');
-        } else {
-            $src = ltrim($fallbackRelPath, '/');
-        }
+        // field inserts. Prefer the API-reported URL; failing that, derive it from
+        // the path — the one the response reports, or the one we sent.
+        $src = $rawUrl !== ''
+            ? $this->relativeToSite($rawUrl, $site)
+            : $this->publicPath($adapterPath !== '' ? $adapterPath : $sentPath);
 
         return [
             'src'      => $src,
@@ -412,6 +413,25 @@ final class PublishService
             'width'    => $width,
             'height'   => $height,
         ];
+    }
+
+    /**
+     * Turns a Media Manager path into a site-root-relative public one:
+     * "local-images:/grafida/x.jpg" → "images/grafida/x.jpg", the adapter name
+     * minus its "local-" prefix being the public sub-path. A path with no
+     * adapter is already relative to whatever root Joomla chose, so it is
+     * returned as-is — the best we can say about it.
+     */
+    private function publicPath(string $path): string
+    {
+        if (!str_contains($path, ':')) {
+            return ltrim($path, '/');
+        }
+
+        [$adapter, $rel] = explode(':', $path, 2);
+        $filePath        = preg_replace('#^local-#', '', $adapter) ?? $adapter;
+
+        return trim($filePath, '/') . '/' . ltrim($rel, '/');
     }
 
     /** Strips the site root (or scheme+host) from an absolute media URL. */

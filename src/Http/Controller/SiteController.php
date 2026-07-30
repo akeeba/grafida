@@ -18,6 +18,7 @@ use Grafida\Http\Json;
 use Grafida\Http\RouteContext;
 use Grafida\Http\Router;
 use Grafida\Http\SiteContext;
+use Grafida\Media\MediaUploadTarget;
 use Grafida\Reference\EditorCssService;
 use Grafida\Reference\ReferenceService;
 use Grafida\Site\ConnectionDiagnostics;
@@ -110,6 +111,8 @@ final class SiteController extends Controller
             $this->str($body, 'token'),
             is_bool($allowInsecureVal) ? $allowInsecureVal : (bool) $allowInsecureVal,
             $this->editorCssUrlFrom($body),
+            $this->mediaAdapterFrom($body),
+            $this->mediaFolderFrom($body),
         );
 
         // Warm the categories/tags/languages cache the moment a site is connected,
@@ -133,6 +136,8 @@ final class SiteController extends Controller
             $token,
             is_bool($allowInsecureVal) ? $allowInsecureVal : (bool) $allowInsecureVal,
             $this->editorCssUrlFrom($body),
+            $this->mediaAdapterFrom($body),
+            $this->mediaFolderFrom($body),
         );
 
         // Re-warm reference data in case the URL, token or editor CSS override changed.
@@ -175,6 +180,33 @@ final class SiteController extends Controller
         $value = $this->str($body, 'editorCssUrl');
 
         return $value !== '' ? $value : null;
+    }
+
+    /**
+     * The media upload filesystem as the form sends it: an empty select means
+     * "resolve it automatically" (gh-57), stored as NULL.
+     *
+     * @param array<string, mixed> $body
+     */
+    private function mediaAdapterFrom(array $body): ?string
+    {
+        $value = MediaUploadTarget::normaliseAdapter($this->str($body, 'mediaAdapter'));
+
+        return $value !== '' ? $value : null;
+    }
+
+    /**
+     * The media upload folder as the form sends it. It is normalised here rather
+     * than at upload time so what the Sites screen shows back is what will
+     * actually be used; an empty field stores NULL and means the default folder.
+     *
+     * @param array<string, mixed> $body
+     */
+    private function mediaFolderFrom(array $body): ?string
+    {
+        $raw = trim($this->str($body, 'mediaFolder'));
+
+        return $raw !== '' ? MediaUploadTarget::normaliseFolder($raw) : null;
     }
 
     public function deleteSite(int $id): ResponseInterface

@@ -18,6 +18,7 @@ use Grafida\I18n\LanguageService;
 use Grafida\Joomla\ApiClient;
 use Grafida\Media\InlineImageExtractor;
 use Grafida\Media\MediaRepository;
+use Grafida\Media\MediaUploadTarget;
 use Grafida\Publish\PublishService;
 use Grafida\Reference\ReferenceRepository;
 use Grafida\Reference\ReferenceService;
@@ -103,6 +104,7 @@ final class PublishServiceMediaFieldTest extends TestCase
             $this->media,
             $language,
             new InlineImageExtractor($this->media),
+            new MediaUploadTarget($apiClient),
         );
     }
 

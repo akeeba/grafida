@@ -168,3 +168,5 @@ I nomi propri non si traducono: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | page (documentation) | pagina | Un articolo di documentazione nell'indice; mai «articolo» (riservato ai contenuti Joomla!). |
 | table of contents | indice | L'elenco delle pagine nella schermata della guida; comprimibile e ridimensionabile. «Indice», non «tavola dei contenuti» (calco dall'inglese). GRAFIDA_BTN_TOGGLE_CONTENTS. |
 | paste as plain text | Incolla come testo semplice | La scorciatoia Cmd/Ctrl+Maiusc+V: incolla gli appunti come testo semplice con una sola pressione. Non è la voce «Incolla come testo» del menu di TinyMCE, che commuta una modalità. GRAFIDA_LBL_HELP_SC_PASTE_TEXT. |
+| filesystem (Media Manager) | file system | Un adattatore della gestione media del sito (p. es. «local-images»). Il plugin Joomla! si chiama «File system - Locale». GRAFIDA_LBL_MEDIA_ADAPTER. |
+| upload folder | Cartella di destinazione | La cartella, all'interno del file system scelto, in cui vengono caricate le immagini di un articolo pubblicato (gh-57). GRAFIDA_LBL_MEDIA_FOLDER. |
