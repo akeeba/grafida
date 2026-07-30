@@ -124,12 +124,91 @@ final class EditorCssServiceTest extends TestCase
 
         $transport = new FakeTransport(new HttpResponse(500, ''));
 
-        self::assertSame('p { color: cached }', $this->service($transport)->load($this->site()));
+        self::assertSame('p { color: cached }', $this->service($transport)->load($this->site(), true));
     }
 
     public function testReturnsNullWhenNothingIsFoundAndNothingIsCached(): void
     {
         self::assertNull($this->service(new FakeTransport())->load($this->site()));
+    }
+
+    /**
+     * The bug this fixes: finding the stylesheet costs template discovery plus a
+     * walk over every candidate URL, and it was paid on every editor open — in
+     * front of the user, before TinyMCE was created.
+     */
+    public function testACachedStylesheetIsServedWithoutTouchingTheNetwork(): void
+    {
+        (new ReferenceRepository($this->db))->putEditorCss(7, 'p { color: cached }');
+
+        $transport = new FakeTransport();
+
+        self::assertSame('p { color: cached }', $this->service($transport)->load($this->site()));
+        self::assertSame([], $transport->requests);
+    }
+
+    public function testRefreshLooksAgainEvenWithACachedCopy(): void
+    {
+        (new ReferenceRepository($this->db))->putEditorCss(7, 'p { color: cached }');
+
+        $transport = (new FakeTransport())
+            ->on('https://example.com/', new HttpResponse(200, '<html><head></head><body></body></html>'))
+            ->on(
+                'https://example.com/media/templates/site/cassiopeia/css/editor.css',
+                new HttpResponse(200, 'p { color: fresh }')
+            );
+
+        self::assertSame('p { color: fresh }', $this->service($transport)->load($this->site(), true));
+    }
+
+    /**
+     * A site whose template ships no editor.css must not pay the candidate walk
+     * on every single open, so the miss is cached too.
+     */
+    public function testAMissIsCachedWhenTheSiteAnswered(): void
+    {
+        $transport = new FakeTransport(new HttpResponse(404, ''));
+
+        self::assertNull($this->service($transport)->load($this->site()));
+
+        $second = new FakeTransport();
+
+        self::assertNull($this->service($second)->load($this->site()));
+        self::assertSame([], $second->requests);
+    }
+
+    /**
+     * ...but an unreachable site taught us nothing, so the next open must be
+     * free to look again — otherwise adding a site while offline would leave the
+     * editor unstyled until the next metadata refresh.
+     */
+    public function testAMissIsNotCachedWhenNoCandidateAnswered(): void
+    {
+        self::assertNull($this->service((new FakeTransport())->throwForAll(6))->load($this->site()));
+
+        $second = (new FakeTransport())
+            ->on('https://example.com/', new HttpResponse(200, '<html><head></head><body></body></html>'))
+            ->on(
+                'https://example.com/media/templates/site/cassiopeia/css/editor.css',
+                new HttpResponse(200, 'p { color: black }')
+            );
+
+        self::assertSame('p { color: black }', $this->service($second)->load($this->site()));
+    }
+
+    /** A refresh that finds nothing must not throw away the stylesheet we already had. */
+    public function testAFailedRefreshKeepsTheCachedStylesheet(): void
+    {
+        (new ReferenceRepository($this->db))->putEditorCss(7, 'p { color: cached }');
+
+        self::assertSame(
+            'p { color: cached }',
+            $this->service(new FakeTransport(new HttpResponse(404, '')))->load($this->site(), true)
+        );
+        self::assertSame(
+            'p { color: cached }',
+            $this->service(new FakeTransport())->load($this->site())
+        );
     }
 
     /** A url() in the fetched CSS is rebased against the stylesheet it came from. */

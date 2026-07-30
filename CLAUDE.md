@@ -104,6 +104,15 @@ window-free in tests (a null dialog makes the endpoint return 503).
   always paints from the cache first — with three invalidation paths: the manual Refresh buttons, a
   configurable TTL driving a fire-and-forget background refresh, and an opt-in startup cache reset
   (**default off**, because an unconditional refetch at launch reads as a hang on a bad connection).
+  ⚠️ **`EditorCssService::load()` is cache-first too, and nothing else ever looks.** Finding a
+  template's `editor.css` costs template discovery (a styles-API call plus a home-page fetch) and
+  then a walk over up to eight candidate URLs at 5s apiece — which used to be paid on *every*
+  editor open, in front of the user. It now looks only when passed `$refresh`, which
+  `SiteController::warmCaches()` does when a site is connected or edited, and `references(refresh:
+  true)` does on a metadata refresh. **Everything the editor needs from a site is warmed there or
+  it is warmed in front of someone trying to write.** A *miss* is cached as well (an empty string),
+  so a template that ships no `editor.css` does not re-walk the candidates forever — but only when
+  the site actually answered, since an unreachable site taught us nothing.
   ⚠️ **Detail is in `.claude/rules/joomla-api-and-references.md`**, which loads when you touch
   `src/Reference/`, `src/Joomla/`, `src/Publish/`, `src/Field/` or `src/Site/`. The rule most
   easily broken from outside: `TemplateDiscovery` needs the **template styles API**, not just a

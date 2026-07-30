@@ -1529,12 +1529,26 @@ async function saveSiteHandler(id) {
     const body = { title, url, editorCssUrl: cssEl ? cssEl.value.trim() : '' };
     if (token) body.token = token;
 
+    // Saving a site is the one action that deliberately talks to it at length:
+    // it tests the connection and then warms every cache the editor reads (see
+    // SiteController::warmCaches()), so that opening an article afterwards
+    // needs no network at all. On a slow site that is seconds, so the button is
+    // disabled rather than left looking dead and double-clickable.
+    const saveBtn = document.getElementById('btn-save-site');
+    if (saveBtn) saveBtn.disabled = true;
+
     try {
         if (id === null) {
             await createSiteWithInsecureFallback(body);
         } else {
             body.allowInsecure = false;
             await api.updateSite(id, body);
+            // The server re-warmed this site's caches as part of the save (see
+            // SiteController::warmCaches()), so anything the SPA is still
+            // holding for it predates the edit — and the edit may well have
+            // been the URL, the token or the editor CSS override.
+            invalidateSiteReferences(id);
+            if (id === State.currentSiteId) State.editorCss = null;
         }
         closeModal();
         const sites = await api.listSites();
@@ -1544,6 +1558,11 @@ async function saveSiteHandler(id) {
         showToast(t('GRAFIDA_MSG_SAVED'), 'success');
     } catch (err) {
         showToast(err.message, 'error');
+    } finally {
+        // The modal is gone on success; on failure it is still open and must
+        // stay usable, and the insecure-token path re-enters through it too.
+        const btn = document.getElementById('btn-save-site');
+        if (btn) btn.disabled = false;
     }
 }
 
@@ -1817,10 +1836,7 @@ async function applyRefreshedReferences(siteId, refs) {
         if (reset.remote) await reloadRemoteArticles();
     }
 
-    if (State.activeScreen === 'editor' && State.currentDraft && State.currentDraft.siteId === siteId) {
-        const current = collectDraftFormData();
-        renderEditorSidebar({ ...State.currentDraft, ...current });
-    }
+    repaintEditorSidebar(siteId);
 
     return reset;
 }
@@ -2726,44 +2742,132 @@ async function openDraftInEditor(draft) {
 //  EDITOR SCREEN
 // ============================================================
 
+/**
+ * ⚠️ **Nothing here waits on the site.** Writing an article is a local
+ * operation: the sidebar is rendered and TinyMCE is created from whatever is
+ * already cached — including nothing at all — and the site's reference data and
+ * stylesheet are filled in afterwards, if and when they arrive.
+ *
+ * This used to `await` both fetches before rendering anything, which is how a
+ * newly added site could leave the editor screen empty for as long as its
+ * server took to answer: Boson serves one `boson://` request at a time, a cold
+ * reference cache costs one HTTP request *per custom field*, and the editor CSS
+ * used to re-run template discovery plus a walk over every candidate URL on
+ * every single open. A slow or half-reachable site therefore held the editor
+ * hostage, which it must never do — the worst a site may cost us is an
+ * unstyled editing surface and empty drop-downs.
+ */
 async function openEditorScreen(draft) {
     showScreen('editor');
-
-    const needRefs = !cachedReferences(draft.siteId);
-    const needCss = State.editorCss === null;
-    const promises = [];
-
-    if (needRefs) {
-        promises.push(api.getReferences(draft.siteId).then(r => { setCachedReferences(draft.siteId, r); }));
-    }
-    if (needCss) {
-        promises.push(
-            api.getEditorCss(draft.siteId)
-                .then(r => { State.editorCss = r.css; })
-                .catch(() => { State.editorCss = null; })
-        );
-    }
-
-    if (promises.length > 0) {
-        try { await Promise.all(promises); } catch {}
-    }
 
     renderEditorSidebar(draft);
     await initTinyMCE(draft);
 
     // Snapshot the freshly-loaded form so we can detect unsaved changes later.
+    // Taken *before* the background load below, which is why the sidebar
+    // builders have to round-trip a value they have no option for: if a
+    // late-arriving category list changed what collectDraftFormData() reads
+    // back, this baseline would go stale and the article would look edited.
     State.editorBaseline = JSON.stringify(collectDraftFormData());
 
-    // Quietly bring this site's reference data up to date if it looks stale
-    // (gh-42). Must come after the baseline snapshot above, or a repaint
-    // racing the snapshot could mark a pristine article dirty.
-    const cached = cachedReferences(draft.siteId);
-    ensureFreshReferences(draft.siteId, cached ? cached.fetchedAt : null);
+    loadEditorSiteData(draft);
 
     // Notify the AI panel that the editor has (re)initialised. The panel resets
     // its conversation state and hides itself so each article starts with a
     // clean slate. panel.js may not be loaded in tests, so guard the call.
     if (typeof GrafidaAIPanel !== 'undefined') GrafidaAIPanel.onEditorOpen();
+}
+
+/**
+ * Fetches the open draft's site data in the background and folds it into the
+ * already-rendered editor. Fire-and-forget by design: a failure leaves the
+ * editor exactly as it is, which is a perfectly usable local editor.
+ *
+ * Both fetches are cheap once the site has been connected — `SiteController`
+ * warms the reference cache *and* the editor stylesheet whenever a site is
+ * added, edited or refreshed, and both endpoints read those caches — so on a
+ * healthy install this normally completes before the user has finished
+ * reading the title field.
+ */
+function loadEditorSiteData(draft) {
+    const siteId = draft.siteId;
+    if (!siteId) return;
+
+    const cached = cachedReferences(siteId);
+
+    if (cached) {
+        // Quietly bring this site's reference data up to date if it looks stale
+        // (gh-42).
+        ensureFreshReferences(siteId, cached.fetchedAt || null);
+    } else {
+        api.getReferences(siteId)
+            .then(refs => {
+                setCachedReferences(siteId, refs);
+                repaintEditorSidebar(siteId);
+                ensureFreshReferences(siteId, refs.fetchedAt || null);
+            })
+            .catch(() => {});
+    }
+
+    if (State.editorCss === null) {
+        api.getEditorCss(siteId)
+            .then(r => {
+                // The slot is not tagged with a site (unlike State.references),
+                // so a reply that arrives after the user has moved to another
+                // site must be dropped rather than applied to it.
+                if (editorSiteId() !== siteId) return;
+                State.editorCss = r.css;
+                applyEditorCssToOpenEditor();
+            })
+            .catch(() => {});
+    }
+}
+
+/** The site the editor is currently open on, or null. */
+function editorSiteId() {
+    return State.currentDraft ? State.currentDraft.siteId : null;
+}
+
+/**
+ * Re-renders the editor sidebar against newly-arrived reference data, keeping
+ * whatever the user has already typed or selected — a repaint that dropped
+ * unsaved edits would be a far worse bug than a late drop-down. A no-op unless
+ * the editor is still open on that site.
+ */
+function repaintEditorSidebar(siteId) {
+    if (State.activeScreen !== 'editor' || editorSiteId() !== siteId) return;
+
+    const current = collectDraftFormData();
+    renderEditorSidebar({ ...State.currentDraft, ...current });
+}
+
+/**
+ * Applies a late-arriving site stylesheet to the open editor by loading it into
+ * the content iframe, rather than re-creating TinyMCE: a re-init would throw
+ * away the undo history and the cursor position of someone who has already
+ * started typing.
+ *
+ * The Styles drop-down is not rebuilt — its class list is baked into the init
+ * `formats` option — so a stylesheet that only turns up here contributes its
+ * classes on the next open. That is the rare path (the CSS is normally cached
+ * before the first open) and the alternative is a re-init.
+ */
+function applyEditorCssToOpenEditor() {
+    const editor = State.tinyMCEEditor;
+    const content = siteContentCss();
+    if (!editor || !content) return;
+
+    try {
+        editor.dom.loadCSS(content.url);
+        // The init emitted a color-scheme declaration on the assumption that
+        // there was no site stylesheet; now there is one, so restate it against
+        // what the stylesheet actually styles. Appended last, so it wins.
+        // An empty declaration means "this stylesheet styles light only", which
+        // is normally left alone — but the init already committed to dark on
+        // the assumption that there was no stylesheet, and the sheet's own
+        // light `color:` rules on a dark canvas are unreadable. Say light.
+        editor.dom.addStyle(colorSchemeStyleFor(content.matched, false) || 'html { color-scheme: light; }');
+    } catch {}
 }
 
 function renderEditorSidebar(draft) {
@@ -3003,6 +3107,34 @@ function buildStatusSelect(selectedState) {
     return sel;
 }
 
+/**
+ * ⚠️ **A `<select>` in this sidebar must always be able to show the value the
+ * draft already holds, even when the site's list does not contain it.** These
+ * drop-downs are read straight back by collectDraftFormData(), so an option
+ * that is missing is not a display glitch — it is silent data loss: a select
+ * with no matching option falls back to its first one, and the next save writes
+ * *that* to the draft. With an empty category list an article would quietly
+ * lose its category, and with an empty language list it would revert to All.
+ *
+ * An empty list means "not loaded yet" far more often than "the site has none"
+ * — the editor now opens before the reference data has arrived, and it opens at
+ * all when the site is unreachable — so the value is kept and labelled instead.
+ *
+ * @param {HTMLSelectElement} sel    the drop-down, already populated.
+ * @param {*}                 value  the draft's stored value.
+ * @param {string}            label  what to show for it; defaults to "#<value> (not loaded)".
+ */
+function preserveUnknownOption(sel, value, label) {
+    if (value === null || value === undefined || value === '') return;
+    if ([...sel.options].some(o => o.value === String(value))) return;
+
+    const opt = document.createElement('option');
+    opt.value = String(value);
+    opt.textContent = label || formatText(t('GRAFIDA_OPT_NOT_LOADED'), String(value));
+    opt.selected = true;
+    sel.appendChild(opt);
+}
+
 function buildCategorySelect(categories, selectedCatid) {
     const sel = document.createElement('select');
     sel.id = 'editor-catid';
@@ -3020,6 +3152,8 @@ function buildCategorySelect(categories, selectedCatid) {
         if (String(id) === String(selectedCatid)) opt.selected = true;
         sel.appendChild(opt);
     });
+
+    preserveUnknownOption(sel, selectedCatid);
 
     // Custom fields are per-category in Joomla, so the section below has to
     // follow this drop-down. collectDraftFormData() reads the new selection and
@@ -3050,6 +3184,11 @@ function buildAccessSelect(levels, selectedAccess) {
         if (level.id == (selectedAccess || 1)) opt.selected = true;
         sel.appendChild(opt);
     });
+
+    // Without this, an article restricted to a level the (unloaded) list does
+    // not name would be silently downgraded to Public on the next save.
+    preserveUnknownOption(sel, selectedAccess);
+
     return sel;
 }
 
@@ -3077,6 +3216,10 @@ function buildLanguageSelect(contentLanguages, selectedLang) {
             if (selectedLang === code) opt.selected = true;
             sel.appendChild(opt);
         });
+
+    // A language tag is self-explanatory, so it is shown as itself rather than
+    // through the "(not loaded)" label the numeric ids need.
+    preserveUnknownOption(sel, selectedLang, selectedLang);
 
     return sel;
 }
@@ -3501,6 +3644,76 @@ function insertReadMore(editor) {
     editor.insertContent('<hr class="readmore">');
 }
 
+/**
+ * The **site's** editor.css as a blob URL for the content iframe, or null when
+ * there is none (or it could not be turned into one). Not to be confused with
+ * editorContentCss(), which names TinyMCE's *built-in* content stylesheet.
+ *
+ * Boson's webview misreports prefers-color-scheme (always dark on macOS — see
+ * Display\DisplayModeService::systemPrefersDark()), so a site editor.css with
+ * automatic dark mode (e.g. Bootstrap 5.3's media-query colour mode) rendered
+ * the editor content permanently dark, whatever State.resolvedTheme actually
+ * was (gh-38). Those prefers-color-scheme blocks are resolved against the
+ * authoritative resolved theme in the CSS text itself, here, before it becomes
+ * a blob URL.
+ *
+ * ⚠️ State.editorCss stays **raw**: parseEditorCssClasses() (the Styles
+ * drop-down) must keep seeing every class, including ones that only appear in a
+ * dark block, and a theme change re-runs this transform against the original
+ * via applyTheme(true).
+ *
+ * @returns {{url: string, matched: boolean}|null} `matched` is whether the
+ *   stylesheet actually styles the resolved theme, which gates the caller's
+ *   color-scheme declaration.
+ */
+function siteContentCss() {
+    if (!State.editorCss) return null;
+
+    try {
+        let transformedCss = State.editorCss;
+        let matched = false;
+
+        if (typeof window.GrafidaCssTheme !== 'undefined') {
+            try {
+                const resolved = window.GrafidaCssTheme.resolveColorScheme(State.editorCss, State.resolvedTheme);
+                transformedCss = resolved.css;
+                matched = resolved.matched;
+            } catch {
+                // Fall back to the untransformed CSS — the editor must never
+                // fail to open over this.
+                transformedCss = State.editorCss;
+            }
+        }
+
+        return { url: URL.createObjectURL(new Blob([transformedCss], { type: 'text/css' })), matched };
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * The `color-scheme` declaration for the content iframe, which lets its
+ * UA-rendered bits (form controls, scrollbars, the default canvas) agree with
+ * the resolved theme instead of following the webview's misreported preference
+ * (gh-38).
+ *
+ * Deliberately conditional in dark mode: a light-only site stylesheet has its
+ * own light `color:` declarations, and a dark canvas underneath those would be
+ * unreadable — so `color-scheme: dark` is only emitted when the editing surface
+ * really is dark, i.e. either there is no site stylesheet at all (TinyMCE's
+ * built-in dark content CSS applies) or the site stylesheet does style dark. In
+ * light mode the declaration is always safe: it only corrects the webview's
+ * wrong guess and can never conflict with a stylesheet's own light styling
+ * (light is the UA default anyway).
+ *
+ * @param {boolean} siteCssHasScheme  whether the site stylesheet styles the resolved theme.
+ * @param {boolean} noSiteCss         whether there is no site stylesheet at all.
+ */
+function colorSchemeStyleFor(siteCssHasScheme, noSiteCss) {
+    if (State.resolvedTheme === 'light') return 'html { color-scheme: light; }';
+    return (noSiteCss || siteCssHasScheme) ? 'html { color-scheme: dark; }' : '';
+}
+
 async function initTinyMCE(draft) {
     if (State.tinyMCEEditor) {
         try { State.tinyMCEEditor.remove(); } catch {}
@@ -3522,57 +3735,9 @@ async function initTinyMCE(draft) {
         return;
     }
 
-    const cssOpts = [];
-    // siteCssHasScheme: whether the (transformed) site stylesheet actually
-    // styles State.resolvedTheme, used below to gate the content_style
-    // color-scheme declaration.
-    let siteCssHasScheme = false;
-    if (State.editorCss) {
-        try {
-            // Boson's webview misreports prefers-color-scheme (always dark on
-            // macOS — see Display\DisplayModeService::systemPrefersDark()), so
-            // a site editor.css with automatic dark mode (e.g. Bootstrap 5.3's
-            // media-query colour mode) rendered the editor content permanently
-            // dark, whatever State.resolvedTheme actually was (gh-38). Resolve
-            // those prefers-color-scheme blocks against the authoritative
-            // resolved theme in the CSS text itself before it becomes a Blob
-            // URL. State.editorCss stays raw: parseEditorCssClasses() (the
-            // Styles drop-down) must keep seeing every class, including ones
-            // that only appear in a dark block, and a theme change re-runs
-            // this transform against the original via applyTheme(true).
-            let transformedCss = State.editorCss;
-            if (typeof window.GrafidaCssTheme !== 'undefined') {
-                try {
-                    const resolved = window.GrafidaCssTheme.resolveColorScheme(State.editorCss, State.resolvedTheme);
-                    transformedCss = resolved.css;
-                    siteCssHasScheme = resolved.matched;
-                } catch {
-                    // Fall back to the untransformed CSS — the editor must
-                    // never fail to open over this.
-                    transformedCss = State.editorCss;
-                }
-            }
-            const blob = new Blob([transformedCss], { type: 'text/css' });
-            cssOpts.push(URL.createObjectURL(blob));
-        } catch {}
-    }
-
-    // The :root color-scheme declaration lets the UA-rendered bits inside the
-    // content iframe (form controls, scrollbars, the default canvas) agree
-    // with the resolved theme instead of following the webview's misreported
-    // preference (gh-38). It is deliberately conditional in dark mode: a
-    // light-only site stylesheet (siteCssHasScheme false) has its own light
-    // `color:` declarations, and a dark canvas underneath those would be
-    // unreadable — so `color-scheme: dark` is only emitted when the editing
-    // surface is actually dark, i.e. either there is no site stylesheet at all
-    // (cssOpts empty, so TinyMCE's built-in dark content CSS applies) or the
-    // site stylesheet does style dark (siteCssHasScheme). In light mode the
-    // declaration is always safe: it only corrects the webview's wrong guess
-    // and can never conflict with a stylesheet's own light styling (light is
-    // the UA default anyway).
-    const colorSchemeStyle = State.resolvedTheme === 'light'
-        ? 'html { color-scheme: light; }'
-        : ((cssOpts.length === 0 || siteCssHasScheme) ? 'html { color-scheme: dark; }' : '');
+    const content = siteContentCss();
+    const cssOpts = content ? [content.url] : [];
+    const colorSchemeStyle = colorSchemeStyleFor(content ? content.matched : false, content === null);
 
     const editorSiteId = State.currentDraft ? State.currentDraft.siteId : State.currentSiteId;
     const site = State.sites.find(s => s.id === editorSiteId);

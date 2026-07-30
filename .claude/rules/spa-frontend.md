@@ -323,6 +323,40 @@ ship inside the app.
   `parent_id` — the hidden ROOT node's id must not be assumed). The indent characters are
   load-bearing: HTML collapses leading whitespace in an `<option>`, so the space-padded
   labels this replaced rendered as a flat list.
+  ⚠️ **`openEditorScreen()` waits on nothing.** Writing an article is a *local* operation, so the
+  sidebar is rendered and TinyMCE is created from whatever is already cached — including nothing at
+  all — and `loadEditorSiteData()` then fills the reference data and the site stylesheet in
+  afterwards, fire-and-forget. It used to `await` both fetches first, which is how a newly added or
+  slow site could leave the editor screen empty for as long as its server took to answer: Boson
+  serves one `boson://` request at a time (so the two queue), a cold reference cache costs one HTTP
+  request **per custom field**, and `EditorCssService::load()` used to re-run template discovery plus
+  a walk over every candidate URL on every open (it is cache-first now — see
+  `.claude/rules/joomla-api-and-references.md`). The worst a site may cost the editor is empty
+  drop-downs and an unstyled editing surface. Four things this rests on:
+  - **`State.editorBaseline` is snapshotted before the background load**, so the late repaint must
+    not change what `collectDraftFormData()` reads back, or a pristine article would look edited.
+  - ⚠️ **`preserveUnknownOption()` is what makes that true, and it is load-bearing against data
+    loss, not cosmetics.** These `<select>`s *are* the draft: a select with no option for the stored
+    value silently falls back to its first one, and the next save writes that. With an empty
+    category list an article quietly lost its category; with an empty language list it reverted to
+    All; with no access levels it was downgraded to Public. An empty list means "not loaded yet" far
+    more often than "the site has none", so the stored value is kept and labelled
+    (`GRAFIDA_OPT_NOT_LOADED`, or the tag itself for a language, which is self-explanatory).
+  - **`repaintEditorSidebar(siteId)`** is the one form-preserving repaint (`collectDraftFormData()`
+    merged back over the draft), shared with `applyRefreshedReferences()`. It never touches TinyMCE.
+  - **A late stylesheet is loaded into the content iframe** (`applyEditorCssToOpenEditor()` →
+    `editor.dom.loadCSS()`), never applied by re-initialising TinyMCE, which would discard the undo
+    history and cursor of someone already typing. The Styles drop-down is not rebuilt (its class
+    list is baked into the init `formats`), so a stylesheet arriving this late contributes its
+    classes on the next open. `siteContentCss()` / `colorSchemeStyleFor()` are shared with
+    `initTinyMCE()` — ⚠️ note `siteContentCss()` (the **site's** stylesheet, as a blob URL) and
+    `editorContentCss()` (the name of TinyMCE's **built-in** content CSS, `default`/`dark`) are two
+    different functions one letter apart in meaning; naming the first one `editorContentCss` silently
+    shadowed the second and fed an object to `content_css`, which TinyMCE resolved into a bogus
+    `<link>` at the *site root*. The late path restates the `color-scheme` declaration, because the init
+    committed to dark on the assumption that there was no stylesheet and a light-only sheet's own
+    `color:` rules on a dark canvas are unreadable. `State.editorCss` is a **single untagged slot**,
+    so the late handler drops a reply that arrives after the user has moved to another site.
   **`State.references` is tagged with the site it belongs to** (`State.referencesSiteId`, gh-42):
   it is a single slot shared by every screen (the editor sidebar, `makeAlias()`'s alias preview,
   `collectDraftFormData()`'s custom fields), so nothing may read it directly — every reader goes

@@ -21,6 +21,21 @@ use Grafida\Site\Site;
  * absolute URLs, and caches the result. On any failure (including a 5 second
  * timeout) it falls back to the cached copy; if there is none, it returns null
  * so the editor simply runs without site-specific styling.
+ *
+ * ⚠️ **The cache is read first and the network is not touched at all when it
+ * hits.** Finding the stylesheet is expensive — {@see TemplateDiscovery} costs a
+ * styles-API call plus a home-page fetch, and {@see self::candidatesFor()} then
+ * walks up to eight URLs at 5 seconds apiece — and this used to be paid on
+ * *every* editor open, in front of the user, before TinyMCE was created. It is
+ * now paid only when {@see self::load()} is asked to `$refresh`: when a site is
+ * connected or edited, and on a metadata refresh (manual or TTL-driven), which
+ * is where every other per-site cache is warmed too.
+ *
+ * A **miss is cached as well** — an empty string, meaning "we looked and this
+ * site has no editor.css we can reach" — or a site whose template ships none
+ * would pay the whole candidate walk forever. It is written only when the site
+ * actually answered: if every candidate threw, the site was unreachable and
+ * nothing was learned, so the next open is free to try again.
  */
 final class EditorCssService
 {
@@ -45,20 +60,42 @@ final class EditorCssService
     ) {}
 
     /**
-     * Returns the editor CSS for a site, refreshing from the network when
-     * possible and otherwise serving the cached copy.
+     * Returns the editor CSS for a site: the cached copy when there is one, and
+     * a fresh look over the network only when there is not, or when the caller
+     * explicitly asks to refresh.
+     *
+     * A refresh that finds nothing keeps whatever was already cached — a site
+     * that is briefly unreachable must not lose its styling.
      */
-    public function load(Site $site): ?string
+    public function load(Site $site, bool $refresh = false): ?string
     {
-        $fresh = $this->fetch($this->candidatesFor($site));
+        $cached = $site->id !== null ? $this->repository->getEditorCss($site->id) : null;
 
-        if ($fresh !== null && $site->id !== null) {
+        if (!$refresh && $cached !== null) {
+            // '' is the cached miss: the site has no editor.css we can reach.
+            return $cached !== '' ? $cached : null;
+        }
+
+        [$fresh, $answered] = $this->fetch($this->candidatesFor($site));
+
+        if ($site->id === null) {
+            return $fresh;
+        }
+
+        if ($fresh !== null) {
             $this->repository->putEditorCss($site->id, $fresh);
 
             return $fresh;
         }
 
-        return $site->id !== null ? $this->repository->getEditorCss($site->id) : null;
+        // Remember the miss, so the candidate walk is not repeated on every
+        // editor open — but only if the site answered at all, and never over an
+        // existing stylesheet (this run may simply have been offline).
+        if ($answered && $cached === null) {
+            $this->repository->putEditorCss($site->id, '');
+        }
+
+        return $cached !== null && $cached !== '' ? $cached : null;
     }
 
     /**
@@ -101,10 +138,21 @@ final class EditorCssService
     }
 
     /**
+     * Walks the candidates and returns the first stylesheet found, alongside
+     * whether *any* candidate produced an HTTP response at all.
+     *
+     * That second value is what separates "this site has no editor.css" from
+     * "we could not reach this site", which the caller needs before it writes a
+     * miss to the cache.
+     *
      * @param list<string> $urls
+     *
+     * @return array{0: ?string, 1: bool}
      */
-    private function fetch(array $urls): ?string
+    private function fetch(array $urls): array
     {
+        $answered = false;
+
         foreach ($urls as $url) {
             try {
                 $response = $this->http->request('GET', $url);
@@ -112,11 +160,13 @@ final class EditorCssService
                 continue;
             }
 
+            $answered = true;
+
             if ($response->isSuccess() && trim($response->body) !== '') {
-                return $this->rebaser->rebase($response->body, $url);
+                return [$this->rebaser->rebase($response->body, $url), true];
             }
         }
 
-        return null;
+        return [null, $answered];
     }
 }

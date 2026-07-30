@@ -22,6 +22,7 @@ use Grafida\Reference\EditorCssService;
 use Grafida\Reference\ReferenceService;
 use Grafida\Site\ConnectionDiagnostics;
 use Grafida\Site\FaviconService;
+use Grafida\Site\Site;
 use Grafida\Site\SiteService;
 
 /** Handles `/api/sites*` (site CRUD, connection test, reference cache, editor CSS). */
@@ -113,8 +114,7 @@ final class SiteController extends Controller
 
         // Warm the categories/tags/languages cache the moment a site is connected,
         // so the first article (new or existing) has its selectors populated.
-        $this->references->sync($site);
-        $this->favicons->sync($site);
+        $this->warmCaches($site);
 
         return Json::ok($this->siteContext->siteArray($site), 201);
     }
@@ -135,11 +135,33 @@ final class SiteController extends Controller
             $this->editorCssUrlFrom($body),
         );
 
-        // Re-warm reference data in case the URL or token changed.
-        $this->references->sync($site);
-        $this->favicons->sync($site);
+        // Re-warm reference data in case the URL, token or editor CSS override changed.
+        $this->warmCaches($site);
 
         return Json::ok($this->siteContext->siteArray($site));
+    }
+
+    /**
+     * Fills every per-site cache the editor reads, best-effort, on the one
+     * request the user already expects to talk to the site.
+     *
+     * ⚠️ **Everything the editor needs from a site is warmed here, or it is
+     * warmed in front of the user while they are trying to write.** That is the
+     * whole point: opening an article is a *local* operation and must not wait
+     * on a site, so anything it would otherwise have to fetch is fetched at
+     * connect/edit time instead. The editor stylesheet is the expensive one —
+     * template discovery plus a walk over up to eight candidate URLs — and it
+     * is refreshed explicitly, because {@see EditorCssService::load()} is
+     * otherwise cache-first and would never look.
+     *
+     * None of it can fail the save: the reference lists are best-effort by
+     * construction and the CSS load swallows its own transport errors.
+     */
+    private function warmCaches(Site $site): void
+    {
+        $this->references->sync($site);
+        $this->editorCss->load($site, true);
+        $this->favicons->sync($site);
     }
 
     /**
@@ -182,9 +204,14 @@ final class SiteController extends Controller
         $fieldDefs = $this->fieldScope->annotate($fieldDefs, $categories);
 
         // The explicit refresh also re-downloads the favicon, so the SPA can
-        // update the icon shown for the site without a full reload.
+        // update the icon shown for the site without a full reload, and
+        // re-discovers the editor stylesheet — a template change is exactly the
+        // kind of thing "refresh this site's metadata" is expected to pick up,
+        // and this is the only path that ever looks for it again (the load is
+        // cache-first, see EditorCssService).
         if ($refresh && $site->id !== null) {
             $this->favicons->sync($site);
+            $this->editorCss->load($site, true);
         }
 
         return Json::ok([

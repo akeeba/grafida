@@ -22,7 +22,11 @@ Grafida 0.3
 ~ Site metadata is refreshed automatically once it goes stale, not only when you press Reload metadata (gh-42)
 ~ The editor's Reload metadata button now sits below Tags, next to the fields it controls (gh-42)
 ~ Offline: friendlier "site unreachable" message, and consistent error display across the Articles list, Media Manager and media browser (gh-29)
+~ Adding or editing a site also refreshes its metadata and editor stylesheet
+~ The site's editor stylesheet is cached, not looked up again on every editor open
 # [HIGH] Severe editor lag, and a frozen source code editor, after pasting a large image (gh-36)
+# [HIGH] The editor would not load while a slow or newly added site was still answering
+# [HIGH] Opening an article before the site's metadata had loaded could strip its category, access level or language on save
 # [HIGH] Editor content stuck in dark mode when the site's editor.css switches on prefers-color-scheme (gh-38)
 # [HIGH] The editor showed every custom field the site has, not the ones the article's category uses — and a required field belonging to another category made publishing impossible (gh-56)
 # [MEDIUM] Offline, the whole Articles screen was replaced by an error — even the Local articles tab, which needs no network (gh-29)

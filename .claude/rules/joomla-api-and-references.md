@@ -45,6 +45,22 @@ what we cache about a site, and the API contracts that govern reading it. Verbat
   `ReferenceService` uses a short-timeout (8s) API client; `sync()` warms the cache best-effort
   when a site is connected/updated, and opening the editor falls back to cache per-list (only the
   manual refresh button surfaces fetch errors).
+  ⚠️ **`EditorCssService::load()` is cache-first, and the *only* thing that ever looks again is a
+  caller passing `$refresh`.** Discovery plus the candidate walk is up to ten sequential requests at
+  5s apiece, and it used to run on **every editor open** — ahead of TinyMCE being created, on the
+  same single-threaded `boson://` queue as the references fetch. That is how a newly added site
+  could leave the editor screen blank until it finished; the SPA no longer waits for either fetch
+  (see `.claude/rules/spa-frontend.md`), but the cost had to go somewhere useful, and it is now paid
+  where the user already expects to talk to the site. Three consequences worth carrying:
+  - **`SiteController::warmCaches()` is the single place a site's caches are filled** on connect and
+    on edit — `references->sync()`, `editorCss->load($site, true)`, `favicons->sync()`. Anything new
+    the editor needs from a site belongs in it, or it will be fetched in front of someone writing.
+  - **`references($id, refresh: true)` refreshes the stylesheet too**, so a template change is picked
+    up by "Reload metadata" (manual *and* the TTL-driven background refresh) — nothing else will.
+  - **A miss is cached** as an empty string, or a template shipping no `editor.css` would re-walk
+    every candidate forever; `fetch()` therefore reports whether *any* candidate answered, and a
+    run where none did writes nothing (an unreachable site must stay free to try again). A miss
+    never overwrites a stylesheet already cached.
   ⚠️ **`reference_cache` is permanent server-side and stays authoritative for rendering — a
   screen always paints from the cache first — but it is no longer freshened *only* by the manual
   button** (gh-42; previously a category added on the site stayed invisible until the user pressed

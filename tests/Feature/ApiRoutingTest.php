@@ -458,6 +458,30 @@ final class ApiRoutingTest extends TestCase
         self::assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $json['data']['fetchedAt']);
     }
 
+    /**
+     * Opening an article must not re-derive the site's editor stylesheet.
+     * Discovery costs a styles-API call, a home-page fetch and a walk over
+     * every candidate URL at 5 seconds apiece, and it used to be paid on every
+     * single editor open, in front of the user, before TinyMCE was created —
+     * which is how a slow site could leave the editor blank. The cached copy is
+     * now served as-is (the site here does not even exist, so any attempt to
+     * look would not produce this).
+     */
+    public function testEditorCssIsServedFromTheCacheWithoutLookingAgain(): void
+    {
+        $kernel = $this->kernel();
+        $siteId = $this->seedSite();
+
+        TestDatabase::connection($this->lastDb)->prepare(
+            'INSERT INTO editor_css_cache (site_id, css, fetched_at) VALUES (?, ?, ?)'
+        )->execute([$siteId, 'p { color: cached }', gmdate('Y-m-d H:i:s')]);
+
+        [$status, $json] = $this->call($kernel, 'GET', '/api/sites/' . $siteId . '/editor-css');
+
+        self::assertSame(200, $status);
+        self::assertSame('p { color: cached }', $json['data']['css']);
+    }
+
     public function testMediaBlobMissingIs404(): void
     {
         [$status, $json] = $this->call($this->kernel(), 'GET', '/api/media/999');
