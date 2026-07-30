@@ -48,6 +48,7 @@ Grafida 0.3
 # [LOW] The source code editor inserted a closing tag even when a matching one already followed (gh-52)
 # [LOW] The Category drop-downs showed a flat list instead of the category tree (gh-40)
 # [LOW] Slash commands and spell checking settings used Yes/No instead of On/Off (gh-48)
+# [MEDIUM] Categories beyond Joomla's first API page were missing from the article editor's Category drop-down (gh-60)
 
 Grafida 0.2
 ================================================================================

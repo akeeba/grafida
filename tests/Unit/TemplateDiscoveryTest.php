@@ -25,7 +25,7 @@ use Joomla\Database\DatabaseInterface;
 final class TemplateDiscoveryTest extends TestCase
 {
     /** The URL ApiClient builds for the template-styles collection. */
-    private const STYLES_URL = 'https://example.com/index.php/api/v1/templates/styles/site?page%5Blimit%5D=0';
+    private const STYLES_URL = 'https://example.com/index.php/api/v1/templates/styles/site?page%5Blimit%5D=100&page%5Boffset%5D=0';
 
     private DatabaseInterface $db;
 

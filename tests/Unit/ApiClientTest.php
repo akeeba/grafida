@@ -117,6 +117,30 @@ final class ApiClientTest extends TestCase
         self::assertSame(1, $result['totalPages']);
     }
 
+    public function testListCategoriesFetchesEachPageAtOneHundredItems(): void
+    {
+        $base = 'https://example.com/index.php/api';
+        $firstUrl = $base . '/v1/content/categories?filter%5Bextension%5D=com_content&page%5Blimit%5D=100&page%5Boffset%5D=0';
+        $lastUrl  = $base . '/v1/content/categories?filter%5Bextension%5D=com_content&page%5Blimit%5D=100&page%5Boffset%5D=100';
+        $transport = new FakeTransport();
+        $transport->on($firstUrl, new HttpResponse(200, (string) json_encode([
+            'data' => [['type' => 'categories', 'id' => '1', 'attributes' => ['title' => 'First']]],
+            'meta' => ['total-pages' => 2],
+        ])));
+        $transport->on($lastUrl, new HttpResponse(200, (string) json_encode([
+            'data' => [['type' => 'categories', 'id' => '101', 'attributes' => ['title' => 'Last']]],
+            'meta' => ['total-pages' => 2],
+        ])));
+
+        $client = new ApiClient($transport);
+
+        self::assertSame([
+            ['title' => 'First', 'id' => 1],
+            ['title' => 'Last', 'id' => 101],
+        ], $client->listCategories($base, 'tok'));
+        self::assertSame([$firstUrl, $lastUrl], array_column($transport->requests, 'url'));
+    }
+
     public function testCreateArticleSendsAFlatFieldBody(): void
     {
         // Joomla's Web Services API takes a flat JSON object of field values for

@@ -149,15 +149,17 @@ what we cache about a site, and the API contracts that govern reading it. Verbat
   com_templates, so it can return 403 for non-Super-User tokens; treat it as optional. The list view
   renders `id`, `template`, `title`, `home`, `client_id`, …; `template` is the template's **directory
   name** and `home` is `"1"` for the site default, a **language tag** for a multilingual site's
-  per-language home, and `"0"` otherwise. `page[limit]=0` means "all" here (unlike the config route).
+  per-language home, and `"0"` otherwise. Grafida fetches collection routes in 100-item pages and
+  follows Joomla's returned `meta.total-pages` through the final page (the config route remains a
+  special case because `page[limit]=0` divides by zero there).
   This is the **only** way to learn a child template's name — see `src/Reference/`.
 - Global Configuration: `GET /v1/config/application` (the `webservices/config` plugin) needs
   **`core.admin`** — a plain author's token gets a 403, so treat it as optional. Its view does not
   serve one resource with all the settings: it emits **one single-attribute resource per key**, all
   sharing the same id, and **paginates** them (default limit 20) — so a caller must send
   `page[offset]` *and* `page[limit]` (it reads both without individual defaults) and scan the items.
-  `page[limit]=0`, which every other collection route here uses to mean "all", **divides by zero**
-  server-side. The payload is `configuration.php` verbatim, `secret` and `password` included — read
+  `page[limit]=0` **divides by zero** server-side. The payload is `configuration.php` verbatim,
+  `secret` and `password` included — read
   what you need, never cache the lot.
 - Article custom fields: `GET /v1/fields/content/articles` (gh-56). ⚠️ **The list endpoint cannot tell you
   which categories a field is used in, and the route accepts no filter that would.** `com_fields`'

@@ -34,6 +34,9 @@ use Grafida\Http\Transport;
  */
 final class ApiClient
 {
+    /** Joomla's collection routes return pagination metadata for every page. */
+    private const COLLECTION_PAGE_SIZE = 100;
+
     public function __construct(
         private readonly Transport $http = new HttpClient(),
     ) {}
@@ -229,13 +232,13 @@ final class ApiClient
     /** @return list<array<string, mixed>> */
     public function listCategories(string $base, string $token): array
     {
-        return $this->collection($base, $token, 'content/categories', ['filter[extension]' => 'com_content', 'page[limit]' => 0]);
+        return $this->collection($base, $token, 'content/categories', ['filter[extension]' => 'com_content']);
     }
 
     /** @return list<array<string, mixed>> */
     public function listTags(string $base, string $token): array
     {
-        return $this->collection($base, $token, 'tags', ['page[limit]' => 0]);
+        return $this->collection($base, $token, 'tags');
     }
 
     /** @return array<string, mixed> The created tag resource (includes its new id). */
@@ -253,7 +256,7 @@ final class ApiClient
     /** @return list<array<string, mixed>> */
     public function listAccessLevels(string $base, string $token): array
     {
-        return $this->collection($base, $token, 'users/levels', ['page[limit]' => 0]);
+        return $this->collection($base, $token, 'users/levels');
     }
 
     /**
@@ -265,13 +268,13 @@ final class ApiClient
      */
     public function listContentLanguages(string $base, string $token): array
     {
-        return $this->collection($base, $token, 'languages/content', ['page[limit]' => 0]);
+        return $this->collection($base, $token, 'languages/content');
     }
 
     /** @return list<array<string, mixed>> */
     public function listArticleFields(string $base, string $token): array
     {
-        return $this->collection($base, $token, 'fields/content/articles', ['page[limit]' => 0]);
+        return $this->collection($base, $token, 'fields/content/articles');
     }
 
     /**
@@ -316,7 +319,7 @@ final class ApiClient
      */
     public function listTemplateStyles(string $base, string $token): array
     {
-        return $this->collection($base, $token, 'templates/styles/site', ['page[limit]' => 0]);
+        return $this->collection($base, $token, 'templates/styles/site');
     }
 
     /**
@@ -561,22 +564,37 @@ final class ApiClient
      */
     private function collection(string $base, string $token, string $route, array $query = []): array
     {
-        $url = $base . '/v1/' . $route;
-        if ($query !== []) {
-            $url .= '?' . http_build_query($query);
-        }
+        $pageSize = isset($query['page[limit]']) && (int) $query['page[limit]'] > 0
+            ? (int) $query['page[limit]']
+            : self::COLLECTION_PAGE_SIZE;
+        $offset = isset($query['page[offset]']) ? max(0, (int) $query['page[offset]']) : 0;
+        $out    = [];
+        $page   = intdiv($offset, $pageSize) + 1;
 
-        $response = $this->raw('GET', $url, $token);
-        $this->assertSuccess($response);
+        do {
+            $pageQuery                 = $query;
+            $pageQuery['page[limit]']  = $pageSize;
+            $pageQuery['page[offset]'] = ($page - 1) * $pageSize;
+            $url                       = $base . '/v1/' . $route . '?' . http_build_query($pageQuery);
 
-        $data = $response->json()['data'] ?? [];
-        $out  = [];
+            $response = $this->raw('GET', $url, $token);
+            $this->assertSuccess($response);
 
-        foreach (is_array($data) ? $data : [] as $item) {
-            if (is_array($item)) {
-                $out[] = $this->flatten($item);
+            $json = $response->json();
+            $data = $json['data'] ?? [];
+
+            foreach (is_array($data) ? $data : [] as $item) {
+                if (is_array($item)) {
+                    $out[] = $this->flatten($item);
+                }
             }
-        }
+
+            $meta       = is_array($json['meta'] ?? null) ? $json['meta'] : [];
+            $totalPages = isset($meta['total-pages']) && is_numeric($meta['total-pages'])
+                ? max(1, (int) $meta['total-pages'])
+                : 1;
+            $page++;
+        } while ($page <= $totalPages);
 
         return $out;
     }
