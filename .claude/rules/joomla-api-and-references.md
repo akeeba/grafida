@@ -98,6 +98,20 @@ what we cache about a site, and the API contracts that govern reading it. Verbat
   `false` (Joomla's default). `ApiClient::getConfigValue()` returns a **single named** value, not
   the map: that route serves `configuration.php`, secret and database password included, so nothing
   unasked-for can reach the cache.
+  ⚠️ **The site's own `Site\UnicodeAliases` tri-state is checked first and wins outright** (gh-61).
+  That is the whole point of it: because the 403 is normal, "we could not read it" was
+  indistinguishable from "it is off", so a site connected with a non-Super-User token silently got
+  the wrong algorithm and had no way to say otherwise. `yes`/`no` therefore answer before the cache
+  is consulted and before any request is made — which also means `sync()` stops paying for the
+  config probe on such a site. Two rules that are easy to break from here:
+  - **An override writes nothing to `reference_cache`.** It is a user assertion, not a reading, and
+    caching it would leave `auto` inheriting it after the user switched back — at which point
+    nothing on the screen could explain where the value came from. `ReferenceServiceTest` pins
+    both halves (no request, no cache row).
+  - **The tri-state lives on the `Site` entity, so it is only as fresh as the entity the caller
+    passed.** Everything here already takes a `Site`, so this costs nothing — but do not cache the
+    resolved boolean per site id anywhere, or an edit to the setting would not take effect until a
+    restart.
 
 ## Key Joomla API facts (verified against Joomla 5.4 source)
 

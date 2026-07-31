@@ -73,6 +73,10 @@
                         {
                             "slug": "Editing-Articles",
                             "title": "Editing Articles"
+                        },
+                        {
+                            "slug": "Aliases-and-transliteration",
+                            "title": "Aliases and transliteration"
                         }
                     ]
                 },

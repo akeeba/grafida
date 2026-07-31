@@ -19,14 +19,33 @@ and two-space continuation indent are the original bullet formatting.
   directly below the title. The SPA's `makeAlias()` mirrors Joomla's
   `ApplicationHelper::stringUrlSafe()`, which is **two** algorithms picked by the site's
   `unicodeslugs` Global Configuration option (the references payload's `unicodeSlugs` flag, see
-  `src/Reference/`), so `aliasSlug(text, unicodeSlugs)` mirrors both: off (Joomla's default) →
-  `OutputFilter::stringURLSafe` (NFKD transliteration → lowercase → whitespace-to-dash → strip
-  non-`[a-z0-9-]` → trim dashes), on → `OutputFilter::stringUrlUnicodeSlug` (letters kept as they
+  `src/Reference/` — which since gh-61 may be the site's own `UnicodeAliases` override rather than
+  anything read from the site), so `aliasSlug(text, unicodeSlugs, language)` mirrors both: off
+  (Joomla's default) → `OutputFilter::stringURLSafe` (transliteration → lowercase →
+  whitespace-to-dash → strip non-`[a-z0-9-]` → trim dashes), on →
+  `OutputFilter::stringUrlUnicodeSlug` (letters kept as they
   are: only URL-breaking punctuation becomes a space, `?` is dropped, lowercase, runs of **spaces**
   — not whitespace at large — to a dash, no dash trimming). This is why a Greek title yields
-  `καλημέρα-κόσμε` on a Unicode-alias site but nothing at all on a transliterating one; either way
+  `καλημέρα-κόσμε` on a Unicode-alias site; either way
   an empty result (Joomla counts an all-dashes alias as empty, as `Table\Content::check()` does)
   falls back to a `Y-m-d-H-i-s` timestamp.
+  ⚠️ **Transliteration is per *article* language, and it is a module, not a `normalize('NFKD')`
+  call** (gh-61). Joomla's `OutputFilter::stringUrlSafe($string, $language)` goes through
+  `Language::transliterate()`, which a language pack may replace wholesale with its own
+  `xx-XX.localise.php`; `js/util/translit.js` reproduces that — Joomla's shared
+  `Transliterate::$utf8LowerAccents` map plus `de`/`fr`/`el` providers chosen on the **primary
+  subtag**, so `de-DE`/`de-AT`/`de-CH` share one. Three things to carry:
+  - **A provider overrides the shared map rather than adding to it**, because it runs first and
+    consumes the characters it cares about. That is not an optimisation: the shared map's umlaut
+    rules are *German* ones (`ü` → `ue`) and French needs `aiguë` → `aigue`. Adding a language
+    means adding a map, never editing the shared one.
+  - **`makeAlias()` reads the language off `#editor-language`, not off the draft**, so picking a
+    language in the sidebar and pressing regenerate uses the language just picked.
+  - **The trailing NFKD pass is deliberate divergence from Joomla**, which simply drops a letter
+    its map does not know. It is safe *because* Joomla re-slugifies whatever alias we send: `à` →
+    `a` passes its filter unchanged, so the preview stays accurate and salvages a letter Joomla
+    would have thrown away. `tests/js/translit.test.mjs` is the only coverage — PHP has no
+    transliterator, since nothing server-side ever generates an alias.
   Distinct from that URL slug, the **Created by Alias** (`created_by_alias`, a person's by-line —
   Joomla shows it instead of the publishing account's name) is a plain sidebar text input
   (`#editor-created-by-alias`, gh-8). It is the one article attribute `PublishService` sends

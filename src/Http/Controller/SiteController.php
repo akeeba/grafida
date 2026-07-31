@@ -25,6 +25,7 @@ use Grafida\Site\ConnectionDiagnostics;
 use Grafida\Site\FaviconService;
 use Grafida\Site\Site;
 use Grafida\Site\SiteService;
+use Grafida\Site\UnicodeAliases;
 
 /** Handles `/api/sites*` (site CRUD, connection test, reference cache, editor CSS). */
 final class SiteController extends Controller
@@ -113,6 +114,7 @@ final class SiteController extends Controller
             $this->editorCssUrlFrom($body),
             $this->mediaAdapterFrom($body),
             $this->mediaFolderFrom($body),
+            $this->unicodeAliasesFrom($body),
         );
 
         // Warm the categories/tags/languages cache the moment a site is connected,
@@ -138,6 +140,7 @@ final class SiteController extends Controller
             $this->editorCssUrlFrom($body),
             $this->mediaAdapterFrom($body),
             $this->mediaFolderFrom($body),
+            $this->unicodeAliasesFrom($body),
         );
 
         // Re-warm reference data in case the URL, token or editor CSS override changed.
@@ -207,6 +210,19 @@ final class SiteController extends Controller
         $raw = trim($this->str($body, 'mediaFolder'));
 
         return $raw !== '' ? MediaUploadTarget::normaliseFolder($raw) : null;
+    }
+
+    /**
+     * The "Site uses Unicode Aliases" tri-state as the form sends it (gh-61).
+     * A field the form omitted — or a value we do not recognise — reads as
+     * "auto", i.e. ask the site, which is what every site did before this
+     * setting existed.
+     *
+     * @param array<string, mixed> $body
+     */
+    private function unicodeAliasesFrom(array $body): string
+    {
+        return UnicodeAliases::normalise($this->str($body, 'unicodeAliases'));
     }
 
     public function deleteSite(int $id): ResponseInterface

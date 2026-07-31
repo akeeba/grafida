@@ -97,6 +97,23 @@ final class ApiRoutingTest extends TestCase
         }
     }
 
+    /**
+     * gh-61: the site payload carries the "Site uses Unicode Aliases"
+     * tri-state, and a row written before the migration — which holds NULL —
+     * must read as "auto", the behaviour every site had before the setting
+     * existed. seedSite() writes exactly such a row.
+     */
+    public function testSitePayloadDefaultsUnicodeAliasesToAutomatic(): void
+    {
+        $kernel = $this->kernel();
+        $this->seedSite();
+
+        [$status, $json] = $this->call($kernel, 'GET', '/api/sites');
+
+        self::assertSame(200, $status);
+        self::assertSame('auto', $json['data'][0]['unicodeAliases']);
+    }
+
     public function testSystemThemeEndpoint(): void
     {
         [$status, $json] = $this->call($this->kernel(), 'GET', '/api/settings/system-theme');

@@ -45,6 +45,10 @@ Grafida deliberately does not leave this choice to Joomla. Joomla's REST API sen
 
 **Upload folder**. The folder inside that filesystem where the images are uploaded, e.g. `blog/2026`. It is created if it does not exist. Leave it empty to use a folder named `grafida`.
 
+**Site uses Unicode Aliases**. Which of Joomla's two rules turns an article title into a URL alias. Leave it set to _Automatic_ and Grafida reads the **Unicode Aliases** option from your site's Global Configuration.
+
+Reading that option requires a Super User's API Token; it is not a Grafida restriction, it's how Joomla's API works. If you connect with a less privileged user Grafida cannot see the setting and, on _Automatic_, assumes it is off — which is Joomla's own default, but wrong if you have turned it on. Set this to **Yes** or **No** yourself to say which it is. See [Aliases and transliteration](Aliases-and-transliteration).
+
 You can use the **Test Connection** button to check that the Site URL and API Token you have entered work properly.
 
 If the connection fails, click on **Diagnose Connection**. See [Connection Troubleshooting](Connection-Troubleshooting) for more information.

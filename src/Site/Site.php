@@ -28,13 +28,14 @@ final readonly class Site
         public ?string $editorCssUrl = null,
         public ?string $mediaAdapter = null,
         public ?string $mediaFolder = null,
+        public string $unicodeAliases = UnicodeAliases::AUTO,
     ) {}
 
     /**
      * @param array{id?: int|string|null, title: string, base_url: string, api_base: string|null,
      *             secret_ref: string|null, insecure_token: string|int|null, default_language?: string,
      *             editor_css_url?: string|null, media_adapter?: string|null,
-     *             media_folder?: string|null} $row
+     *             media_folder?: string|null, unicode_aliases?: string|null} $row
      */
     public static function fromRow(array $row): self
     {
@@ -53,6 +54,7 @@ final readonly class Site
             editorCssUrl: $editorCssUrl !== '' ? $editorCssUrl : null,
             mediaAdapter: $mediaAdapter !== '' ? $mediaAdapter : null,
             mediaFolder: $mediaFolder !== '' ? $mediaFolder : null,
+            unicodeAliases: UnicodeAliases::normalise($row['unicode_aliases'] ?? null),
         );
     }
 
@@ -74,6 +76,7 @@ final readonly class Site
             'editorCssUrl'    => $this->editorCssUrl,
             'mediaAdapter'    => $this->mediaAdapter,
             'mediaFolder'     => $this->mediaFolder,
+            'unicodeAliases'  => $this->unicodeAliases,
             'insecure'        => $this->isInsecure(),
         ];
     }

@@ -1316,6 +1316,18 @@ function buildSiteItem(site) {
     return el('div', 'site-item', siteFaviconEl(site), info, actions);
 }
 
+/**
+ * The site form's "Site uses Unicode Aliases" choices, paired with their
+ * language keys (gh-61). ⚠️ Must stay in step with `Site\UnicodeAliases::
+ * AVAILABLE` in PHP, which validates the value and snaps an unknown one back
+ * to 'auto'.
+ */
+const UNICODE_ALIAS_CHOICES = [
+    ['auto', 'GRAFIDA_OPT_UNICODE_ALIASES_AUTO'],
+    ['yes', 'GRAFIDA_OPT_UNICODE_ALIASES_YES'],
+    ['no', 'GRAFIDA_OPT_UNICODE_ALIASES_NO'],
+];
+
 function buildSiteFormBody(site = null) {
     // Title
     const titleInput = document.createElement('input');
@@ -1392,6 +1404,23 @@ function buildSiteFormBody(site = null) {
     const folderGroup = formGroup(t('GRAFIDA_LBL_MEDIA_FOLDER'), folderInput);
     folderGroup.appendChild(el('div', 'form-hint', t('GRAFIDA_MSG_MEDIA_UPLOAD_HINT')));
 
+    // Whether the site has Joomla's "Unicode Aliases" option on (gh-61).
+    // Automatic reads it from the site, which only a Super User's token can do —
+    // hence the manual Yes/No for everyone else.
+    const unicodeSelect = document.createElement('select');
+    unicodeSelect.id = 'modal-site-unicode-aliases';
+    unicodeSelect.className = 'form-control';
+    UNICODE_ALIAS_CHOICES.forEach(([value, key]) => {
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = t(key);
+        unicodeSelect.appendChild(opt);
+    });
+    unicodeSelect.value = (site && site.unicodeAliases) || 'auto';
+
+    const unicodeGroup = formGroup(t('GRAFIDA_LBL_UNICODE_ALIASES'), unicodeSelect);
+    unicodeGroup.appendChild(el('div', 'form-hint', t('GRAFIDA_MSG_UNICODE_ALIASES_HINT')));
+
     // Test connection row
     const testBtn = iconBtn('plug', t('GRAFIDA_BTN_TEST_CONNECTION'), 'btn', 'btn-secondary');
     testBtn.id = 'btn-test-connection';
@@ -1417,6 +1446,7 @@ function buildSiteFormBody(site = null) {
         cssGroup,
         adapterGroup,
         folderGroup,
+        unicodeGroup,
         testRow,
         diagnoseResult,
     ];
@@ -1599,6 +1629,7 @@ async function saveSiteHandler(id) {
     const cssEl = document.getElementById('modal-site-editor-css');
     const adapterEl = document.getElementById('modal-site-media-adapter');
     const folderEl = document.getElementById('modal-site-media-folder');
+    const unicodeEl = document.getElementById('modal-site-unicode-aliases');
     const title = titleEl ? titleEl.value.trim() : '';
     const url = urlEl ? urlEl.value.trim() : '';
     const token = tokenEl ? tokenEl.value.trim() : '';
@@ -1615,6 +1646,7 @@ async function saveSiteHandler(id) {
         editorCssUrl: cssEl ? cssEl.value.trim() : '',
         mediaAdapter: adapterEl ? adapterEl.value : '',
         mediaFolder: folderEl ? folderEl.value.trim() : '',
+        unicodeAliases: unicodeEl ? unicodeEl.value : 'auto',
     };
     if (token) body.token = token;
 
@@ -6559,15 +6591,20 @@ function blobToBase64(blob) {
  * Turn a string into a URL-safe alias, mirroring Joomla's
  * ApplicationHelper::stringUrlSafe(), which picks one of two algorithms based
  * on the site's "Unicode Aliases" Global Configuration option (`unicodeslugs`)
- * — hence the flag, read from the site's cached configuration. When nothing
- * usable survives either algorithm, Joomla falls back to a timestamp — so do
- * we, keeping the same Y-m-d-H-i-s shape. The published article is re-slugified
- * by Joomla anyway, so this only needs to be a faithful preview of the result.
+ * — hence the flag, read from the site's cached configuration (or from the
+ * site's own tri-state override, gh-61). When nothing usable survives either
+ * algorithm, Joomla falls back to a timestamp — so do we, keeping the same
+ * Y-m-d-H-i-s shape. The published article is re-slugified by Joomla anyway, so
+ * this only needs to be a faithful preview of the result.
+ *
+ * The language is read off the **open form**, not off the draft: Joomla
+ * transliterates per article language, so picking a language in the sidebar and
+ * pressing regenerate has to use the language just picked.
  */
 function makeAlias(text) {
     const siteId = State.currentDraft && State.currentDraft.siteId;
     const refs = cachedReferences(siteId);
-    const str = aliasSlug(text, !!(refs && refs.unicodeSlugs));
+    const str = aliasSlug(text, !!(refs && refs.unicodeSlugs), articleLanguage());
 
     // Joomla considers an alias of nothing but dashes as empty too.
     if (str.replace(/-/g, '').trim() !== '') return str;
@@ -6580,24 +6617,40 @@ function makeAlias(text) {
 }
 
 /**
+ * The article language the editor form currently has selected, falling back to
+ * the open draft's own and finally to Joomla's "All" (`*`). Only the alias
+ * preview needs it — everywhere else the language is read as part of the whole
+ * form by collectDraftFormData().
+ */
+function articleLanguage() {
+    const langEl = document.getElementById('editor-language');
+
+    if (langEl && langEl.value) return langEl.value;
+
+    return (State.currentDraft && State.currentDraft.language) || '*';
+}
+
+/**
  * The slug itself, without Joomla's empty-result timestamp fallback.
  *
  * Transliterating (`unicodeslugs` off, Joomla's default — OutputFilter::
- * stringURLSafe): dashes become spaces, accented Latin letters are
- * transliterated to ASCII (via Unicode NFKD decomposition + combining-mark
- * stripping, a close approximation of Joomla's default transliterator), the
- * result is lower-cased, every run of whitespace becomes a single dash and any
- * remaining non-[a-z0-9-] character is dropped. A title with no Latin letters
- * at all — "Καλημέρα κόσμε" — survives this as nothing.
+ * stringURLSafe): dashes become spaces, the text is transliterated to ASCII by
+ * `js/util/translit.js` — Joomla's own shared map, plus the per-language rules
+ * Joomla takes from a language pack's `transliterate()`, hence the language
+ * argument (gh-61) — the result is lower-cased, every run of whitespace becomes
+ * a single dash and any remaining non-[a-z0-9-] character is dropped. A title
+ * with no Latin letters at all — "Καλημέρα κόσμε" — survives this as nothing
+ * unless its language has a provider, which Greek does: "kalimera-kosme".
  *
  * Unicode (`unicodeslugs` on — OutputFilter::stringUrlUnicodeSlug): the letters
  * are kept as they are, so that title becomes "καλημέρα-κόσμε". Only the
  * characters that would break a URL are replaced by spaces (question marks are
  * dropped outright), the result is lower-cased and each run of spaces becomes a
  * single dash. Note it is *spaces* Joomla collapses here, not whitespace at
- * large, and that it never trims leading/trailing dashes.
+ * large, and that it never trims leading/trailing dashes. Nothing is
+ * transliterated in this mode — that is the whole point of it.
  */
-function aliasSlug(text, unicodeSlugs) {
+function aliasSlug(text, unicodeSlugs, language) {
     let str = String(text || '');
 
     if (unicodeSlugs) {
@@ -6612,13 +6665,28 @@ function aliasSlug(text, unicodeSlugs) {
     }
 
     str = str.replace(/-/g, ' ');
-    // Transliterate: decompose accented characters and strip the combining
-    // diacritical marks (Unicode U+0300–U+036F) that decomposition leaves behind.
-    str = str.normalize('NFKD').replace(/[̀-ͯ]/g, '');
+    str = transliterateForAlias(str, language);
     str = str.trim().toLowerCase();
     str = str.replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
     return str.replace(/^-+|-+$/g, '');
+}
+
+/**
+ * Transliteration for the alias, guarded against the module being absent: the
+ * fallback is the NFKD decomposition + combining-mark strip this used to do on
+ * its own, which is a poorer approximation (no Greek, and `ß`/`ö` simply
+ * vanish) but still produces a usable alias rather than throwing while
+ * somebody is typing a title.
+ */
+function transliterateForAlias(str, language) {
+    try {
+        if (window.GrafidaTransliterate) return window.GrafidaTransliterate.transliterate(str, language);
+    } catch (e) {
+        // Fall through to the built-in approximation.
+    }
+
+    return str.normalize('NFKD').replace(/[̀-ͯ]/g, '');
 }
 
 /**

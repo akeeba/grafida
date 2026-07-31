@@ -4,6 +4,9 @@ Grafida 0.3
 + Custom fields of type Media can now be edited, using Grafida's own media browser — site media or a local picture uploaded on publish
 + Media Manager: new Local Media tab to crop, resize, rename and delete images before they are published (gh-36)
 + Sites: choose which Media Manager filesystem and folder the images of a published article are uploaded to (gh-57)
++ Sites: say whether the site uses Unicode Aliases, for tokens not allowed to read it from Global Configuration (gh-61)
++ The article alias is transliterated per the article's language — German, French and Greek rules, mirroring Joomla's own (gh-61)
++ Documentation: Aliases and transliteration — the two Joomla alias rules, the new setting, and the per-language rules (gh-61)
 + Diagnose Connection: see the exact request and response when a site connection fails (gh-37)
 + Optional Request Log: record the last 20 requests to the site, with JSON export (gh-37)
 + Reload metadata button on the Articles page, keeping your filters (gh-42)

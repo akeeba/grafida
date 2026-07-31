@@ -50,6 +50,14 @@ ship inside the app.
   back-end (site/user time zone). It is loaded **before** `app.js` (unlike the `js/editor/` modules,
   which load after it) since it is self-contained; `app.js`'s `formatStamp()` wrapper guards its
   absence all the same. `tests/js/datetime.test.mjs` covers it.
+  **`js/util/translit.js`** (`window.GrafidaTransliterate = {transliterate}`, gh-61) is the second
+  module in that directory and loads on the same terms — self-contained, before `app.js`, guarded
+  at the call site (`transliterateForAlias()` falls back to the old NFKD approximation rather than
+  letting the alias preview throw while somebody is typing a title). It turns a title into ASCII
+  for the alias, per the **article's** language, and the rules it implements — plus why a language
+  provider overrides the shared map instead of extending it — are documented in
+  `.claude/rules/drafts-and-articles.md` beside `aliasSlug()`, which is its only caller.
+  `tests/js/translit.test.mjs` covers it.
   ⚠️ **Every pane-level error/empty placeholder goes through `stateBlock()` / `errorState()`**
   (gh-29), never a hand-rolled `<div class="alert alert-error">` or a bespoke class: before this,
   the same caught error rendered three different ways — a narrow square in the Media Manager's CSS

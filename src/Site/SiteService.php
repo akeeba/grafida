@@ -85,6 +85,7 @@ final class SiteService
         ?string $editorCssUrl = null,
         ?string $mediaAdapter = null,
         ?string $mediaFolder = null,
+        string $unicodeAliases = UnicodeAliases::AUTO,
     ): Site {
         $root    = ApiClient::normaliseRoot($url);
         $apiBase = $this->testConnection($root, $token);
@@ -100,6 +101,7 @@ final class SiteService
             editorCssUrl: $editorCssUrl,
             mediaAdapter: $mediaAdapter,
             mediaFolder: $mediaFolder,
+            unicodeAliases: UnicodeAliases::normalise($unicodeAliases),
         );
 
         $site = $this->repository->find($id);
@@ -112,9 +114,9 @@ final class SiteService
      * Updates an existing site. A non-null $token replaces the stored token and
      * re-tests the connection.
      *
-     * $editorCssUrl, $mediaAdapter and $mediaFolder are not treated like $token:
-     * they are written as given, so null clears the setting rather than keeping
-     * the stored one.
+     * $editorCssUrl, $mediaAdapter, $mediaFolder and $unicodeAliases are not
+     * treated like $token: they are written as given, so null (or, for the
+     * tri-state, "auto") clears the setting rather than keeping the stored one.
      *
      * @throws SecureStoreUnavailableException
      * @throws \Grafida\Joomla\ApiException
@@ -128,6 +130,7 @@ final class SiteService
         ?string $editorCssUrl = null,
         ?string $mediaAdapter = null,
         ?string $mediaFolder = null,
+        string $unicodeAliases = UnicodeAliases::AUTO,
     ): Site {
         $existing = $this->repository->find($id);
 
@@ -167,6 +170,7 @@ final class SiteService
             editorCssUrl: $editorCssUrl,
             mediaAdapter: $mediaAdapter,
             mediaFolder: $mediaFolder,
+            unicodeAliases: UnicodeAliases::normalise($unicodeAliases),
         );
 
         $site = $this->repository->find($id);

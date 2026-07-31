@@ -89,6 +89,12 @@ window-free in tests (a null dialog makes the endpoint return 503).
   Windows DPAPI runs through **`WindowsDpapi`** (a direct FFI call into `crypt32.dll`), **not** a
   `powershell.exe` spawn — see the Windows build note below for why (the multi-second UI stall).
 - `src/Site/` — site entity, repository, `SiteService` (token storage + connection test).
+  `UnicodeAliases` is the per-site **tri-state** `auto`/`yes`/`no` behind the Sites form's "Site
+  uses Unicode Aliases" (gh-61, `storage/migrations/10_sites_unicode_aliases.sql`); `normalise()`
+  snaps NULL, `''` and anything unrecognised back to `auto`, which is what a pre-migration row and
+  a form that omitted the field have to mean. It exists because reading Joomla's `unicodeslugs`
+  needs `core.admin`, so "we could not read it" and "it is off" were the same answer — see
+  `src/Reference/`.
   `FaviconService` (5s fetch) parses the site home page for `<link rel="icon">` / Apple
   touch icons, downloads the largest one (falling back to `/apple-touch-icon.png` then
   `/favicon.ico`), and caches the raw bytes in `site_favicons` (`FaviconRepository`).
@@ -104,6 +110,10 @@ window-free in tests (a null dialog makes the endpoint return 503).
   always paints from the cache first — with three invalidation paths: the manual Refresh buttons, a
   configurable TTL driving a fire-and-forget background refresh, and an opt-in startup cache reset
   (**default off**, because an unconditional refetch at launch reads as a hang on a bad connection).
+  ⚠️ **`unicodeSlugs()` answers from the site's own `UnicodeAliases` tri-state before it looks at
+  anything else** (gh-61) — no request, and deliberately no cache write either, so switching back
+  to `auto` re-reads the site rather than inheriting what the user asserted. Only `auto` reaches
+  the API, and only for a token holding `core.admin`.
   ⚠️ **`EditorCssService::load()` is cache-first too, and nothing else ever looks.** Finding a
   template's `editor.css` costs template discovery (a styles-API call plus a home-page fetch) and
   then a walk over up to eight candidate URLs at 5s apiece — which used to be paid on *every*

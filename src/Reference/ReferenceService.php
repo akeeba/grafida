@@ -17,6 +17,7 @@ use Grafida\Joomla\ApiException;
 use Grafida\Http\HttpException;
 use Grafida\Site\Site;
 use Grafida\Site\SiteService;
+use Grafida\Site\UnicodeAliases;
 
 /**
  * Loads and caches the reference data a site needs while editing: categories,
@@ -153,11 +154,23 @@ final class ReferenceService
      * for a perfectly healthy site and must not turn the manual refresh into an
      * error. An unreadable value falls back to the cached answer, then to false
      * — Joomla's own default, and the mode Grafida has always assumed.
+     *
+     * ⚠️ **The site's own tri-state setting wins outright** (gh-61). Because
+     * that 403 is normal, "we could not read it" was indistinguishable from
+     * "it is off", and a site connected with a non-Super-User token silently
+     * got the wrong algorithm with no way to say otherwise. So a `yes`/`no`
+     * override answers here and now: no request is made, and — deliberately —
+     * nothing is written to the cache either, so switching back to `auto`
+     * re-reads the site rather than inheriting whatever the user asserted.
      */
     public function unicodeSlugs(Site $site, bool $refresh = false): bool
     {
         if ($site->id === null) {
             return false;
+        }
+
+        if ($site->unicodeAliases !== UnicodeAliases::AUTO) {
+            return $site->unicodeAliases === UnicodeAliases::YES;
         }
 
         if (!$refresh) {

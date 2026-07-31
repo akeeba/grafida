@@ -44,7 +44,10 @@ field to regenerate it deliberately.
 The alias Grafida shows is a faithful preview of what Joomla will produce, including the
 site-specific difference: on a site with **Unicode aliases** switched on in Global Configuration, a
 Greek title yields a Greek alias, while a site using the default transliterating behaviour turns
-the same title into Latin characters — or, if nothing survives, into a date-and-time stamp.
+the same title into Latin characters — or, if nothing survives, into a date-and-time stamp. How the
+title is transliterated depends on the article's **Language**, so `Grüße` becomes `gruesse` in a
+German article and `Καλημέρα` becomes `kalimera` in a Greek one. See
+[Aliases and transliteration](Aliases-and-transliteration).
 
 ## Writing
 
