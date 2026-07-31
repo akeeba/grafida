@@ -37,6 +37,7 @@ Grafida 0.3
 ~ The site's editor stylesheet is cached, not looked up again on every editor open
 ~ A missing or incompatible system webview now shows a readable message instead of quitting silently (gh-58)
 ~ Documentation: the stated macOS, Windows and Linux requirements now match reality (gh-58)
+# [HIGH] Grafida used about half a CPU core doing nothing at all, draining the battery of a laptop it was merely left open on
 # [HIGH] macOS 14 Sonoma: the application quit instantly, with no window and no error message (gh-58)
 # [HIGH] Severe editor lag, and a frozen source code editor, after pasting a large image (gh-36)
 # [HIGH] The editor would not load while a slow or newly added site was still answering

@@ -86,3 +86,39 @@ two-space continuation indent are the original bullet formatting.
   file (`POST /api/dialog/select-directory`): Boson's `DialogApiInterface` has no Save-As
   dialog, so the filename (`grafida-request-log-<timestamp>.json`) is derived and the file
   written server-side instead.
+
+# The native event loop (`src/Application/BosonApplication`, `EventLoopThrottle`)
+
+⚠️ **Boson's event loop is a busy-wait, and it costs about half a CPU core with the app idle.**
+`Boson\Application::run()` is `do { $poller->next(); } while ($this->isRunning)`, and the stock
+`SaucerPoller::next()` separates two iterations by `usleep(1)` — *one microsecond*. It rotates
+between three task types, and every third iteration crosses FFI into
+`saucer_application_run_once()`, which pumps the entire native event loop (on macOS, a full
+`-[NSApplication nextEventMatchingMask:untilDate:inMode:dequeue:]` round trip through the
+CFRunLoop). At tens of thousands of iterations a second that is a permanent, load-independent CPU
+burn. Measured with Grafida sitting idle on the Articles screen on an M5: **~49% of a core** in the
+PHP process — while the WebKit content process that was actually rendering the window sat at 0.0%.
+
+`EventLoopThrottle` fixes it by adding a **2 ms sleep after an idle iteration**, which takes the
+same measurement to **~1% of a core**. The loop still pumps native events several hundred times a
+second, i.e. an event is picked up well inside one frame at 120 Hz.
+
+Three things about its shape are deliberate:
+
+- **It is a decorator over the poller `Application::createApplicationPoller()` builds, not a
+  replacement for it.** That poller carries a deferred task which flips `Application::$isRunning`
+  and dispatches `ApplicationStarted`; the closure captures state a subclass cannot write
+  (`$isRunning` is `public private(set)`, `$listener` is private), so a from-scratch poller would
+  have to reimplement Boson's `@internal` microtask bookkeeping and could never start the app.
+  `BosonApplication::createApplicationPoller()` therefore calls `parent::` and wraps the result.
+- **The throttle must be woken, or it trades idle CPU for per-request latency.** A sleeping loop
+  notices a `boson://` request up to three sleeps late. Once, that is invisible; charged to *every*
+  request in a burst it is not. So `index.php` calls `$app->wake()` after the front controller
+  answers, which runs the loop unthrottled for 100 ms — a page's worth of API calls goes at the
+  upstream loop's full speed, and only a genuinely quiet app is throttled. Anything else that
+  learns the app is busy should call `wake()` too.
+- **It is not a Grafida-specific problem and the fix is not macOS-specific.** The same busy loop
+  runs on WebKitGTK and WebView2; the throttle sits above the platform layer and helps everywhere.
+
+`tests/Unit/EventLoopThrottleTest.php` pins the two behaviours that matter — an idle iteration
+sleeps, an iteration inside the wake window does not.

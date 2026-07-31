@@ -67,6 +67,24 @@ window-free in tests (a null dialog makes the endpoint return 503).
   (forces the insecure-plaintext fallback path), a `SecretStore` instance → used as-is.
   The `DatabaseInterface` factory **connects *and* migrates**, so every consumer receives a
   migrated database. `Kernel` is `(StaticProviderInterface, ApiController)`.
+  It also holds the two classes that make the **native event loop** affordable: `BosonApplication`
+  (the `Boson\Application` `index.php` actually instantiates) and `EventLoopThrottle`.
+  ⚠️ **Boson's event loop is a busy-wait and costs about half a CPU core with the app idle.**
+  `Application::run()` calls `$poller->next()` forever; the stock poller separates two iterations by
+  `usleep(1)` — one microsecond — and every third iteration crosses FFI into
+  `saucer_application_run_once()`, a full native event-pump round trip. Measured with Grafida idle
+  on the Articles screen: ~49% of a core in the PHP process, against 0.0% for the WebKit content
+  process actually showing it. `EventLoopThrottle` is a `PollerInterface` **decorator** that adds a
+  2 ms sleep after an idle iteration, taking that to ~1%. It is a decorator, not a replacement,
+  because the poller the parent builds carries a deferred task that flips `Application::$isRunning`
+  and fires `ApplicationStarted` — a closure over `private(set)`/private state a subclass cannot
+  reach; wrapping also keeps us out of Boson's `@internal` microtask bookkeeping.
+  ⚠️ **The throttle is a latency trade, so it must be woken.** A sleeping loop picks a `boson://`
+  request up to 3 sleeps late, which is nothing once but is paid *per request* — so `index.php`
+  calls `$app->wake()` after every request the front controller answers, and the loop runs
+  unthrottled for 100 ms. A page's worth of API calls therefore runs at the upstream loop's full
+  speed and only a genuinely quiet app is throttled. Anything else that learns the app is busy
+  should wake it too.
 - `src/Http/` — `HttpClient` (curl/stream transport to Joomla), `Json`, and the internal API.
   `ApiController` is only a **dispatcher**; a real `Router` route table resolves each handler's
   controller from the container on match, so a request builds one controller, not nine. The

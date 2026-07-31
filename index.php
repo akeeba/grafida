@@ -9,13 +9,13 @@
 
 declare(strict_types=1);
 
-use Boson\Application;
 use Boson\ApplicationCreateInfo;
 use Boson\Component\Http\Static\FilesystemStaticProvider;
 use Boson\WebView\Api\Schemes\Event\SchemeRequestReceived;
 use Boson\WebView\WebViewCreateInfo;
 use Boson\Window\WindowCreateInfo;
 use Boson\Window\WindowDecoration;
+use Grafida\Application\BosonApplication;
 use Grafida\Application\ContainerFactory;
 use Grafida\Editor\MacSpellCheck;
 use Grafida\FrontController;
@@ -107,7 +107,10 @@ $createInfo = new ApplicationCreateInfo(
 // be \Throwable, not \Exception: FFI\Exception extends \Error. The full throwable goes to stderr
 // either way, so there is nothing for a debug flag to reveal.
 try {
-    $app = new Application($createInfo);
+    // BosonApplication is Boson\Application with one thing changed: the event loop is throttled
+    // while nothing is happening, so an idle window does not cost half a CPU core. See
+    // Grafida\Application\EventLoopThrottle.
+    $app = new BosonApplication($createInfo);
 } catch (\Throwable $e) {
     $reporter->report(FailureReporter::describe($e), (string) $e);
 
@@ -126,8 +129,12 @@ $container = ContainerFactory::create([
 
 $controller = $container->get(FrontController::class);
 
-$app->on(static function (SchemeRequestReceived $e) use ($controller): void {
+$app->on(static function (SchemeRequestReceived $e) use ($app, $controller): void {
     $e->response = $controller($e->request);
+
+    // The SPA is talking to us, so the app is not idle: run the event loop at full speed for a
+    // moment, or every request in a burst would pay the throttle's idle sleep again.
+    $app->wake();
 });
 
 $app->webview->url = 'boson://app/';
