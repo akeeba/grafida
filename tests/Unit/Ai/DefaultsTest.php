@@ -88,11 +88,11 @@ final class DefaultsTest extends TestCase
     {
         $providers = $this->defaults()->providers();
 
-        foreach (['openai', 'anthropic', 'cohere', 'deepseek', 'google', 'groq', 'mistral', 'openrouter', 'perplexity', 'scaleway', 'github', 'custom', 'custom_responses'] as $key) {
+        foreach (['openai', 'anthropic', 'cohere', 'deepseek', 'google', 'groq', 'minimax', 'mistral', 'openrouter', 'perplexity', 'scaleway', 'github', 'custom', 'custom_responses'] as $key) {
             self::assertArrayHasKey($key, $providers, "providers() must contain provider key '$key'");
         }
 
-        self::assertCount(13, $providers);
+        self::assertCount(14, $providers);
     }
 
     public function testOpenAIProviderUsesResponsesApi(): void
@@ -153,6 +153,17 @@ final class DefaultsTest extends TestCase
         self::assertSame('/inference/chat/completions',    $p['chat_path']);
         self::assertSame('/catalog/models',                $p['models_path']);
         self::assertSame('openai_completions',              $p['sse_dialect']);
+    }
+
+    public function testMiniMaxUsesTheOpenAiCompatibleEndpoint(): void
+    {
+        $p = $this->defaults()->providers()['minimax'];
+
+        self::assertSame('https://api.minimax.io/v1', $p['endpoint']);
+        self::assertSame('bearer',              $p['auth']);
+        self::assertSame('/chat/completions',   $p['chat_path']);
+        self::assertSame('/models',             $p['models_path']);
+        self::assertSame('openai_completions',  $p['sse_dialect']);
     }
 
     public function testCohereHasNullModelsPath(): void

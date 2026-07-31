@@ -23,6 +23,7 @@ Grafida 0.3
 + Built-in Help screen with the documentation, also published as the GitHub wiki (gh-55)
 + Help screen: the contents list can be resized or hidden, for narrow screens (gh-55)
 + Documentation: Articles, Editing Articles, Media Manager, Settings, Request Log, Connection Troubleshooting, Help and the four AI pages, with screenshots (gh-55)
++ MiniMax is now a built-in AI service provider
 + Documentation: Secrets security — how API tokens and AI keys are kept in the OS secret store, and what that protects against (gh-55)
 + Documentation: Translation — the INI format, the glossaries, and how to add or test a language (gh-55)
 ~ Documentation: Connection Troubleshooting now explains what "no working API endpoint" actually means — broken third-party plugins, WAFs and rate limiters, and how to read the Diagnose Connection output (gh-46, gh-55)

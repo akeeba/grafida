@@ -26,8 +26,9 @@ pictures, if you switch that on for the service. See [AI Services](AI-Services#t
   See [AI Services](AI-Services).
 * Nothing else. The assistant does not need your Joomla site to be reachable.
 
-Grafida knows about OpenAI, Anthropic, Cohere, DeepSeek, Google, Groq, Mistral, OpenRouter,
-Perplexity, Scaleway and GitHub Models out of the box, and has two “Custom” entries for anything
+Grafida knows about OpenAI, Anthropic, Cohere, DeepSeek, Google, Groq, MiniMax, Mistral,
+OpenRouter, Perplexity, Scaleway and GitHub Models out of the box, and has two “Custom” entries for
+anything
 else that speaks one of the two OpenAI wire formats — which includes local model servers such as
 LM Studio and Ollama.
 

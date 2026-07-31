@@ -55,6 +55,14 @@
         "models_path": "/models",
         "sse_dialect": "openai_completions"
     },
+    "minimax": {
+        "name": "MiniMax",
+        "endpoint": "https://api.minimax.io/v1",
+        "auth": "bearer",
+        "chat_path": "/chat/completions",
+        "models_path": "/models",
+        "sse_dialect": "openai_completions"
+    },
     "openrouter": {
         "name": "OpenRouter",
         "endpoint": "https://openrouter.ai/api/v1",

@@ -376,8 +376,8 @@ window-free in tests (a null dialog makes the endpoint return 503).
   loads bundled `resources/{defaults.json,voices.json,providers.json}` (ported from AITiny: the base
   **system prompt**, the writing **tools** generate/proofread/friendly/professional/concise, the
   tone-of-voice library, and the **provider table** — OpenAI, Anthropic, Cohere, DeepSeek, Google,
-  Groq, Mistral, OpenRouter, Perplexity, Scaleway, GitHub, Custom (OpenAI Completions API), Custom
-  (OpenAI Responses API) — each with endpoint/auth/chat-path/models-path/`sse_dialect`). The dialect
+  Groq, MiniMax, Mistral, OpenRouter, Perplexity, Scaleway, GitHub, Custom (OpenAI Completions API),
+  Custom (OpenAI Responses API) — each with endpoint/auth/chat-path/models-path/`sse_dialect`). The dialect
   is **never persisted**: `ai_services` stores only the provider *key*, and chat-path/auth/models-path/
   dialect are derived from `providers.json` at runtime, so changing the table needs no DB migration.
   `effectiveTools()` overlays the code defaults with `ai_tools` DB overrides

@@ -18,8 +18,8 @@ it. If you never set one, the oldest service wins.
 “Claude for proofreading”, “Local Llama”.
 
 **Provider** picks the wire format and fills in a sensible endpoint. Grafida ships with OpenAI,
-Anthropic, Cohere, DeepSeek, Google, Groq, Mistral, OpenRouter, Perplexity, Scaleway and GitHub
-Models, plus two catch-alls:
+Anthropic, Cohere, DeepSeek, Google, Groq, MiniMax, Mistral, OpenRouter, Perplexity, Scaleway and
+GitHub Models, plus two catch-alls:
 
 * **Custom (OpenAI Completions API)** for anything that implements OpenAI's older
   `/chat/completions` interface. This is what most third-party and local servers speak, including
