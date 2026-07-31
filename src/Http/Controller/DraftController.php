@@ -47,7 +47,7 @@ final class DraftController extends Controller
         $router->add('GET', '/api/drafts/{id}', fn (RouteContext $ctx): ResponseInterface => $this->getDraft($ctx->int('id')));
         $router->add('PUT', '/api/drafts/{id}', fn (RouteContext $ctx): ResponseInterface => $this->saveDraft(null, $ctx->int('id'), $ctx->body()));
         $router->add('DELETE', '/api/drafts/{id}', fn (RouteContext $ctx): ResponseInterface => $this->deleteDraft($ctx->int('id')));
-        $router->add('POST', '/api/drafts/{id}/publish', fn (RouteContext $ctx): ResponseInterface => $this->publishDraft($ctx->int('id')));
+        $router->add('POST', '/api/drafts/{id}/publish', fn (RouteContext $ctx): ResponseInterface => $this->publishDraft($ctx->int('id'), $ctx->body()));
     }
 
     public function listDrafts(int $siteId): ResponseInterface
@@ -244,7 +244,16 @@ final class DraftController extends Controller
         return Json::ok($draft->toArray());
     }
 
-    public function publishDraft(int $id): ResponseInterface
+    /**
+     * `force` is the user's answer to a previous {@see PublishBlockedException}
+     * whose `canForce` was true: publish despite the required fields Grafida
+     * cannot edit, sending back the values it imported from the site for them
+     * (gh-59). It is meaningless — and refused by the guard — when any such
+     * field has no value to send.
+     *
+     * @param array<string, mixed> $body
+     */
+    public function publishDraft(int $id, array $body = []): ResponseInterface
     {
         $draft = $this->drafts->find($id);
 
@@ -253,7 +262,7 @@ final class DraftController extends Controller
         }
 
         $site   = $this->siteContext->requireSite($draft->siteId);
-        $result = $this->publish->publish($draft, $site);
+        $result = $this->publish->publish($draft, $site, ($body['force'] ?? false) === true);
 
         return Json::ok($result);
     }

@@ -64,9 +64,14 @@ final class ApiController
         try {
             return $this->router->dispatch($method, $path, $body, $request);
         } catch (PublishBlockedException $e) {
+            // `canForce` distinguishes a dead end from a confirmable one: with
+            // no blocking field left, every required unsupported field carries
+            // an imported value the retry can send back (gh-59).
             return Json::error($e->getMessage(), 422, [
-                'code'        => 'publish_blocked',
-                'fieldLabels' => $e->fieldLabels,
+                'code'              => 'publish_blocked',
+                'fieldLabels'       => $e->fieldLabels,
+                'overridableLabels' => $e->overridableLabels,
+                'canForce'          => $e->canForce(),
             ]);
         } catch (SecureStoreUnavailableException $e) {
             return Json::error($e->getMessage(), 409, ['code' => 'secure_store_unavailable']);

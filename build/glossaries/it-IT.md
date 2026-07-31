@@ -172,3 +172,6 @@ I nomi propri non si traducono: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | upload folder | Cartella di destinazione | La cartella, all'interno del file system scelto, in cui vengono caricate le immagini di un articolo pubblicato (gh-57). GRAFIDA_LBL_MEDIA_FOLDER. |
 | Unicode aliases (site setting) | alias Unicode | L’opzione «Alias Unicode» della configurazione globale di Joomla!: stabilisce se un alias mantiene i caratteri non ASCII. In Grafida è un’impostazione a tre valori per sito (Automatico/Sì/No), perché solo un Super Utente può leggerla (gh-61). GRAFIDA_LBL_UNICODE_ALIASES. |
 | Super User | Super Utente | Il gruppo utenti più alto di Joomla!; solo il suo token API può leggere la configurazione globale. Compare nei testi di aiuto, senza una chiave propria. |
+| publish anyway | Pubblica comunque | Pulsante che pubblica nonostante campi personalizzati obbligatori che Grafida non può modificare, rinviando invariati i valori letti dal sito (gh-59). GRAFIDA_BTN_PUBLISH_ANYWAY. |
+| publish blocked | Pubblicazione bloccata | Titolo della finestra che ferma una pubblicazione perché il sito richiede campi personalizzati di un tipo non supportato. GRAFIDA_MSG_PUBLISH_BLOCKED_TITLE. |
+| required (field) | obbligatorio | Campo che Joomla! richiede sia compilato; senza valore il sito rifiuta l'articolo. |

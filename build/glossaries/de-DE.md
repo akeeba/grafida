@@ -173,3 +173,7 @@ Eigennamen (Grafida, Joomla!, API, Markdown, HTML, TinyMCE) werden nicht überse
 | upload folder | Upload-Ordner | Der Ordner im gewählten Dateisystem, in den die Bilder eines veröffentlichten Beitrags hochgeladen werden (gh-57). GRAFIDA_LBL_MEDIA_FOLDER. |
 | Unicode aliases (site setting) | Unicode-Aliase | Joomla!s Option „Unicode-Aliase“ in der globalen Konfiguration: entscheidet, ob ein Alias seine Nicht-ASCII-Zeichen behält. In Grafida eine dreiwertige Einstellung pro Website (Automatisch/Ja/Nein), weil nur ein Super-Benutzer sie auslesen darf (gh-61). GRAFIDA_LBL_UNICODE_ALIASES. |
 | Super User | Super-Benutzer | Joomla!s höchste Benutzergruppe; nur deren API-Token darf die globale Konfiguration lesen. Kommt in Hinweistexten vor, nicht als eigener Schlüssel. |
+| publish anyway | Trotzdem veröffentlichen | Schaltfläche, die trotz benutzerdefinierter Pflichtfelder veröffentlicht, die Grafida nicht bearbeiten kann, indem die von der Website gelesenen Werte unverändert zurückgesendet werden (gh-59). GRAFIDA_BTN_PUBLISH_ANYWAY. |
+| publish blocked | Veröffentlichung blockiert | Titel des Dialogs, der eine Veröffentlichung anhält, weil die Website benutzerdefinierte Pflichtfelder eines nicht unterstützten Typs hat. GRAFIDA_MSG_PUBLISH_BLOCKED_TITLE. |
+| required (field) | Pflichtfeld | Ein Feld, das Joomla! ausgefüllt verlangt; ohne Wert lehnt die Website den Beitrag ab. |
+| clipboard | Zwischenablage | Die Zwischenablage des Betriebssystems. GRAFIDA_MSG_HTML_COPIED. |

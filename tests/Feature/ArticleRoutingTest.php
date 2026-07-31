@@ -14,6 +14,8 @@ namespace Grafida\Tests\Feature;
 use Boson\Component\Http\Request;
 use Grafida\Application\Kernel;
 use Grafida\Http\HttpResponse;
+use Grafida\Reference\ReferenceRepository;
+use Grafida\Reference\ReferenceService;
 use Grafida\Tests\Support\TestContainer;
 use Grafida\Tests\Support\TestDatabase;
 use Grafida\Tests\Unit\Support\FakeTransport;
@@ -206,6 +208,81 @@ final class ArticleRoutingTest extends TestCase
         self::assertSame(200, $status);
         self::assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $json['data'][0]['createdAt']);
         self::assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $json['data'][0]['updatedAt']);
+    }
+
+    /**
+     * Opening a remote article must bring its custom field values with it —
+     * including the **unsupported** types, which are never rendered but whose
+     * value is what later lets a publish satisfy a required field Grafida cannot
+     * edit (gh-59).
+     *
+     * The values arrive as top-level attributes named after the field, because
+     * that is where com_content's `JsonapiView::prepareItem()` puts them
+     * (`$item->{$field->name} = $field->apivalue ?? $field->rawvalue`), and the
+     * option-list plugins are the only ones that define an `apivalue` — a
+     * value => label map whose *keys* are what has to go back to the site.
+     */
+    public function testRemoteArticleCarriesItsCustomFieldValues(): void
+    {
+        $fake   = new FakeTransport();
+        $kernel = $this->kernelWithFakeTransport($fake);
+        $siteId = $this->seedConnectedSite();
+
+        $this->seedFieldDefinitions($siteId, [
+            // Unsupported: never rendered, but its value must still be carried.
+            ['id' => 5, 'name' => 'blurb', 'label' => 'Blurb', 'type' => 'editor', 'required' => 1, 'assigned_cat_ids' => [0]],
+            ['id' => 6, 'name' => 'subtitle', 'label' => 'Subtitle', 'type' => 'text', 'assigned_cat_ids' => [0]],
+            ['id' => 7, 'name' => 'colours', 'label' => 'Colours', 'type' => 'checkboxes', 'assigned_cat_ids' => [0]],
+            ['id' => 8, 'name' => 'mood', 'label' => 'Mood', 'type' => 'list', 'assigned_cat_ids' => [0]],
+            // Multi-valued for a single-value control: deliberately not imported,
+            // since keeping the first of several and saving would drop the rest.
+            ['id' => 9, 'name' => 'tone', 'label' => 'Tone', 'type' => 'list', 'assigned_cat_ids' => [0]],
+            ['id' => 10, 'name' => 'unset', 'label' => 'Unset', 'type' => 'text', 'assigned_cat_ids' => [0]],
+        ]);
+
+        $payload = json_encode([
+            'data' => [
+                'type'       => 'articles',
+                'id'         => '17',
+                'attributes' => [
+                    'id'       => 17,
+                    'title'    => 'With fields',
+                    'alias'    => 'with-fields',
+                    'text'     => '<p>Body</p>',
+                    'blurb'    => '<p>Editor field</p>',
+                    'subtitle' => 'A subtitle',
+                    'colours'  => ['red' => 'Red', 'blue' => 'Blue'],
+                    'mood'     => ['calm' => 'Calm'],
+                    'tone'     => ['warm' => 'Warm', 'cool' => 'Cool'],
+                    'unset'    => '',
+                ],
+            ],
+        ], JSON_THROW_ON_ERROR);
+
+        $fake->on(self::API_BASE . '/v1/content/articles/17', new HttpResponse(200, $payload));
+
+        [$status, $json] = $this->call($kernel, 'GET', "/api/sites/{$siteId}/articles/17");
+
+        self::assertSame(200, $status);
+        self::assertTrue($json['ok']);
+        self::assertSame([
+            'blurb'    => '<p>Editor field</p>',
+            'subtitle' => 'A subtitle',
+            'colours'  => ['red', 'blue'],
+            'mood'     => 'calm',
+        ], $json['data']['fields']);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $fields
+     */
+    private function seedFieldDefinitions(int $siteId, array $fields): void
+    {
+        \assert($this->lastDb !== null, 'seedFieldDefinitions() must be called after kernelWithFakeTransport()');
+
+        $references = new ReferenceRepository($this->lastDb);
+        $references->put($siteId, ReferenceService::KIND_FIELDS, $fields);
+        $references->put($siteId, ReferenceService::KIND_CATEGORIES, []);
     }
 
     private function seedDraft(int $siteId, string $title): void

@@ -110,6 +110,7 @@ final class ControllerProvider implements ServiceProviderInterface
                 siteContext: $c->get(SiteContext::class),
                 references: $c->get(ReferenceService::class),
                 apiClient: $c->get(ApiClient::class),
+                fieldScope: $c->get(FieldCategoryScope::class),
             );
         });
 

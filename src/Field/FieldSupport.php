@@ -77,25 +77,118 @@ final class FieldSupport
     }
 
     /**
-     * Returns the required fields whose type is unsupported. A non-empty result
-     * means the article cannot be published through the API.
+     * Splits the **required** fields of an unsupported type in two, according to
+     * whether the draft carries a value Grafida could send back for them.
+     *
+     * Why the distinction exists at all: Joomla's API save runs the posted body
+     * through the component's edit form, and `FormField::validate()` rejects a
+     * required field whose value is `''`/`null` — so a required field Grafida
+     * cannot render is a hard 400 unless *something* is sent for it. (A field
+     * that is **not** required needs nothing: the API never fires
+     * `onContentNormaliseRequestData`, so `plg_system_fields` falls back to the
+     * stored `rawvalue` for every `com_fields` key we omit, and the site keeps
+     * what it had.)
+     *
+     * - `blocking` — required, unsupported, and we hold no value for it. There
+     *   is nothing we could send, so the publish cannot happen at all.
+     * - `overridable` — required, unsupported, but the draft carries the value
+     *   read off the site when the article was imported. Sending it back
+     *   verbatim satisfies the form, so the publish *can* go ahead — with the
+     *   user's consent, since a value Grafida cannot display is also one it
+     *   cannot show to be stale (see gh-59).
+     *
+     * A field inside a `subform` needs no special case: `subform` is itself an
+     * unsupported type, so a required one is already caught here, and its member
+     * fields are assigned `-1` ("Only Use In Subform") and never reach an
+     * article form at all — {@see FieldCategoryScope} drops them.
      *
      * @param list<array<string, mixed>> $definitions
+     * @param array<string, mixed>       $values Draft field values, keyed by field name.
      *
-     * @return list<array<string, mixed>>
+     * @return array{blocking: list<array<string, mixed>>, overridable: list<array<string, mixed>>}
      */
-    public function blockingFields(array $definitions): array
+    public function requiredUnsupported(array $definitions, array $values = []): array
     {
-        $blocking = [];
+        $blocking    = [];
+        $overridable = [];
 
         foreach ($definitions as $field) {
             $rawType = $field['type'] ?? null;
-            if ($this->isRequired($field) && !$this->isSupported(is_string($rawType) ? $rawType : '')) {
+
+            if (!$this->isRequired($field) || $this->isSupported(is_string($rawType) ? $rawType : '')) {
+                continue;
+            }
+
+            $rawName = $field['name'] ?? null;
+            $name    = is_string($rawName) ? $rawName : '';
+
+            if ($name !== '' && self::hasValue($values[$name] ?? null)) {
+                $overridable[] = $field;
+            } else {
                 $blocking[] = $field;
             }
         }
 
-        return $blocking;
+        return ['blocking' => $blocking, 'overridable' => $overridable];
+    }
+
+    /**
+     * The label a field should be listed under, falling back to its name.
+     *
+     * @param list<array<string, mixed>> $fields
+     *
+     * @return list<string>
+     */
+    public static function labels(array $fields): array
+    {
+        return array_values(array_map(
+            static function (array $field): string {
+                $label = $field['label'] ?? $field['name'] ?? 'field';
+
+                return is_string($label) && $label !== '' ? $label : 'field';
+            },
+            $fields
+        ));
+    }
+
+    /**
+     * The `name` of each of the given field definitions, blanks dropped.
+     *
+     * @param list<array<string, mixed>> $fields
+     *
+     * @return list<string>
+     */
+    public static function names(array $fields): array
+    {
+        $names = [];
+
+        foreach ($fields as $field) {
+            $name = $field['name'] ?? null;
+
+            if (is_string($name) && $name !== '') {
+                $names[] = $name;
+            }
+        }
+
+        return $names;
+    }
+
+    /**
+     * Whether a stored value would satisfy Joomla's `required` check — the same
+     * test `FormField::validate()` applies, widened to the array form a
+     * multi-value field is stored in. `'0'` is a value; the empty string is not.
+     */
+    private static function hasValue(mixed $value): bool
+    {
+        if ($value === null) {
+            return false;
+        }
+
+        if (is_array($value)) {
+            return $value !== [];
+        }
+
+        return (string) (is_scalar($value) ? $value : '') !== '';
     }
 
     /**

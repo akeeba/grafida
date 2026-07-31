@@ -67,7 +67,25 @@ and two-space continuation indent are the original bullet formatting.
   editor's `<hr class="readmore">` marker so it survives the round-trip to publishing; category
   and tags come from the JSON:API `relationships` block, which `ApiClient::flatten()` preserves,
   tag IDs resolved to titles) and
-  opens it as an **unsaved** draft — drafts (new or imported) are only written to the DB on
+  ⚠️ **`remoteFieldValues()` brings the article's custom field values across too, unsupported types
+  included** (gh-59). com_content's `JsonapiView::prepareItem()` writes each field onto the item as a
+  **top-level attribute named after the field** (`$item->{$field->name} = $field->apivalue ??
+  $field->rawvalue`), so they arrive beside `title`/`alias` and not under a `com_fields` block, and
+  `displayItem()` appends every field name to `$fieldsToRenderItem` so they are actually serialised.
+  Three rules:
+  - **Only `list`/`radio`/`checkboxes` define an `apivalue`**, and it is a *value => label* map — the
+    **keys** are what has to go back to the site. `checkboxes` keeps them all; `list`/`radio` are
+    single-value controls here, so a field the site reports **more than one** value for is
+    deliberately **not** imported: an empty sidebar control is harmless (an omitted `com_fields` key
+    leaves the site's value alone), whereas keeping the first of several and saving would drop the
+    rest. Everything else is `rawvalue`, taken verbatim.
+  - **An unsupported type's value is imported even though nothing renders it.** That is the point:
+    holding it is what lets `PublishService` satisfy a required field Grafida cannot edit instead of
+    refusing the publish outright. It survives an edit because `collectDraftFormData()` seeds
+    `fields` from `State.currentDraft.fields` before the rendered inputs overwrite it.
+  - **The field list is read best-effort**, scoped through `FieldCategoryScope::forCategory()` — an
+    unreachable site costs the values, never the article.
+  It opens as an **unsaved** draft — drafts (new or imported) are only written to the DB on
   the first Save, so an unchanged remote article leaves no local draft.
   The remote-article list (`GET /api/sites/{id}/articles`) is a **paginated, sorted and
   filtered** browse, mirroring Joomla's back-end article list: `ApiController::remoteArticles()`

@@ -16,6 +16,13 @@ two-space continuation indent are the original bullet formatting.
   controllers and maps exceptions to responses (`PublishBlockedException` → 422,
   `SecureStoreUnavailableException` → 409, `ApiException` → 502, `HttpException` → 503,
   `\Throwable` → 500).
+  The 422 carries **`fieldLabels`, `overridableLabels` and `canForce`** (gh-59): the first two split
+  the required custom fields Grafida cannot edit by whether the draft holds a value for them, and
+  `canForce` says whether a retry with `{force: true}` could succeed. The SPA's `apiFetch()` lifts
+  all three onto the thrown `Error` — along with **`err.upstreamStatus`**, which is the payload's
+  `status` (what the *site* answered) and is emphatically **not** `res.status`, our own kernel's 502.
+  That distinction is what lets a publish tell a Joomla form-validation 400 from any other API
+  failure.
   ⚠️ **A transport failure is not one error, but two** (gh-29). `HttpClient::requestCurl()` now
   passes `curl_errno()` through on `HttpException`, and `isConnectivityFailure()` checks it
   against the errnos that mean "never reached a server" (DNS failure, refused/unreachable

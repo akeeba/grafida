@@ -141,6 +141,37 @@ two-space continuation indent are the original bullet formatting.
   the bare `url`, or the cache-buster would be published into the article HTML.
 
 - `src/Publish/PublishService.php` — the publish pipeline (media upload, tags, fields, split, POST/PATCH).
+  ⚠️ **The required-unsupported guard is no longer a dead end, and `$force` is not a "skip the
+  checks" switch** (gh-59). `guardRequiredUnsupportedFields()` asks `FieldSupport::requiredUnsupported()`
+  to split the required fields of a type Grafida cannot edit in two, by whether the draft holds a
+  value for them:
+  - **blocking** — nothing we could send. `PublishBlockedException` with `canForce() === false`; the
+    SPA offers only *Copy article HTML*, with **Publish anyway** rendered **disabled** rather than
+    omitted (an absent button reads as "this build cannot do it" instead of "not for this article").
+  - **overridable** — the draft carries the value `ArticleController::remoteFieldValues()` imported
+    when the article was opened from the site. `canForce()` is true, and a retry with `force: true`
+    (`POST /api/drafts/{id}/publish` body) sends those values back **verbatim** — `mapFields()` has a
+    `$carried` list it passes straight through, ahead of the supported-type filter, because Grafida
+    does not understand the shape and must not reinterpret it.
+  Three things this rests on, none of them guessable from the code:
+  - **The confirmation is not ceremony.** Grafida cannot render such a value, so it cannot show that
+    its copy has gone stale on the site since the article was imported. That is the only reason this
+    is a dialog and not an automatic re-send.
+  - ⚠️ **Only the *required* ones are ever carried.** An omitted `com_fields` key does **not** clear
+    a field over the API: `plg_system_fields::onContentAfterSave()` falls back to the stored
+    `rawvalue`, and the `$data->com_fields[$name] = false` blanking everyone remembers comes from
+    `onContentNormaliseRequestData`, which only `FormController` fires — **the API controller never
+    does**. So leaving an optional unsupported field out is strictly safer than overwriting it with
+    our snapshot, and widening `$carried` to all of them would be a regression, not a courtesy.
+  - **A `subform`'s member fields need no special case.** `subform` is itself an unsupported type,
+    so a required one is already caught; its members are assigned `-1` ("Only Use In Subform") and
+    `FieldCategoryScope` drops them before the guard ever sees them.
+  ⚠️ **A publish can still be rejected by the site, and that is expected, not exceptional.** The
+  guard is checked against the *cached* field definitions, so a field added, renamed or made
+  required since the last metadata refresh is invisible to it. Joomla answers with a 400
+  (`InvalidParameterException` out of `ApiController::save()`'s `$model->validate()`), which reaches
+  the SPA as `{code: 'joomla_api', status: 400}`; `showPublishRejectedDialog()` keeps the site's own
+  message (it names the offending field — nothing else identifies it) and offers **Reload metadata**.
   Every write carries a `version_note` — `GRAFIDA_MSG_VERSION_NOTE` ("Created using %1$s %2$s",
   filled from `App::NAME`/`App::VERSION`) — so a revision names the tool that wrote it in Joomla's
   version history (gh-17; see the Joomla API facts for the `jform` mechanism that carries it and

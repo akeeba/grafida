@@ -128,7 +128,10 @@ window-free in tests (a null dialog makes the endpoint return 503).
   easily broken from outside: `TemplateDiscovery` needs the **template styles API**, not just a
   home-page scan — a child template that ships only an `editor.css` renders no asset URL of its
   own and is structurally invisible to any page scan (gh-3).
-- `src/Field/` — `FieldSupport` (supported field-type subset + required-unsupported guard),
+- `src/Field/` — `FieldSupport` (supported field-type subset + required-unsupported guard —
+  `requiredUnsupported()` splits those fields into **`blocking`** (no value we could send: a dead
+  end) and **`overridable`** (the draft carries the value imported from the site, so a confirmed
+  "Publish anyway" can send it back), gh-59),
   `MediaFieldValue` and
   `FieldCategoryScope` (gh-56), which works out **which fields Joomla actually uses for a category** —
   assigned to it, to one of its ancestors, or to no category at all; `-1` ("Only Use In Subform")
@@ -212,6 +215,11 @@ window-free in tests (a null dialog makes the endpoint return 503).
   and yields a broken image) — leaving the adapter out is gh-57: Joomla then resolves the path
   against com_media's `file_path` parameter, `files` on a stock install, so every published image
   landed in the site's *files* folder.
+  ⚠️ **`publish()` takes a `$force` flag and it is not a "skip the checks" switch** (gh-59): it
+  makes the guard *send* the imported values of the required unsupported fields rather than refuse.
+  Only the **required** ones are ever sent — an omitted `com_fields` key keeps the site's own value,
+  because the API never fires `onContentNormaliseRequestData`, so leaving an optional one out is
+  strictly safer than overwriting it with our snapshot.
 - `src/Html/` — `ContentSplitter` (read-more split), `CssRebaser`, `InlineMedia`, `HtmlDocument`.
 - `src/Update/UpdateService.php` — the **update checker**. On startup the SPA calls
   `GET /api/update` (`api.checkUpdate()`) **fire-and-forget after the initial render**, so a slow

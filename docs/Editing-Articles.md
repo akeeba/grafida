@@ -253,10 +253,24 @@ radio, text, textarea and URL. Anything else — editor, SQL, subform, user, use
 list — is listed as unsupported below the fields it can edit. Like the editable fields, this list
 only covers the article's own category.
 
+A field Grafida cannot edit is normally harmless: Grafida simply does not send it, and Joomla keeps
+whatever value the article already had. It only becomes a problem when the field is **required** for
+the article's category, because Joomla then refuses to save an article that does not carry a value
+for it. Grafida stops before that happens and shows you a *Publish blocked* dialog listing the
+fields responsible. What it offers depends on whether it has a value to send:
+
+* **The article came from your site.** Grafida read those fields' values when it opened the article,
+  even though it cannot show them to you, so it can send them back unchanged. **Publish anyway**
+  does exactly that.
+* **The article is new, or the fields are empty on the site.** There is nothing Grafida could send,
+  so **Publish anyway** is greyed out. Use **Copy article HTML** and finish the article in Joomla's
+  back-end, or move it to a category that does not use that field.
+
 > [!WARNING]
-> If one of those unsupported fields is **required** for the article's category, Grafida refuses to
-> publish the article rather than sending Joomla something it will reject. Either put the article in
-> a category that does not use that field, or edit it in the Joomla back-end instead.
+> **Publish anyway restores the values Grafida read, which may no longer be current.** Grafida
+> cannot display these fields, so it cannot tell you whether someone has changed them on the site
+> since you opened the article. If that is a real possibility, publish from Joomla's back-end
+> instead.
 
 ## Publishing
 
@@ -280,6 +294,12 @@ came from.
 > The same limitation applies to caches outside Joomla, such as a CDN, reverse proxy, hosting cache
 > or third-party cache extension. If the public page stays stale, clear that cache from Joomla or
 > its provider, or configure it with a suitable lifetime or an API-aware purge rule.
+
+> [!NOTE]
+> **If the site rejects the article, it is usually the custom fields.** Grafida checks your article
+> against the field definitions it last read from the site, so a field added, renamed or made
+> required since then is invisible to it. When that happens Grafida shows you the site's own error
+> message and offers **Reload metadata**; press it and publish again.
 
 Afterwards, Grafida asks what to do with your local copy:
 

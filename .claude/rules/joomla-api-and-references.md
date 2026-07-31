@@ -207,6 +207,32 @@ what we cache about a site, and the API contracts that govern reading it. Verbat
   article unpublishable — which is the bug this exists for. Note the category tree is read
   **best-effort** there: it only ever *widens* the scope, so an unreachable site with a cold
   category cache must not fail the publish over it.
+- **An article's custom field *values* come back on the article itself, as top-level attributes named
+  after each field** (gh-59) — not under a `com_fields` block, and not from the fields endpoint.
+  com_content's `JsonapiView::displayItem()` appends every field name to `$fieldsToRenderItem` and
+  `prepareItem()` sets `$item->{$field->name} = $field->apivalue ?? $field->rawvalue`. ⚠️ **Only
+  `plg_fields_list`, `plg_fields_radio` and `plg_fields_checkboxes` define an `apivalue`**, and it is
+  a *stored value => label* **map**, so its **keys** — not its values — are what can be written back;
+  every other type (including every one Grafida cannot edit) reports the raw stored value. The list
+  endpoint gets the same treatment via `displayList()`/`$fieldsToRenderList`.
+- ⚠️ **Over the API, an omitted `com_fields` key does NOT clear the field — but a *required* field
+  with no value is a hard 400.** These are two different mechanisms, and conflating them makes the
+  publish guard look either paranoid or reckless:
+  - `plg_system_fields::onContentAfterSave()` falls back to `$field->rawvalue` for any field name
+    missing from `$data['com_fields']`, so the site keeps what it had. The blanking everyone
+    remembers — `$data->com_fields[$name] = false`, which becomes `null` and deletes the value — is
+    in `onContentNormaliseRequestData`, and **only `FormController::save()` fires that event**;
+    `ApiController::save()` never does. (It also returns early when `com_fields` is absent or empty.)
+  - `ApiController::save()` still runs `$model->validate($form, $data)`, and `FormField::validate()`
+    returns a `JLIB_FORM_VALIDATE_FIELD_REQUIRED` error for a `required` field whose value is `''` or
+    `null` — including one simply absent from the posted data, since `Form::validate()` reads it out
+    of a `Registry` built from that data. `plg_fields_*::onCustomFieldsPrepareDom()` sets
+    `required="true"` on the form node, so a required custom field is validated exactly like a core
+    one. The failure surfaces as an `InvalidParameterException` → **HTTP 400**.
+  - The PATCH backfill does **not** rescue it: `save()` backfills only real `#__content` **table
+    columns** from the loaded row, and `com_fields` is not one.
+  So a publish need carry only the *required* unsupported fields, and only when it has a value for
+  them — see `Field\FieldSupport::requiredUnsupported()` and `.claude/rules/media-and-publish.md`.
 - **A `media` custom field's value is an `accessiblemedia` record, not a path** — and getting that
   wrong loses data with no error anywhere. `plg_fields_media::onCustomFieldsPrepareDom()` sets the
   form field's type to **`accessiblemedia`**, a non-repeatable `SubformField` over three subfields:

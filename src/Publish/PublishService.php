@@ -33,7 +33,8 @@ use Grafida\Support\App;
  * Publishes a local draft to its Joomla site.
  *
  * Pipeline:
- *   1. Block if the site requires unsupported custom field types.
+ *   1. Block if the site requires unsupported custom field types — unless the
+ *      draft carries the values it imported for them and the user forced it.
  *   2. Upload offline images and swap their local (boson://) or data: URI src for public URLs.
  *   3. Create any tags that do not yet exist and resolve all tags to IDs.
  *   4. Split the HTML into introtext / fulltext on the read-more marker.
@@ -68,13 +69,18 @@ final class PublishService
     ) {}
 
     /**
+     * @param bool $force Publish despite required unsupported fields, by sending
+     *                    back the values imported from the site for them. Only
+     *                    ever set from a user confirming
+     *                    {@see PublishBlockedException::canForce()}.
+     *
      * @return array{remoteId: int, created: bool}
      *
      * @throws PublishBlockedException        When required unsupported fields exist.
      * @throws \Grafida\Joomla\ApiException   On any API failure.
      * @throws \RuntimeException              When the site is not connectable.
      */
-    public function publish(Draft $draft, Site $site): array
+    public function publish(Draft $draft, Site $site, bool $force = false): array
     {
         $token = $this->sites->tokenFor($site);
 
@@ -99,7 +105,7 @@ final class PublishService
             $draft->catid,
         );
 
-        $this->guardRequiredUnsupportedFields($fieldDefs, $draft->html);
+        $carried = $this->guardRequiredUnsupportedFields($fieldDefs, $draft, $force);
 
         $html = $this->uploadOfflineMedia($draft, $site, $base, $token);
 
@@ -177,7 +183,7 @@ final class PublishService
         if ($tagIds !== []) {
             $attributes['tags'] = $tagIds;
         }
-        $mappedFields = $this->mapFields($draft->fields, $fieldDefs, $site, $base, $token);
+        $mappedFields = $this->mapFields($draft->fields, $fieldDefs, $carried, $site, $base, $token);
         if ($mappedFields !== []) {
             $attributes['com_fields'] = $mappedFields;
         }
@@ -248,26 +254,47 @@ final class PublishService
     }
 
     /**
+     * Stops a publish Joomla would reject, and decides which unsupported fields'
+     * stored values have to travel with it.
+     *
+     * A required field of a type Grafida cannot edit is a hard 400 from the API
+     * unless a value is sent for it, so this runs before anything is uploaded.
+     * The one escape hatch is a draft imported from the live article: it carries
+     * the values the site reported for those fields, and sending them back
+     * unchanged satisfies the form. That is what `$force` buys — and it is
+     * deliberately opt-in rather than automatic, because Grafida cannot render
+     * such a value and therefore cannot show the user that the copy it holds has
+     * since gone stale on the site. See gh-59.
+     *
+     * Only the **required** ones are carried. A non-required unsupported field
+     * needs nothing: the API never fires `onContentNormaliseRequestData`, so
+     * `plg_system_fields` falls back to the stored value for every `com_fields`
+     * key we omit — leaving it out is strictly safer than overwriting it with
+     * our snapshot.
+     *
      * @param list<array<string, mixed>> $fieldDefs
+     *
+     * @return list<string> Names of the unsupported fields whose stored value must be sent.
+     *
+     * @throws PublishBlockedException
      */
-    private function guardRequiredUnsupportedFields(array $fieldDefs, string $html): void
+    private function guardRequiredUnsupportedFields(array $fieldDefs, Draft $draft, bool $force): array
     {
-        $blocking = $this->fields->blockingFields($fieldDefs);
+        $split = $this->fields->requiredUnsupported($fieldDefs, $draft->fields);
 
-        if ($blocking === []) {
-            return;
+        if ($split['blocking'] === [] && $split['overridable'] === []) {
+            return [];
         }
 
-        $labels = array_map(
-            static function (array $f): string {
-                $label = $f['label'] ?? $f['name'] ?? 'field';
+        if ($force && $split['blocking'] === []) {
+            return FieldSupport::names($split['overridable']);
+        }
 
-                return is_string($label) ? $label : 'field';
-            },
-            $blocking
+        throw new PublishBlockedException(
+            FieldSupport::labels($split['blocking']),
+            $draft->html,
+            FieldSupport::labels($split['overridable']),
         );
-
-        throw new PublishBlockedException(array_values($labels), $html);
     }
 
     private function uploadOfflineMedia(Draft $draft, Site $site, string $base, string $token): string
@@ -557,10 +584,13 @@ final class PublishService
     /**
      * @param array<string, mixed>       $values
      * @param list<array<string, mixed>> $fieldDefs
+     * @param list<string>               $carried   Unsupported fields whose stored
+     *                                              value is sent back verbatim
+     *                                              (see the guard above).
      *
      * @return array<string, mixed>
      */
-    private function mapFields(array $values, array $fieldDefs, Site $site, string $base, string $token): array
+    private function mapFields(array $values, array $fieldDefs, array $carried, Site $site, string $base, string $token): array
     {
         // Keyed by field name, valued by the *lowercased* type, because a
         // `media` field's value is not sent as it was stored — see below.
@@ -577,6 +607,16 @@ final class PublishService
 
         $out = [];
         foreach ($values as $name => $value) {
+            // An unsupported field is only ever sent when the guard said it must
+            // be — a required one whose value we imported from the site. It goes
+            // out exactly as it came in: Grafida does not understand the shape
+            // and must not reinterpret it.
+            if (in_array($name, $carried, true)) {
+                $out[$name] = $value;
+
+                continue;
+            }
+
             if (!isset($supportedTypes[$name])) {
                 continue;
             }

@@ -682,7 +682,12 @@ async function apiFetch(method, path, body = null) {
             const err = new Error(json.error || 'API error');
             err.code = json.code || null;
             err.fieldLabels = json.fieldLabels || null;
+            err.overridableLabels = json.overridableLabels || null;
+            err.canForce = json.canForce === true;
             err.status = res.status;
+            // The status the *site* answered with, for a `joomla_api` error —
+            // distinct from res.status, which is our own kernel's 502.
+            err.upstreamStatus = typeof json.status === 'number' ? json.status : null;
             throw err;
         }
         return json.data;
@@ -720,7 +725,10 @@ const api = {
     getDraft: (id) => apiFetch('GET', `/api/drafts/${id}`),
     saveDraft: (id, body) => apiFetch('PUT', `/api/drafts/${id}`, body),
     deleteDraft: (id) => apiFetch('DELETE', `/api/drafts/${id}`),
-    publishDraft: (id) => apiFetch('POST', `/api/drafts/${id}/publish`),
+    // `force` answers a publish_blocked whose canForce was true: publish despite
+    // required custom fields Grafida cannot edit, by sending back the values it
+    // imported from the site for them (gh-59).
+    publishDraft: (id, force = false) => apiFetch('POST', `/api/drafts/${id}/publish`, { force }),
     exportDraft: (id, directory) => apiFetch('POST', `/api/drafts/${id}/export`, { directory }),
     importDraft: (siteId, payload) => apiFetch('POST', '/api/drafts/import', { siteId, payload }),
     importDraftInto: (id, payload) => apiFetch('POST', `/api/drafts/${id}/import`, { payload }),
@@ -6932,13 +6940,19 @@ function isSettingsShortcut(e) {
 //  Publish draft
 // --------------------------------------------------------
 
-async function publishDraft() {
+/**
+ * Publishes the open draft, saving it first.
+ *
+ * `force` is only ever passed by the "Publish anyway" button of the dialog
+ * below, i.e. by a user answering a publish_blocked whose `canForce` was true.
+ */
+async function publishDraft(force = false) {
     let saved;
     try { saved = await saveDraft(); } catch { return; }
     if (!saved || State.currentDraftId == null) return;
 
     try {
-        const result = await api.publishDraft(State.currentDraftId);
+        const result = await api.publishDraft(State.currentDraftId, force);
         // Publishing a new article assigns it a remote ID; keep the open draft in
         // sync so a subsequent publish updates that article instead of recreating.
         if (result && result.remoteId && State.currentDraft) {
@@ -6948,39 +6962,100 @@ async function publishDraft() {
         showPostPublishDialog();
     } catch (err) {
         if (err.code === 'publish_blocked') {
-            const bodyNodes = [];
-
-            const msgP = el('p', null, t('GRAFIDA_MSG_PUBLISH_BLOCKED'));
-            bodyNodes.push(msgP);
-
-            if (err.fieldLabels && err.fieldLabels.length) {
-                const list = el('ul', null);
-                err.fieldLabels.forEach(label => {
-                    list.appendChild(el('li', null, String(label)));
-                });
-                bodyNodes.push(list);
-            }
-
-            const cancelBtn = iconBtn('xmark', t('GRAFIDA_BTN_CANCEL'), 'btn', 'btn-secondary');
-            cancelBtn.addEventListener('click', closeModal);
-
-            const copyBtn = iconBtn('copy', t('GRAFIDA_BTN_COPY_HTML'), 'btn', 'btn-secondary');
-            copyBtn.id = 'btn-copy-html';
-            copyBtn.addEventListener('click', () => {
-                const html = State.tinyMCEEditor ? State.tinyMCEEditor.getContent() : '';
-                navigator.clipboard.writeText(html).then(() => {
-                    showToast('HTML copied to clipboard.', 'success');
-                    closeModal();
-                }).catch(() => {
-                    showToast('Could not access clipboard.', 'error');
-                });
-            });
-
-            showModal('Publish blocked', bodyNodes, [cancelBtn, copyBtn]);
+            showPublishBlockedDialog(err);
+        } else if (err.code === 'joomla_api' && err.upstreamStatus === 400) {
+            // The site validated the write and refused it. The likeliest cause by
+            // far is custom-field metadata that has moved on since Grafida last
+            // read it — a field added, renamed or made required — which no local
+            // guard could have anticipated, so offer the reload rather than a
+            // toast the user can only stare at (gh-59).
+            showPublishRejectedDialog(err);
         } else {
             showToast(err.message, 'error');
         }
     }
+}
+
+/**
+ * The publish-blocked dialog. Two shapes, driven by `err.canForce`:
+ *
+ * - **Blocked outright** — at least one required field of a type Grafida cannot
+ *   edit has no value we could send. "Publish anyway" is rendered *disabled*
+ *   rather than omitted, with the reason beside it: the button is the thing the
+ *   user came looking for, and an absent one reads as "this build cannot do it"
+ *   instead of "not for this article".
+ * - **Forceable** — every such field carries the value imported from the site,
+ *   so re-sending it verbatim satisfies Joomla's form. The confirmation exists
+ *   because Grafida cannot render those values and so cannot show whether the
+ *   copy it holds has gone stale on the site.
+ */
+function showPublishBlockedDialog(err) {
+    const canForce = err.canForce === true;
+    const blocking = err.fieldLabels || [];
+    const overridable = err.overridableLabels || [];
+    const bodyNodes = [];
+
+    bodyNodes.push(el('p', null, t(canForce ? 'GRAFIDA_MSG_PUBLISH_FORCEABLE' : 'GRAFIDA_MSG_PUBLISH_BLOCKED')));
+
+    // Only the fields the message is *about*. When the publish is blocked the
+    // overridable ones are not the problem and listing them under "Grafida holds
+    // no value for these" would be a plain untruth; when it is forceable there
+    // are no blocking ones to list.
+    const list = el('ul', null);
+    (canForce ? overridable : blocking).forEach(label => list.appendChild(el('li', null, String(label))));
+    if (list.childNodes.length) bodyNodes.push(list);
+
+    bodyNodes.push(el('p', 'text-muted',
+        t(canForce ? 'GRAFIDA_MSG_PUBLISH_FORCEABLE_WARNING' : 'GRAFIDA_MSG_PUBLISH_BLOCKED_NO_VALUES')));
+
+    const cancelBtn = iconBtn('xmark', t('GRAFIDA_BTN_CANCEL'), 'btn', 'btn-secondary');
+    cancelBtn.addEventListener('click', closeModal);
+
+    const copyBtn = iconBtn('copy', t('GRAFIDA_BTN_COPY_HTML'), 'btn', 'btn-secondary');
+    copyBtn.id = 'btn-copy-html';
+    copyBtn.addEventListener('click', () => {
+        const html = State.tinyMCEEditor ? State.tinyMCEEditor.getContent() : '';
+        navigator.clipboard.writeText(html).then(() => {
+            showToast(t('GRAFIDA_MSG_HTML_COPIED'), 'success');
+            closeModal();
+        }).catch(() => {
+            showToast(t('GRAFIDA_MSG_CLIPBOARD_FAILED'), 'error');
+        });
+    });
+
+    const forceBtn = iconBtn('upload', t('GRAFIDA_BTN_PUBLISH_ANYWAY'), 'btn', 'btn-primary');
+    forceBtn.disabled = !canForce;
+    forceBtn.addEventListener('click', () => {
+        closeModal();
+        publishDraft(true);
+    });
+
+    showModal(t('GRAFIDA_MSG_PUBLISH_BLOCKED_TITLE'), bodyNodes, [cancelBtn, copyBtn, forceBtn]);
+}
+
+/**
+ * Shown when the site itself refused the write (HTTP 400 from Joomla's form
+ * validation). The site's own message is kept verbatim below the explanation —
+ * it names the offending field, which is the only thing that identifies it.
+ */
+function showPublishRejectedDialog(err) {
+    const bodyNodes = [
+        el('p', null, t('GRAFIDA_MSG_PUBLISH_REJECTED')),
+        el('p', 'text-muted', String(err.message || '')),
+    ];
+
+    const cancelBtn = iconBtn('xmark', t('GRAFIDA_BTN_CANCEL'), 'btn', 'btn-secondary');
+    cancelBtn.addEventListener('click', closeModal);
+
+    const reloadBtn = iconBtn('rotate', t('GRAFIDA_BTN_RELOAD_METADATA'), 'btn', 'btn-primary');
+    reloadBtn.addEventListener('click', async () => {
+        closeModal();
+        // reloadSiteMetadata() reports its own outcome, success or failure.
+        const siteId = State.currentDraft && State.currentDraft.siteId;
+        if (siteId != null) await reloadSiteMetadata(siteId);
+    });
+
+    showModal(t('GRAFIDA_MSG_PUBLISH_REJECTED_TITLE'), bodyNodes, [cancelBtn, reloadBtn]);
 }
 
 /**
@@ -9373,7 +9448,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const btnPublish = document.getElementById('btn-publish');
-    if (btnPublish) btnPublish.addEventListener('click', publishDraft);
+    // Wrapped, not passed directly: publishDraft()'s first argument is `force`,
+    // and a click event object would arrive as a truthy one.
+    if (btnPublish) btnPublish.addEventListener('click', () => publishDraft());
 
     const btnImportMd = document.getElementById('btn-import-md');
     if (btnImportMd) btnImportMd.addEventListener('click', importMarkdown);
