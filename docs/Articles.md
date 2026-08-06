@@ -38,6 +38,11 @@ another computer — as a new local article on the active site. See
 
 **New article** starts a blank local article on the active site.
 
+> [!TIP]
+> <kbd>Ctrl</kbd> + <kbd>N</kbd> (Windows, Linux) or <kbd>Cmd</kbd> + <kbd>N</kbd> (macOS) does the
+> same thing from the keyboard, on either tab. It works only in this view — it is deliberately
+> inert everywhere else, so it can never interrupt an article you are editing.
+
 **Reload metadata**, next to the tab strip, refreshes the categories, tags, access levels,
 languages and custom fields Grafida has cached for this site, and rebuilds the filter drop-downs
 from them. Use it after you have added a category or a tag on your site and it is not showing up

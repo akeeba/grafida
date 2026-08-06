@@ -245,6 +245,17 @@ ship inside the app.
   Search), so accepting either key on every platform binds us to a chord we don't own (gh-13). It
   resolves to Cmd on macOS and Ctrl elsewhere — the same mapping TinyMCE's own `meta` modifier
   uses, which is why `addShortcut('meta+s', …)` needed no such fix.
+  **A document-level chord states the screen it belongs to, and Ctrl/Cmd+N is the strict case**
+  (gh-64): it opens a new article only while `State.activeScreen === 'articles'` (either tab) with a
+  site selected, and is inert everywhere else — in the editor it would discard an article somebody
+  is writing, which is exactly why it is scoped rather than given an unsaved-changes guard of its
+  own. It also stands down while `isModalOpen()` (the single `#modal-overlay`'s `hidden` class is
+  the whole modal state — there is no stack), since the dialog over the Articles screen owns the UI.
+  `preventDefault()` is called **only on the branch that acts**, unlike the paste-plain chord above,
+  whose cancel is itself the fix: an unhandled Cmd+N reaches no menu bar and costs nothing, so
+  swallowing it app-wide would only take the key away from the webview for no gain. It is
+  deliberately **not** in the editor Help dialog's Grafida tab — that tab lists shortcuts that work
+  where it is read, and this one does not work there at all.
   **Spell checking** uses the native webview checker (`browser_spellcheck`, driven by the
   `spell_check` setting — **default on**, toggled from the Options page, see `SpellCheckService`) —
   the bundled TinyMCE spellchecker plugin was removed in v6+ and the replacement is a premium cloud

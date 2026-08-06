@@ -2,6 +2,7 @@ Grafida 0.3
 ================================================================================
 ! Idle CPU use is down from about half a core to under 1%; the native event loop was a busy wait
 ! macOS 15 Sequoia is now the minimum; the bundled webview library cannot load on macOS 14 or earlier (gh-58)
++ Ctrl/Cmd+N in the Articles view starts a new article (gh-64)
 + Custom fields of type Media can now be edited, using Grafida's own media browser — site media or a local picture uploaded on publish
 + Publish anyway: an article from your site can be published even when it has required custom fields Grafida cannot edit (gh-59)
 + Editing a site article now carries its custom field values, including the types Grafida cannot display (gh-59)

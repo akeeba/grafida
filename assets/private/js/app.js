@@ -859,6 +859,17 @@ function closeModal() {
 }
 
 /**
+ * True while a modal dialog is on screen. The overlay is a single, always-present
+ * element toggled by the two functions above, so its `hidden` class is the whole
+ * state — there is no stack. Document-level shortcuts consult this so a chord
+ * bound to a screen behind the dialog cannot fire while the dialog owns the UI.
+ */
+function isModalOpen() {
+    const overlay = document.getElementById('modal-overlay');
+    return !!overlay && !overlay.classList.contains('hidden');
+}
+
+/**
  * Show a Yes/No confirmation modal with keyboard navigation.
  *
  * Yes is red (danger) and is the default active option; No is blue (info).
@@ -9435,6 +9446,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (State.activeScreen !== 'editor' || !State.currentDraft) return;
         e.preventDefault();
         saveDraft();
+    });
+
+    // Ctrl/Cmd+N starts a new article, but ONLY from the Articles screen (gh-64)
+    // — either tab, since both list articles of the active site. It deliberately
+    // does not exist anywhere else, least of all in the editor, where it would
+    // throw away an article somebody is writing; scoping it this way is why it
+    // needs no unsaved-changes guard of its own. A modal open over the Articles
+    // screen (the site picker, a confirmation, the media browser) owns the UI, so
+    // the chord stands down for it, and preventDefault() is applied only when we
+    // actually act — elsewhere the key stays the webview's business.
+    document.addEventListener('keydown', (e) => {
+        if (!hasPrimaryModifier(e) || e.altKey || e.shiftKey) return;
+        if ((e.key || '').toLowerCase() !== 'n') return;
+        if (State.activeScreen !== 'articles' || !State.currentSiteId) return;
+        if (isModalOpen()) return;
+        e.preventDefault();
+        openNewArticle();
     });
 
     // Ctrl/Cmd+, opens Settings from anywhere. When editing an article this
