@@ -232,4 +232,111 @@ final class InsecureUrlTest extends TestCase
         self::assertNotSame(400, $status);
         self::assertNotSame(503, $status);
     }
+
+    // ------------------------------------------------------------------
+    //  AI services: HTTPS, or cleartext to this machine / the local network
+    // ------------------------------------------------------------------
+
+    /** @return array{0: Kernel, 1: int} The kernel and the new service's id. */
+    private function kernelWithAiService(string $endpoint): array
+    {
+        $container = TestContainer::create(false);
+        $kernel    = $container->get(Kernel::class);
+
+        // Seeded straight into the database rather than through POST
+        // /api/ai/services, because the create route validates the endpoint too
+        // — and these tests are about the *resolve* route being a guarantee even
+        // for a row that got in some other way (an older version, a hand-edited
+        // database, a future import).
+        $db  = $container->get(\Joomla\Database\DatabaseInterface::class);
+        $pdo = \Grafida\Tests\Support\TestDatabase::connection($db);
+        $now = gmdate('Y-m-d H:i:s');
+        $pdo->prepare(
+            'INSERT INTO ai_services (name, provider, endpoint, model, insecure_key, params_json, created_at, updated_at) '
+            . 'VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        )->execute(['Local', 'custom', $endpoint, 'a-model', 'sk-secret', '{}', $now, $now]);
+
+        return [$kernel, (int) $pdo->lastInsertId()];
+    }
+
+    public function testResolvedAiServiceRefusesAPlainHttpRemoteEndpoint(): void
+    {
+        // The SPA makes the streaming call itself, so this endpoint handing back
+        // the config *is* the request being authorised. Refusing here is the only
+        // way PHP can stop a cleartext call to a remote provider — and the API
+        // key must not be in the refusal.
+        [$kernel, $id] = $this->kernelWithAiService('http://api.example.com');
+
+        [$status, $json] = $this->call($kernel, 'GET', '/api/ai/services/' . $id . '/resolved');
+
+        self::assertSame(400, $status);
+        self::assertFalse($json['ok']);
+        self::assertSame('insecure_url', $json['code']);
+        self::assertStringNotContainsString('sk-secret', (string) json_encode($json));
+    }
+
+    public function testResolvedAiServiceAllowsAPlainHttpLocalEndpoint(): void
+    {
+        // Ollama, LM Studio and llama.cpp all serve plain HTTP on loopback and
+        // offer no way to change it. Refusing this would make local models
+        // unusable, and there is no wire between the app and 127.0.0.1 to tap.
+        [$kernel, $id] = $this->kernelWithAiService('http://127.0.0.1:11434');
+
+        [$status, $json] = $this->call($kernel, 'GET', '/api/ai/services/' . $id . '/resolved');
+
+        self::assertSame(200, $status);
+        self::assertTrue($json['ok']);
+        self::assertSame('http://127.0.0.1:11434', $json['data']['endpoint']);
+    }
+
+    public function testResolvedAiServiceAllowsHttps(): void
+    {
+        [$kernel, $id] = $this->kernelWithAiService('https://api.example.com');
+
+        [$status, $json] = $this->call($kernel, 'GET', '/api/ai/services/' . $id . '/resolved');
+
+        self::assertSame(200, $status);
+        self::assertTrue($json['ok']);
+    }
+
+    public function testCreateAiServiceRejectsAPlainHttpRemoteEndpoint(): void
+    {
+        [$status, $json] = $this->call(
+            TestContainer::create(false)->get(Kernel::class),
+            'POST',
+            '/api/ai/services',
+            json_encode([
+                'name'          => 'Remote',
+                'provider'      => 'custom',
+                'endpoint'      => 'http://api.example.com',
+                'model'         => 'a-model',
+                'key'           => 'sk-secret',
+                'allowInsecure' => true,
+            ])
+        );
+
+        self::assertSame(400, $status);
+        self::assertFalse($json['ok']);
+        self::assertSame('insecure_url', $json['code']);
+    }
+
+    public function testCreateAiServiceAcceptsAPlainHttpLocalEndpoint(): void
+    {
+        [$status, $json] = $this->call(
+            TestContainer::create(false)->get(Kernel::class),
+            'POST',
+            '/api/ai/services',
+            json_encode([
+                'name'          => 'Local',
+                'provider'      => 'custom',
+                'endpoint'      => 'http://localhost:1234',
+                'model'         => 'a-model',
+                'key'           => 'sk-secret',
+                'allowInsecure' => true,
+            ])
+        );
+
+        self::assertSame(201, $status);
+        self::assertTrue($json['ok']);
+    }
 }

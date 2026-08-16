@@ -1,6 +1,8 @@
 Grafida 0.3
 ================================================================================
-! Security hardening: site URLs must use HTTPS. Test Connection, Diagnose, Create and Edit Site all reject http:// (and any non-HTTPS scheme) with a 400 error before any outbound request is dispatched, so the API token never leaves the process in cleartext
+! Security hardening: site URLs must use HTTPS. Test Connection, Diagnose, Create and Edit Site all reject http:// (and any non-HTTPS scheme) with a 400 error before any outbound request is dispatched, so the API token never leaves the process in cleartext. The rule is now also enforced in the HTTP transport itself, so it covers every request the app makes — favicons, template stylesheets, site images and the update check included
+! Security hardening: redirects are vetted one hop at a time before the request is re-sent, and are only followed within the original base domain (www.example.com to example.com or foobar.example.com, never to somewhere else). A redirect that would downgrade to plain HTTP is refused
+! Security hardening: an AI service must use HTTPS unless it is on this machine or your local network, where plain HTTP is allowed so local models (Ollama, LM Studio, llama.cpp) keep working. A cleartext endpoint anywhere else is refused when saved and again before any request, so the provider API key is never sent in the clear
 ! Idle CPU use is down from about half a core to under 1%; the native event loop was a busy wait
 ! macOS 15 Sequoia is now the minimum; the bundled webview library cannot load on macOS 14 or earlier (gh-58)
 + Normalise AI-generated content: strip the invisible characters (zero-width spaces, bidi and tag characters, exotic spaces) AI tools leave in text, from AI replies, imported Markdown, plain-text pastes and everything you publish. On by default, three-way setting

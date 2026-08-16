@@ -16,6 +16,7 @@ use Grafida\Ai\AiServiceManager;
 use Grafida\Ai\AiServiceRepository;
 use Grafida\Ai\Defaults;
 use Grafida\Http\HttpClient;
+use Grafida\Http\Security\UrlPolicy;
 use Grafida\Tests\Support\TestDatabase;
 use Joomla\Database\DatabaseInterface;
 use PHPUnit\Framework\TestCase;
@@ -280,7 +281,9 @@ final class ResponsesApiLiveTest extends TestCase
     private function proxy(): AiProxy
     {
         // A generous timeout: a cold local model can take a while to answer.
-        return new AiProxy($this->manager(), new Defaults(), new HttpClient(120));
+        // UrlPolicy::AiService matches how the container builds `http.ai`, and is
+        // what lets this test point at a plain-HTTP model on localhost.
+        return new AiProxy($this->manager(), new Defaults(), new HttpClient(120, UrlPolicy::AiService));
     }
 
     private static function env(string $key): string

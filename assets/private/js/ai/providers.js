@@ -451,10 +451,22 @@
         if (stream) {
             const req = buildRequest(resolved, messages, true, { previousResponseId });
             try {
+                // redirect:'error' is a security setting, not a robustness one.
+                // This is the one outbound request Grafida makes that PHP never
+                // sees, so HttpClient's per-hop redirect vetting cannot apply to
+                // it — and fetch() offers no hook to inspect a hop, only to
+                // refuse them wholesale. A redirected AI endpoint therefore
+                // rejects here with a TypeError, which is already the signal
+                // that drops us onto the proxy path below; PHP then follows the
+                // same redirect under the guard, on the same domain or not at
+                // all. Losing streaming on such an endpoint is the intended
+                // trade: it is rare, and the alternative is sending a provider
+                // API key wherever a 302 points.
                 const res = await fetch(req.url, {
-                    method:  req.method,
-                    headers: req.headers,
-                    body:    req.body,
+                    method:   req.method,
+                    headers:  req.headers,
+                    body:     req.body,
+                    redirect: 'error',
                     signal,
                 });
                 if (!res.ok) {

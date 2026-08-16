@@ -14,8 +14,11 @@ two-space continuation indent are the original bullet formatting.
 - `src/Http/` — `HttpClient` (curl/stream transport to Joomla), `Json`, and the internal API.
   `ApiController` is now only a **dispatcher** (~120 lines): it assembles a `Router` from the
   controllers and maps exceptions to responses (`PublishBlockedException` → 422,
-  `SecureStoreUnavailableException` → 409, `ApiException` → 502, `HttpException` → 503,
-  `\Throwable` → 500).
+  `SecureStoreUnavailableException` → 409, `InsecureUrlException` → 400 (`insecure_url`),
+  `BlockedRedirectException` → 502 (`blocked_redirect`), `ApiException` → 502,
+  `HttpException` → 503, `\Throwable` → 500). The two URL-security exceptions differ in status
+  on purpose: `InsecureUrlException` is about a URL *we were given*, so it is bad input; a blocked
+  redirect is about a URL the *remote end* chose, so it is a failure of the server.
   The 422 carries **`fieldLabels`, `overridableLabels` and `canForce`** (gh-59): the first two split
   the required custom fields Grafida cannot edit by whether the draft holds a value for them, and
   `canForce` says whether a retry with `{force: true}` could succeed. The SPA's `apiFetch()` lifts
@@ -23,6 +26,54 @@ two-space continuation indent are the original bullet formatting.
   `status` (what the *site* answered) and is emphatically **not** `res.status`, our own kernel's 502.
   That distinction is what lets a publish tell a Joomla form-validation 400 from any other API
   failure.
+  ⚠️ **Outbound traffic policy lives in `src/Http/Security/` and is enforced by `HttpClient`, not
+  by its callers.** Grafida reaches the network from about a dozen services — the API client, the
+  favicon fetcher, template discovery, the editor-CSS candidate walk, the site-image proxy, the
+  update check, the AI proxy — several of them built from a URL that arrived over the internal API.
+  A policy each of those has to *remember* is one that will eventually be forgotten at one of them,
+  so it sits in the transport and a new caller is covered the day it is written. Four pieces:
+  `UrlPolicy` (a two-case enum), `IpRanges`, `DnsResolver`/`SystemDnsResolver`, and `UrlGuard`.
+  - **`UrlPolicy::Site` is HTTPS with no exception whatsoever**, including to `localhost` — a local
+    Joomla install still receives an API token, and loopback is a reason a local *model* has no
+    certificate, not a reason to stop encrypting. Every transport in the container is on this policy
+    except one.
+  - **`UrlPolicy::AiService` is the single exception, and `http.ai` is the single transport that
+    has it.** Cleartext is permitted only when **every** address the host resolves to is in
+    `IpRanges`' closed list (`0/8`, `10/8`, `127/8`, `169.254/16`, `172.16/12`, `192.168/16`, their
+    IPv4-mapped IPv6 forms, `::1/128`, `64:ff9b:1::/48`, `fe80::/64`). *Every* one, not one of them:
+    a name answering with both `127.0.0.1` and a public address is the DNS-rebinding shape, and an
+    unresolvable name is refused rather than given the benefit of the doubt. The list is closed on
+    purpose — CGNAT, multicast and the documentation ranges are **not** in it, because the test is
+    "would I send an unencrypted API key here?", not "is this address special?".
+  - **`ApiClient::normaliseRoot()` still rejects a non-HTTPS site URL at the input boundary, and
+    must keep doing so.** Not redundant: the guard is the backstop nothing escapes, the boundary
+    check is what lets the Sites form say so while the user is typing rather than storing the URL
+    and failing on every later operation.
+  ⚠️ **Redirects are followed by hand and vetted per hop; `CURLOPT_FOLLOWLOCATION` must stay off.**
+  libcurl chases the whole chain inside one `curl_exec()`, resending the request headers — the
+  `Authorization` token among them — to each hop, with no callback that can veto one; the credential
+  would be gone before we could look. `HttpClient::request()` therefore loops, one `curl_exec()` per
+  hop, calling `UrlGuard::assertRedirectAllowed()` before each. Three details are load-bearing:
+  a hop is judged against **the URL the caller asked for, never the previous hop** (so a chain of
+  individually-plausible steps cannot walk off the domain); the destination is **re-judged against
+  the policy in full**, which is what stops a `301` downgrading HTTPS to cleartext; and **the method
+  and body are carried across every hop, 303 included** — what `CURLOPT_POSTREDIR =>
+  CURL_REDIR_POST_ALL` used to do, and dropping it is how a publish to a redirecting site silently
+  no-ops (Joomla answers the downgraded GET with the unchanged article and 200 OK).
+  ⚠️ **A redirect is deliberately NOT required to resolve to the same IP address as the original
+  host, and adding that check would break real sites rather than protect them.** Behind an anycast
+  CDN the address returned for a name varies by resolver, by PoP and by lookup; round-robin records
+  rotate; `www` and the apex routinely sit on disjoint address sets because they are different CNAME
+  targets. A same-IP rule rejects apex-to-`www` — the commonest redirect there is — on the majority
+  of hosting in use. What secures the hop is the scheme policy plus certificate validation, which
+  `requestCurl()` states explicitly (`SSL_VERIFYPEER`, `SSL_VERIFYHOST => 2`) rather than inheriting,
+  because that pair is the most commonly disabled one in PHP code and leaving it implicit makes a
+  decision look like an oversight. `CURLOPT_PROTOCOLS_STR` confines libcurl to http/https, so the
+  transport cannot reach the local filesystem even if something got past the guard.
+  `UrlGuard::baseDomain()` is a **heuristic, not the Public Suffix List** (two labels, or three when
+  the TLD is two letters and the label before it is ≤3). Its only failure mode is taking *more*
+  labels than a true PSL lookup, i.e. being stricter, which is the safe direction here — do not
+  reuse it anywhere over-strictness is not safe, such as cookie scoping.
   ⚠️ **A transport failure is not one error, but two** (gh-29). `HttpClient::requestCurl()` now
   passes `curl_errno()` through on `HttpException`, and `isConnectivityFailure()` checks it
   against the errnos that mean "never reached a server" (DNS failure, refused/unreachable

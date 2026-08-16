@@ -93,6 +93,21 @@ window-free in tests (a null dialog makes the endpoint return 503).
   Controllers must never call each other — share through the injected services.
   (The hand-rolled `HttpClient` exists because `joomla/http` was, at the time, uninstallable on
   the PHP version in use — its laminas-diactoros dependency capped out below it.)
+  `src/Http/Security/` is the **outbound-traffic policy**, enforced inside `HttpClient` so that no
+  caller can forget it: `UrlPolicy` (`Site` = HTTPS, no exceptions; `AiService` = HTTPS *unless*
+  every address the host resolves to is loopback/private/link-local), `IpRanges` (the closed list of
+  such blocks, v4 and v6-mapped), `DnsResolver`/`SystemDnsResolver`, and `UrlGuard`, which answers
+  both "may this be requested?" and "may this redirect be followed?".
+  ⚠️ **Redirects are followed by hand, not by libcurl**, and each hop is vetted *before* it is
+  contacted — `CURLOPT_FOLLOWLOCATION` resends the `Authorization` header to every hop inside one
+  `curl_exec()` and offers no veto, so the credential would already be gone by the time we could
+  look. A hop must stay on the **same base domain** as the URL the caller asked for (never merely
+  the previous hop) and must satisfy the policy afresh, so a `301` cannot downgrade to cleartext.
+  ⚠️ **A redirect is deliberately NOT required to resolve to the same IP.** Behind an anycast CDN
+  the address varies by resolver and PoP, round-robin records rotate, and `www` and the apex are
+  routinely different CNAME targets — a same-IP rule would reject the commonest redirect on the
+  Internet on most hosting in use. Certificate validation, which is stated explicitly rather than
+  inherited, is what secures the hop.
   ⚠️ **Detail is in `.claude/rules/internal-api.md`**, which loads when you touch `src/Http/`,
   `src/Application/` or `src/Debug/`. Two rules worth carrying without it: **a transport failure
   is not one error but two** (a connectivity failure must not be reported the same way as a TLS
@@ -582,6 +597,20 @@ JavaScript, which streams the SSE response token-by-token; PHP stays the source 
 services, prompts/tools and saved chats. **Do not "fix" the API key being handed to local JS by
 moving the call back to PHP — that kills streaming**; it is a deliberate desktop-only trade-off.
 And the assistant is **text only — no AI images**.
+
+⚠️ **Because the streaming call is made by JavaScript, PHP cannot block it — so the URL policy is
+enforced where PHP still has leverage: `GET /api/ai/services/{id}/resolved`.** That endpoint hands
+the SPA the endpoint URL *and* the API key, so refusing to answer it is refusing the request. It
+rejects a cleartext endpoint that is not loopback/private/link-local with a 400 + `insecure_url`,
+and the key is not in the refusal; `createAiService()`/`updateAiService()` apply the same check so
+the Settings form fails while the user is looking at it. The SPA's streaming `fetch()` passes
+**`redirect: 'error'`** for the same reason — `fetch()` cannot vet a hop, only refuse them all, and
+the resulting `TypeError` is already the signal that falls back to `POST /api/ai/proxy`, where PHP
+follows the redirect under `UrlGuard` or not at all.
+⚠️ **AI traffic must never reach the Request Log** — it carries a third party's key, the whole
+article and the whole conversation, and the log is exportable to a file people attach to bug
+reports. The separation is structural (`http.ai` is the one transport not wrapped in a
+`RecordingTransport`) and pinned by `tests/Unit/Http/RequestLogIsolationTest.php`.
 
 The rules file covers the three SSE dialects and where they branch, Responses-API conversation
 chaining, the CORS/ATS traps behind "the interface freezes" with a local model, the multimodal

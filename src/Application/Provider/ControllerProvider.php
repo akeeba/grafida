@@ -41,6 +41,7 @@ use Grafida\Http\Controller\HelpController;
 use Grafida\Http\Controller\MediaController;
 use Grafida\Http\Controller\SettingsController;
 use Grafida\Http\Controller\SiteController;
+use Grafida\Http\Security\UrlGuard;
 use Grafida\Http\SiteContext;
 use Grafida\I18n\LanguageService;
 use Grafida\Joomla\ApiClient;
@@ -145,6 +146,7 @@ final class ControllerProvider implements ServiceProviderInterface
                 settings: $c->get(SettingsRepository::class),
                 aiDefaults: $c->get(Defaults::class),
                 aiTools: $c->get(AiToolRepository::class),
+                urlGuard: $c->get(UrlGuard::class),
             );
         });
 

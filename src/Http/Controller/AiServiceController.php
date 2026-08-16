@@ -16,15 +16,28 @@ use Grafida\Ai\AiServiceManager;
 use Grafida\Ai\AiTool;
 use Grafida\Ai\AiToolRepository;
 use Grafida\Ai\Defaults;
+use Grafida\Http\InsecureUrlException;
 use Grafida\Http\Json;
 use Grafida\Http\RouteContext;
 use Grafida\Http\Router;
+use Grafida\Http\Security\UrlGuard;
+use Grafida\Http\Security\UrlPolicy;
 use Grafida\Storage\SettingsRepository;
 
 /**
  * Handles `/api/ai/services*`, `/api/ai/tools*` and `PUT /api/ai/system-prompt`
  * — AI service/tool configuration CRUD and the resolved per-service config the
  * SPA transport needs to call a provider directly.
+ *
+ * ⚠️ **This controller, not just the transport, has to enforce the AI URL
+ * policy** — and it is the *only* place that can. Every other outbound request
+ * in the app is made by PHP, where {@see \Grafida\Http\HttpClient} is an
+ * unavoidable chokepoint; the AI streaming call is made by the SPA's own
+ * `fetch()` (see `.claude/rules/ai-assistant.md` for why streaming forces that),
+ * so PHP never sees it and cannot block it. What PHP *does* control is
+ * `GET /api/ai/services/{id}/resolved`, the endpoint that hands the SPA the URL
+ * and the API key to use. Refusing to answer it is therefore the enforcement
+ * point for the direct path: no resolved config, no key, no request.
  */
 final class AiServiceController extends Controller
 {
@@ -33,6 +46,7 @@ final class AiServiceController extends Controller
         private readonly SettingsRepository $settings,
         private readonly Defaults $aiDefaults,
         private readonly AiToolRepository $aiTools,
+        private readonly UrlGuard $urlGuard,
     ) {}
 
     public function registerRoutes(Router $router): void
@@ -74,6 +88,15 @@ final class AiServiceController extends Controller
     public function createAiService(array $body): ResponseInterface
     {
         $allowInsecureVal = $body['allowInsecure'] ?? false;
+
+        // Reject a bad endpoint while the user is still looking at the form,
+        // rather than storing it and failing on every chat afterwards. The
+        // resolved-config check above is the guarantee; this is the manners.
+        $endpointError = $this->savedEndpointRejection($this->str($body, 'endpoint'));
+
+        if ($endpointError !== null) {
+            return Json::error($endpointError, 400, ['code' => 'insecure_url']);
+        }
 
         $paramsRaw = $body['params'] ?? null;
         /** @var array<string, mixed> $params */
@@ -120,6 +143,12 @@ final class AiServiceController extends Controller
             $data['provider'] = $this->str($body, 'provider');
         }
         if (array_key_exists('endpoint', $body)) {
+            $endpointError = $this->savedEndpointRejection($this->str($body, 'endpoint'));
+
+            if ($endpointError !== null) {
+                return Json::error($endpointError, 400, ['code' => 'insecure_url']);
+            }
+
             $data['endpoint'] = $this->str($body, 'endpoint');
         }
         if (array_key_exists('model', $body)) {
@@ -410,6 +439,15 @@ final class AiServiceController extends Controller
         $authType   = is_array($preset) ? ($preset['auth'] ?? 'bearer') : 'bearer';
         $authHeader = $authType === 'x-api-key' ? 'X-Api-Key' : 'Authorization';
 
+        // Before the key goes anywhere. The SPA calls the provider itself, so
+        // this is the last point at which PHP can stop a cleartext request to a
+        // remote host — and the key is in the payload we would otherwise return.
+        $endpointError = $this->endpointRejection($endpoint, $chatPath);
+
+        if ($endpointError !== null) {
+            return Json::error($endpointError, 400, ['code' => 'insecure_url']);
+        }
+
         $apiKey = $this->aiServices->resolveKey($id);
 
         // Merge params: service params as base, tool-specific params as overlay.
@@ -433,5 +471,45 @@ final class AiServiceController extends Controller
             'apiKey'     => $apiKey,
             'params'     => $params,
         ]);
+    }
+
+    /**
+     * Returns why this endpoint may not be *stored*, or null if it may be.
+     *
+     * An empty endpoint is accepted here and nowhere else: a preset provider
+     * leaves the field blank and inherits the bundled endpoint, which is checked
+     * when the config is resolved. Only a URL the user actually typed is judged.
+     */
+    private function savedEndpointRejection(string $endpoint): ?string
+    {
+        if (trim($endpoint) === '') {
+            return null;
+        }
+
+        return $this->endpointRejection($endpoint, '');
+    }
+
+    /**
+     * Returns why this endpoint may not be called, or null if it may be.
+     *
+     * The chat path is appended before the check so the URL judged is the one
+     * that will actually be requested — an endpoint and a path can disagree
+     * about the scheme when the path is itself absolute.
+     */
+    private function endpointRejection(string $endpoint, string $chatPath): ?string
+    {
+        if (trim($endpoint) === '') {
+            return 'The AI service has no endpoint URL configured.';
+        }
+
+        $url = rtrim(trim($endpoint), '/') . $chatPath;
+
+        try {
+            $this->urlGuard->assertAllowed($url, UrlPolicy::AiService);
+        } catch (InsecureUrlException $e) {
+            return $e->getMessage();
+        }
+
+        return null;
     }
 }

@@ -55,6 +55,31 @@ The PHP-side service inventory stays in `CLAUDE.md`'s `src/Ai/` Layout bullet.
   expired chain must degrade to a working call rather than surface as an error. Correctness never
   depends on the chain; it is purely an optimisation. `.grafida` exports deliberately **omit** it (a
   response id is a local, provider-specific artefact, like `site_id`/`media_blobs` ids).
+- ⚠️ **The provider URL policy is enforced at `GET /api/ai/services/{id}/resolved`, because that is
+  the only leverage PHP has left.** Every other outbound request in the app goes through
+  `Http\HttpClient`, an unavoidable chokepoint; the streaming AI call is made by the SPA's own
+  `fetch()`, which PHP never sees. What PHP *does* control is the endpoint that hands the SPA the
+  URL **and the API key** — so refusing to answer it is refusing the request, and
+  `AiServiceController::endpointRejection()` does exactly that for a cleartext endpoint that is not
+  loopback/private/link-local (400 + `code: insecure_url`, with the key absent from the refusal).
+  `createAiService()`/`updateAiService()` run the same check via `savedEndpointRejection()` so the
+  Settings form fails while the user is still looking at it; an **empty** endpoint is accepted there
+  and only there, because a preset provider inherits the bundled one, which is judged at resolve
+  time. The rule itself is `UrlPolicy::AiService` — see `.claude/rules/internal-api.md`; the
+  exemption exists so Ollama/LM Studio/llama.cpp on `127.0.0.1` keep working, and it applies to
+  **no** other traffic in the app.
+- ⚠️ **The streaming `fetch()` passes `redirect: 'error'`, and that is a security setting.** `fetch()`
+  offers no hook to inspect a redirect hop, only to refuse them wholesale, so a redirected AI
+  endpoint rejects with a `TypeError` — which is already the signal that drops onto the proxy path,
+  where PHP follows the redirect under `UrlGuard` (same base domain, policy re-checked) or not at
+  all. Losing streaming on such an endpoint is the intended trade: it is rare, and the alternative
+  is sending a provider API key wherever a `302` points.
+- ⚠️ **AI traffic must never reach the Request Log.** The log is exportable to a file users attach
+  to bug reports, and an AI exchange carries a third party's API key, the whole article body and the
+  entire conversation. The separation is structural, not a filter: recording is a `RecordingTransport`
+  *decorator*, and `http.ai` is the one transport `HttpProvider` does not wrap.
+  `tests/Unit/Http/RequestLogIsolationTest.php` pins it, because "why is this one built differently?"
+  is exactly the kind of question a tidy-up answers wrongly.
 - **`POST /api/ai/proxy` is the non-streaming fallback.** When a provider's browser **CORS** blocks the
   direct `fetch()` (caught as a `TypeError`) or streaming is off, `sendChat()` retries once through this
   **dumb, host-allowlisted forwarder** (`AiProxy` validates the target host equals the configured
