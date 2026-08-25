@@ -33,7 +33,7 @@ Each card carries its own actions:
 * **Delete** (the bin) removes it from your site.
 
 > [!CAUTION]
-> Uploading, renaming and deleting here act on your **live site**, immediately. There is no local
+> Uploading, renaming and deleting here acts on your **live site**, immediately. There is no local
 > staging step and no undo.
 
 ## Local media (not yet uploaded)
