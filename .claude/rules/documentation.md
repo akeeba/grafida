@@ -4,15 +4,22 @@ paths:
   - "docs/**"
   - "src/Help/**"
   - "scripts/sync-wiki.sh"
+  - "scripts/sync-site-docs.sh"
 ---
 
 # The documentation (`docs/`)
 
 (gh-55.)
 
-`docs/` is a **single source with two consumers**: the in-app **Help** screen (`src/Help/`,
-`src/Http/Controller/HelpController.php`, the SPA's `help` screen) and the project's **GitHub
-wiki** at <https://github.com/akeeba/grafida/wiki>, which `scripts/sync-wiki.sh` publishes to.
+`docs/` is a **single source with three consumers**: the in-app **Help** screen (`src/Help/`,
+`src/Http/Controller/HelpController.php`, the SPA's `help` screen), the project's **GitHub
+wiki** at <https://github.com/akeeba/grafida/wiki> (`scripts/sync-wiki.sh`), and the marketing
+site's documentation section, `../grafida-site/content/docs/desktop/` (`scripts/sync-site-docs.sh`,
+`phing site-docs`) — a **verbatim** mirror (whole tree, `_manifest.json` and `images/` included, no
+H1 stripping unlike the wiki sync) since that consumer renders the files as-is. It only writes the
+sibling repository's working tree; committing and pushing there is that repository's own job. Run
+it as part of `phing release` (best-effort — a missing `../grafida-site` checkout does not fail the
+release) or standalone whenever `docs/` changes and the site should catch up sooner.
 
 The wiki is the dumber consumer, so **it dictates the source format and the app adapts** — not the
 other way round. That is the single decision everything below follows from.

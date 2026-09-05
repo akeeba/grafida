@@ -267,7 +267,9 @@ The version comes from the CHANGELOG's top entry; `-Dversion=X.Y.Z` overrides it
 6. **Tag:** `git tag X.Y.Z -sm "Tagging X.Y.Z"` (signed), then `git push origin X.Y.Z`.
 7. **Publish:** `phing release -Dversion=X.Y.Z` — repackages all platforms, creates and publishes a
    GitHub release with the six assets, generates `grafida.json`, uploads it over FTPS to the
-   BunnyCDN `updates/` directory, and finally pushes `docs/` to the GitHub wiki.
+   BunnyCDN `updates/` directory, pushes `docs/` to the GitHub wiki, and mirrors `docs/` into the
+   sibling `grafida-site` repository's `content/docs/desktop/` (best-effort — missing checkout does
+   not fail the release; that repository's own commit/push is a separate, manual step).
 8. **Verify:** `curl https://cdn.akeeba.com/updates/grafida.json` reports the new version, and
    `gh release view X.Y.Z --repo akeeba/grafida` shows `draft=false` with all six assets.
 
