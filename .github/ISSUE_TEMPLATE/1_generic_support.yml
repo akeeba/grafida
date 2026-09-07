@@ -70,7 +70,7 @@ body:
   - type: input
     id: os_version
     attributes:
-      label: IS version
+      label: OS version
       placeholder: e.g. Windows 11 26H1, Arch Linux, Ubuntu Desktop 26.04
     validations:
       required: true
