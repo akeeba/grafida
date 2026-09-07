@@ -3,11 +3,7 @@
     "target": [
         {
             "type": "windows",
-            "arch": "amd64",
-            "ini": {
-                "opcache.enable": true,
-                "opcache.enable_cli": true
-            }
+            "arch": "amd64"
         },
         {
             "type": "linux",

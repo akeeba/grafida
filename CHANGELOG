@@ -1,3 +1,7 @@
+Grafida 1.0
+================================================================================
+~ The Windows build no longer enables opcache, matching every other platform
+
 Grafida 0.3
 ================================================================================
 ! Security hardening: site URLs must use HTTPS. Test Connection, Diagnose, Create and Edit Site all reject http:// (and any non-HTTPS scheme) with a 400 error before any outbound request is dispatched, so the API token never leaves the process in cleartext. The rule is now also enforced in the HTTP transport itself, so it covers every request the app makes — favicons, template stylesheets, site images and the update check included
