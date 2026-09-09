@@ -24,7 +24,7 @@ final class App
     public const NAME = 'Grafida';
 
     /** Application version (semantic versioning). */
-    public const VERSION = '0.3';
+    public const VERSION = '1.0';
 
     /**
      * Oldest macOS version Grafida can run on.

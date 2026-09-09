@@ -2,22 +2,24 @@
 
 **Joomla content editing, untethered.**
 
-Grafida is a cross-platform desktop application for creating and editing [Joomla!](https://www.joomla.org) articles. 
+Grafida is also available on [iPad / iPhone](https://github.com/akeeba/grafida-ipad) and [Android](https://github.com/akeeba/grafida-tauri). Learn more on [Grafida.app](https://grafida.app).
+
+## What's this?
+
+Grafida is an offline-first article editor for Windows, Linux, and macOS desktops and laptops.
+It lets writers connect to  one or more Joomla! 4+ sites, create or edit articles locally, manage
+article metadata and media, and publish through Joomla's Web Services API only when they are ready.
+
+Drafts remain in the app's on-device database, while API tokens are protected by your OS. The
+editor supports formatted HTML, Markdown import, custom fields, local and remote images, and an
+optional AI assistant using a user-selected provider. Local inference is supported through the use
+of third-party tools with an OpenAI-compatible API such as LM Studio and Ollama.
+
+Grafida does not host sites, provide a Grafida account, or send data through an Akeeba service.
+You own your data. You don't give up your privacy. You are in control.
 
 > [!IMPORTANT]
 > Grafida is focused on content _authoring_, not content management. It only provides an essential subset of features compared to the full Joomla! article editor page.
-
-Grafida uses the Joomla Web Services (REST) API. It's built with [Boson](https://bosonphp.com) (PHP on the desktop) and runs natively on **macOS, Windows, and Linux**. It _does not_ use Electron; Boson uses the resource-efficient WebView provided by your Operating System.
-
-## This software may not work on Windows Home
-
-New installations of Windows enable [Smart App Control (SAC)](https://windowsforum.com/threads/windows-11-sac-toggle-new-option-lets-you-turn-smart-app-control-on-or-off-without-reinstall.393866/) by default. On Windows _Home_ edition (and _only_ the Home edition) this has a rather concerning side effect: it will block a _signed_ application from executing if Microsoft's cloud does not positively report the application as known safe. On the Pro and Enterprise versions of Windows it will allow execution unless the app is positively reported by Microsoft's cloud as malicious.
-
-Windows blocks execution in an objectively misleading manner. It reports that the application failed to load its DLL file. This disingenuously frames the problem as an application error when, in fact, it is Windows itself prohibiting execution for no good reason! To make things worse, there is no obvious error message and no obvious GUI element to allow execution.
-
-If that wasn't bad enough, us developers have no way to rectify this situation. It can only be rectified by having several hundred thousand people using our application… which is, of course, made impossible by the fact that Windows blocks execution and the niche nature of this software.
-
-As per the information in the article linked above, the only way you can use this software on Windows Home is by disabling SAC. We cannot and will not ask users to do that on their machines. Instead, we explicitly mark Windows Home as incompatible and will refuse to respond to any support requests concerning this Operating System as there is no action possible on our end. 
 
 ## Key Features
 
@@ -36,7 +38,7 @@ As per the information in the article linked above, the only way you can use thi
 
 ## Requirements
 
-- A Joomla **5.4 or later** site with the Web Services API enabled and an API token for an account
+- A Joomla **4.0 or later** site with the Web Services API enabled and an API token for an account
   authorised for API access. Super Users work by default. Non-Super-User accounts can be configured
   for Grafida; see [Custom API access](https://github.com/akeeba/grafida/wiki/Custom-API-Access).
 - To run a pre-built release: **macOS 15 Sequoia+**, **Windows 10+** (with the Microsoft Edge
@@ -56,17 +58,6 @@ As per the information in the article linked above, the only way you can use thi
 5. Click **Publish** to send the article to your site, or just keep editing — drafts are saved
    locally and automatically.
 
-## Documentation
-
-The documentation lives in [`docs/`](docs/) and is published in two places, from that one source:
-
-- **Inside the application** — the **Help** item in the sidebar. It ships with the binary, so it
-  works offline and with no site configured.
-- **On the web** — the [GitHub wiki](https://github.com/akeeba/grafida/wiki).
-
-The wiki is generated; please open a pull request against `docs/` rather than editing wiki pages,
-or your changes will be overwritten by the next release.
-
 ### Code signing
 
 - **macOS** — releases are **signed with a Developer ID and notarised by Apple** (builds made
@@ -84,26 +75,6 @@ or your changes will be overwritten by the next release.
   of "Unknown Publisher" and improves behaviour with enterprise AV/EDR and AppLocker. Click **More
   info → Run anyway** if you still see the warning.
 - **Linux** — no signing is involved; nothing extra is required.
-
-## Philosophy
-
-### Raison d'être
-
-Joomla! is an excellent Content _Management_ System. However, its plethora of content management features has made content authoring in the Joomla article edit page fairly painful. This is not a complaint; power comes with complexity, and we – the Joomla community – chose power over simplicity.
-
-Inexperienced users find the tiny content area surrounded by a swarm of inscrutable options utterly bewildering. Experienced users find the tiny content area unusable, having to use external tools for authoring, resulting in excessive copying and pasting. Nobody's happy – which is why we see the overuse (and abuse) of page builders on sites that can't have possibly benefited from using one. They put content first.
-
-You know what else puts content first? Desktop content authoring applications made for WordPress. Remember Windows Live Writer? MarsEdit? What if we could bring that to Joomla? After all, modern Joomla has a rich API which should allow making that possible. 
-
-### Focused content authoring
-
-The driving force behind Grafida is making _content authoring_ simple but powerful. A title. A big content area. Sit down and work on your words. You need some AI assistance to elucidate your point? Configure it once, and it's right there when you need it. It's like a word processor, but it “speaks” the native data type of your CMS. When you're done, you hit Publish. Spotted a problem? Fix it, hit Publish again. No fuss, no mess, no copy-pasting shenanigans, no stress.
-
-You need to _manage_ your content? Log into your site with your browser. Manage your content with the plethora of options Joomla and its extensions give you. Tell Joomla how to show the article page. Who can edit it. Add OpenGraph images. Work your SEO magic. You don't really need to touch the content for most, if not all, of that anyway.
-
-Content authoring and content management are not mutually exclusive. _They work together_. Any changes you made in Joomla can be brought back to Grafida for further editing and published back into Joomla without messing up your content management options.
-
-The goal is to use Grafida for distraction-free content authoring, and Joomla itself for content management.
 
 ## Out-of-scope features
 
