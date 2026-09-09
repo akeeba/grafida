@@ -55,6 +55,9 @@ final class App
     /** Copyright line. */
     public const COPYRIGHT = 'Copyright © 2026 Nicholas K. Dionysopoulos';
 
+    /** Canonical author biography URL. */
+    public const AUTHOR_URL = 'https://www.dionysopoulos.me/about-me';
+
     /** Licence name. */
     public const LICENSE = 'GNU General Public License version 3, or later';
 
@@ -70,7 +73,7 @@ final class App
     /**
      * The metadata payload sent to the front-end at start-up.
      *
-     * @return array{name: string, version: string, copyright: string, license: string, licenseUrl: string, disclaimer: string}
+     * @return array{name: string, version: string, copyright: string, authorUrl: string, license: string, licenseUrl: string, disclaimer: string}
      */
     public static function info(): array
     {
@@ -78,6 +81,7 @@ final class App
             'name'       => self::NAME,
             'version'    => self::VERSION,
             'copyright'  => self::COPYRIGHT,
+            'authorUrl'  => self::AUTHOR_URL,
             'license'    => self::LICENSE,
             'licenseUrl' => self::LICENSE_URL,
             'disclaimer' => self::JOOMLA_DISCLAIMER,

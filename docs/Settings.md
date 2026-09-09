@@ -26,8 +26,8 @@ This has nothing to do with the language of the articles you write, which is set
 dictionary, which is an operating-system setting.
 
 > [!NOTE]
-> This documentation is in English only. It is a single source shared with the project's GitHub
-> wiki, which has nowhere to put a translated set.
+> This documentation is in English only. The app and the Grafida.app Documentation section share
+> the same English source.
 
 ## Display mode
 

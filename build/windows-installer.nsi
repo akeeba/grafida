@@ -54,8 +54,8 @@ Unicode true
 !endif
 
 !define APPNAME    "Grafida"
-!define PUBLISHER  "Nicholas K. Dionysopoulos / Akeeba Ltd"
-!define APPURL     "https://github.com/akeeba/grafida"
+!define PUBLISHER  "Nicholas K. Dionysopoulos"
+!define APPURL     "https://github.com/grafida/grafida"
 !define APPEXE     "grafida.exe"
 !define APPPHAR    "grafida.phar"
 !define APPDLL     "libboson-windows-x86_64.dll"

@@ -544,8 +544,8 @@ ship inside the app.
   carries the **effective**, clamped values, which the SPA writes back so a server-side clamp is
   visible rather than silently reverted on the next render).
   **The Help screen** (`#help-screen`, `loadHelpScreen()` / `renderHelpToc()` / `openHelpPage()`)
-  shows the documentation bundled in `docs/` — the same Markdown files that are published as the
-  project's GitHub wiki. Two panes, each scrolling independently: the table of contents (a
+  shows the documentation bundled in `docs/` — the same Markdown files that are published in the
+  Grafida.app Documentation section. Two panes, each scrolling independently: the table of contents (a
   recursively rendered tree from `docs/_manifest.json`, with a filter box that keeps a node whenever
   any *descendant* matches, or the only route to a matching page would be hidden) and the rendered
   page. `#help-screen` sets `overflow: hidden` so the screen itself never grows a second scrollbar
@@ -586,8 +586,8 @@ ship inside the app.
   ⚠️ The drag handle `#help-toc-resizer` is positioned against `#help-layout` and **not** against
   `#help-toc`: that pane scrolls, so a handle inside it would scroll away with the content and be
   clipped by its `overflow`. It sits in the 20px grid gutter, overlapping neither pane.
-  The documentation is **English only** — one source shared with a wiki that has a flat page
-  namespace — so `applyStrings()` re-renders only the screen's chrome, never the page or its titles.
+  The documentation is **English only** — one source shared with the website — so
+  `applyStrings()` re-renders only the screen's chrome, never the page or its titles.
   The rest is in `.claude/rules/documentation.md`.
   **Collapsible/resizable layout** (`initLayoutControls()` in `app.js`): the left **`#sidebar`**
   and the editor metadata **`#editor-sidebar`** ("Article properties") each carry an `.icon-toggle`

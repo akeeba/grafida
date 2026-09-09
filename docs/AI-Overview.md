@@ -54,7 +54,7 @@ add tools, is in [Tools](AI-Tools).
 ## Where your text goes
 
 Grafida sends the request **straight from your computer to the provider you configured**. There is
-no Akeeba server in the middle, and nothing is sent anywhere unless you press a tool or send a
+no Grafida server in the middle, and nothing is sent anywhere unless you press a tool or send a
 message.
 
 What that means in practice depends entirely on who you point it at. A hosted provider sees your

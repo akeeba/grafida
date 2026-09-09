@@ -996,6 +996,10 @@ input[type="color"].form-control {
     color: var(--color-text);
 }
 
+.about-copyright {
+    color: var(--color-accent);
+}
+
 .about-disclaimer {
     margin: 8px 0 0;
     padding-top: 12px;

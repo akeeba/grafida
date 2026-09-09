@@ -1,8 +1,9 @@
 <?php
 /**
- * @package   panopticon
- * @copyright Copyright (c)2023-2026 Nicholas K. Dionysopoulos / Akeeba Ltd
- * @license   https://www.gnu.org/licenses/agpl-3.0.txt GNU Affero General Public License, version 3 or later
+ * Grafida — Joomla content editing, untethered.
+ *
+ * @copyright Copyright (c) 2023-2026 Nicholas K. Dionysopoulos
+ * @license   GNU General Public License version 3, or later
  */
 
 namespace tasks;
@@ -15,7 +16,7 @@ use Phing\Task;
  * Fetches the latest stable release from GitHub and writes a JSON summary to a file.
  *
  * Attributes:
- *  - organization  GitHub organisation name (e.g. "akeeba")
+ *  - organization  GitHub organisation name (e.g. "grafida")
  *  - repository    GitHub repository name   (e.g. "grafida")
  *  - token         GitHub personal access token (optional, avoids rate-limiting)
  *  - outfile       Absolute path to the output file (e.g. "${dirs.release}/update.json")

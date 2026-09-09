@@ -2,7 +2,7 @@
 
 **Joomla content editing, untethered.**
 
-Grafida is also available on [iPad / iPhone](https://github.com/akeeba/grafida-ipad) and [Android](https://github.com/akeeba/grafida-tauri). Learn more on [Grafida.app](https://grafida.app).
+Grafida is also available on [iPad / iPhone](https://github.com/grafida/grafida-ipad) and [Android](https://github.com/grafida/grafida-tauri). Learn more on [Grafida.app](https://grafida.app).
 
 ## What's this?
 
@@ -15,7 +15,7 @@ editor supports formatted HTML, Markdown import, custom fields, local and remote
 optional AI assistant using a user-selected provider. Local inference is supported through the use
 of third-party tools with an OpenAI-compatible API such as LM Studio and Ollama.
 
-Grafida does not host sites, provide a Grafida account, or send data through an Akeeba service.
+Grafida does not host sites, provide a Grafida account, or send data through an intermediary service.
 You own your data. You don't give up your privacy. You are in control.
 
 > [!IMPORTANT]
@@ -40,12 +40,12 @@ You own your data. You don't give up your privacy. You are in control.
 
 - A Joomla **4.0 or later** site with the Web Services API enabled and an API token for an account
   authorised for API access. Super Users work by default. Non-Super-User accounts can be configured
-  for Grafida; see [Custom API access](https://github.com/akeeba/grafida/wiki/Custom-API-Access).
+  for Grafida; see [Custom API access](https://grafida.app/docs/desktop/Custom-API-Access.html).
 - To run a pre-built release: **macOS 15 Sequoia+**, **Windows 10+** (with the Microsoft Edge
   WebView2 Runtime, which ships with Windows 11 and current Windows 10), or **Linux** with GTK4
   and WebKitGTK 6.0 (`libgtk-4-1`, `libwebkitgtk-6.0-4`). The macOS floor is set by the prebuilt
   Boson webview library, which is linked against a macOS 15 SDK and cannot be loaded by macOS 14
-  Sonoma or earlier ([gh-58](https://github.com/akeeba/grafida/issues/58)).
+  Sonoma or earlier ([gh-58](https://github.com/grafida/grafida/issues/58)).
 
 ## Usage
 
@@ -102,7 +102,7 @@ extensions, plus [Composer](https://getcomposer.org), [Node.js + npm](https://no
 [Phing](https://www.phing.info) installed as a **global** command.
 
 ```bash
-git clone https://github.com/akeeba/grafida.git
+git clone https://github.com/grafida/grafida.git
 cd grafida
 composer install                     # also vendors the front-end libraries via npm
 

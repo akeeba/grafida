@@ -47,7 +47,7 @@
 	<property name="windows.sign.op-field-password" value="password" />
 	<property name="windows.sign.op-field-tenant" value="tenant" />
 	<property name="windows.sign.keystore" value="weu.codesigning.azure.net" />
-	<property name="windows.sign.alias" value="akeeba-signing/AkeebaPublic" />
+	<property name="windows.sign.alias" value="grafida-signing/GrafidaPublic" />
 	<property name="windows.sign.tsaurl" value="http://timestamp.acs.microsoft.com" />
 
 	<!--
@@ -455,21 +455,9 @@
 			description="Alias for 'package' — build and package every platform" />
 
 	<!--
-	Publishes docs/ to the GitHub wiki, which is a separate repository nothing else in this build
-	touches. Kept as its own target as well as a step of `release` so the wiki can be refreshed
-	between releases (a documentation fix should not wait for a version bump). Needs push access to
-	<repo>.wiki.git — the same SSH key as the main repository.
-	-->
-	<target name="wiki" description="Publish docs/ to the GitHub wiki">
-		<exec executable="bash" dir="${dirs.root}" passthru="true" checkreturn="true">
-			<arg value="scripts/sync-wiki.sh" />
-		</exec>
-	</target>
-
-	<!--
 	Mirrors docs/ into the sibling grafida-site repository's content/docs/desktop/, so the
-	marketing site's documentation stays current. A separate target from `wiki` (also a step of
-	`release`) so it can be run standalone; it only writes to the site's working tree — it is that
+	marketing site's documentation stays current. It can be run standalone as well as during
+	`release`; it only writes to the site's working tree — it is that
 	repository's own job to commit and push. Needs the sibling checkout at ../grafida-site (or
 	GRAFIDA_SITE_DIR).
 	-->
@@ -525,13 +513,7 @@
 			</fileset>
 		</ftpsupload>
 
-		<!-- 4. Publish the documentation to the GitHub wiki. Last, and deliberately so: it is the
-		     only step that writes to a repository other than the release itself, and a wiki that
-		     lags the release by a minute is a far smaller problem than a release that never got
-		     published because the wiki clone failed. -->
-		<phing phingfile="${phing.file}" target="wiki" inheritAll="true" />
-
-		<!-- 5. Mirror the documentation into the sibling grafida-site repository, best-effort — a
+		<!-- 4. Mirror the documentation into the sibling grafida-site repository, best-effort — a
 		     missing checkout must not fail the release. -->
 		<phing phingfile="${phing.file}" target="site-docs" inheritAll="true" haltonfailure="false" />
 

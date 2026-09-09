@@ -30,7 +30,7 @@ Grafida 0.3
 + The Articles list shows each article's created and modified date, on both tabs (gh-53)
 + Ctrl/Cmd+Shift+V pastes the clipboard into the editor as plain text, in a single keystroke
 + Settings: choose how the source code editor closes HTML tags — both halves, closing tags only, or off (gh-52)
-+ Built-in Help screen with the documentation, also published as the GitHub wiki (gh-55)
++ Built-in Help screen with the documentation, also published on Grafida.app (gh-55)
 + Help screen: the contents list can be resized or hidden, for narrow screens (gh-55)
 + Documentation: Articles, Editing Articles, Media Manager, Settings, Request Log, Connection Troubleshooting, Help and the four AI pages, with screenshots (gh-55)
 + MiniMax is now a built-in AI service provider

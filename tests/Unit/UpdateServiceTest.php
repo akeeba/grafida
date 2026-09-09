@@ -19,6 +19,11 @@ final class UpdateServiceTest extends TestCase
 {
     private const URL = 'https://cdn.example.com/grafida.json';
 
+    public function testCanonicalUpdateUrlUsesGrafidaApp(): void
+    {
+        $this->assertSame('https://grafida.app/updates/grafida.json', UpdateService::UPDATE_URL);
+    }
+
     private string $cacheFile;
 
     protected function setUp(): void
@@ -41,7 +46,7 @@ final class UpdateServiceTest extends TestCase
         return new HttpResponse(200, json_encode([
             'version'  => $version,
             'date'     => '2026-07-01',
-            'infoURL'  => 'https://github.com/akeeba/grafida/releases/tag/' . $version,
+            'infoURL'  => 'https://github.com/grafida/grafida/releases/tag/' . $version,
             'download' => 'https://example.com/Grafida-' . $version . '.dmg',
         ]));
     }
@@ -53,7 +58,7 @@ final class UpdateServiceTest extends TestCase
 
         $this->assertTrue($status['available']);
         $this->assertSame('0.2', $status['version']);
-        $this->assertSame('https://github.com/akeeba/grafida/releases/tag/0.2', $status['infoURL']);
+        $this->assertSame('https://github.com/grafida/grafida/releases/tag/0.2', $status['infoURL']);
         $this->assertSame('https://example.com/Grafida-0.2.dmg', $status['download']);
         $this->assertFileExists($this->cacheFile);
         $this->assertCount(1, $http->requests);

@@ -226,7 +226,7 @@ final class UiStrings
         'GRAFIDA_MSG_REQUEST_LOG_EXPORTED', 'GRAFIDA_MSG_CLEAR_REQUEST_LOG_CONFIRM',
 
         // Help screen. Only the chrome is here: the documentation itself is
-        // English-only (one source shared with the GitHub wiki) and is served
+        // English-only (one source shared with the website) and is served
         // from docs/ by Help\HelpService, not through the language files.
         'GRAFIDA_NAV_HELP', 'GRAFIDA_BTN_HELP', 'GRAFIDA_BTN_HELP_ON_WEB',
         'GRAFIDA_LBL_HELP_FILTER', 'GRAFIDA_MSG_NO_HELP_MATCHES',

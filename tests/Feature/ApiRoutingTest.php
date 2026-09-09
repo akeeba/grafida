@@ -160,6 +160,7 @@ final class ApiRoutingTest extends TestCase
         self::assertSame(\Grafida\Support\App::VERSION, $json['data']['app']['version']);
         self::assertStringContainsString('GNU General Public License', $json['data']['app']['license']);
         self::assertStringStartsWith('https://www.gnu.org/', $json['data']['app']['licenseUrl']);
+        self::assertSame('https://www.dionysopoulos.me/about-me', $json['data']['app']['authorUrl']);
         self::assertStringContainsString('Open Source Matters', $json['data']['app']['disclaimer']);
     }
 

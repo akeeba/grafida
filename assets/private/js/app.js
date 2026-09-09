@@ -7807,7 +7807,7 @@ function applyStrings() {
     renderSidebarFooter();
     renderUpdateNotice();
     renderThemeSwitch();
-    // The documentation itself is English-only (one source shared with the wiki,
+    // The documentation itself is English-only (one source shared with the website,
     // which has nowhere to put a translated set), so a language switch leaves the
     // page and its table of contents alone — but the chrome around them is
     // rebuilt in JS and would otherwise keep the old language until the screen
@@ -7929,19 +7929,25 @@ async function exportRequestLogHandler() {
 // ============================================================
 //
 // The documentation bundled in docs/ (see src/Help/HelpService.php), which is
-// also what gets published as the project's GitHub wiki. Everything here reads
+// also what gets published in the Grafida.app Documentation section. Everything here reads
 // files that shipped inside the binary — no site, no network, no database — so
 // the Help screen works with nothing configured at all, which is exactly when
 // someone is most likely to open it.
 //
 // The pages are English-only, deliberately: they are one source shared with the
-// wiki, whose flat page namespace has nowhere to put a translated set. So the
+// website. So the
 // table of contents shows the manifest's own titles untranslated while the
 // chrome around it (the filter box, the buttons, the error states) follows the
 // interface language like everything else.
 
-/** GitHub wiki base for "read this page on the web". */
-const HELP_WIKI_URL = 'https://github.com/akeeba/grafida/wiki/';
+/** Grafida.app documentation base for "read this page on the web". */
+const HELP_WEB_URL = 'https://grafida.app/docs/desktop/';
+
+/** Return the published website URL for an in-app documentation page. */
+function helpWebUrl(slug) {
+    const page = slug === 'Home' ? 'index' : encodeURIComponent(slug);
+    return HELP_WEB_URL + page + '.html';
+}
 
 /**
  * Opens the Help screen, optionally on a specific page. This is the entry point
@@ -8094,7 +8100,7 @@ function syncHelpTocToggle() {
     if (toggle) toggle.setAttribute('aria-pressed', collapsed ? 'false' : 'true');
 }
 
-/** The Help screen's own toolbar: read the current page on the GitHub wiki. */
+/** The Help screen's own toolbar: read the current page on Grafida.app. */
 function renderHelpActions() {
     const actions = document.getElementById('help-actions');
     if (!actions) return;
@@ -8104,7 +8110,7 @@ function renderHelpActions() {
 
     const webBtn = iconBtn('up-right-from-square', t('GRAFIDA_BTN_HELP_ON_WEB'), 'btn', 'btn-secondary');
     webBtn.addEventListener('click', () => {
-        api.openUrl(HELP_WIKI_URL + encodeURIComponent(State.helpSlug)).catch(err => showToast(err.message, 'error'));
+        api.openUrl(helpWebUrl(State.helpSlug)).catch(err => showToast(err.message, 'error'));
     });
     actions.appendChild(webBtn);
 }
@@ -9082,9 +9088,8 @@ async function checkForUpdate() {
     renderUpdateNotice();
 }
 
-/** Open the licence text in the user's default web browser. */
-async function openLicenseUrl() {
-    const url = State.app.licenseUrl;
+/** Open one of the About dialog's links in the user's default web browser. */
+async function openAboutUrl(url) {
     if (!url) return;
     try {
         await api.openUrl(url);
@@ -9102,13 +9107,19 @@ function showAboutDialog() {
     const versionEl = el('p', 'about-version',
         ...formatNodes(t('GRAFIDA_LBL_VERSION') + ' %s', app.version || ''));
 
-    const copyrightEl = app.copyright ? el('p', 'about-copyright', app.copyright) : null;
+    const copyrightEl = app.copyright
+        ? el('button', 'about-copyright btn btn-link', app.copyright)
+        : null;
+    if (copyrightEl) {
+        copyrightEl.type = 'button';
+        copyrightEl.addEventListener('click', () => openAboutUrl(app.authorUrl));
+    }
 
     const licenseLine = el('p', 'about-license',
         ...formatNodes(t('GRAFIDA_LBL_LICENSE') + ': %s', app.license || ''));
 
     const licenseLink = iconBtn('up-right-from-square', t('GRAFIDA_ABOUT_VIEW_LICENSE'), 'btn', 'btn-link');
-    licenseLink.addEventListener('click', openLicenseUrl);
+    licenseLink.addEventListener('click', () => openAboutUrl(app.licenseUrl));
 
     // Joomla! trademark disclaimer — displayed verbatim, never translated.
     const disclaimerEl = app.disclaimer ? el('p', 'about-disclaimer', app.disclaimer) : null;

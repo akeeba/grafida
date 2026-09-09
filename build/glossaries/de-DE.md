@@ -166,7 +166,7 @@ Eigennamen (Grafida, Joomla!, API, Markdown, HTML, TinyMCE) werden nicht überse
 | HTML tag (markup) | HTML-Tag | Ein Markup-Element wie `<p>` im Quellcode-Editor (gh-52). ⚠️ Nicht mit dem Joomla-Begriff „Schlagwörter" (tags) verwechseln — hier geht es um Auszeichnung, nicht um Taxonomie. GRAFIDA_LBL_AUTO_CLOSE_TAGS. |
 | close tags for me | HTML-Tags automatisch schließen | Die Einstellung des Quellcode-Editors mit drei Werten: „Öffnende und schließende Tags" / „Nur schließende Tags" / „Aus" (gh-52). |
 | help (screen / documentation) | Hilfe | Der Navigationsbildschirm, der die integrierte Dokumentation anzeigt. GRAFIDA_NAV_HELP. |
-| documentation | Dokumentation | Die mit der Anwendung ausgelieferten Markdown-Seiten, die zugleich als GitHub-Wiki veröffentlicht werden. Die Seiten selbst bleiben englisch — übersetzt wird nur die Oberfläche des Bildschirms. |
+| documentation | Dokumentation | Die mit der Anwendung ausgelieferten Markdown-Seiten, die zugleich auf Grafida.app veröffentlicht werden. Die Seiten selbst bleiben englisch — übersetzt wird nur die Oberfläche des Bildschirms. |
 | page (documentation) | Seite | Ein Dokumentationsartikel im Inhaltsverzeichnis; nicht „Beitrag" (für Joomla!-Inhalte reserviert). |
 | table of contents | Inhaltsverzeichnis | Das Seitenverzeichnis im Hilfebildschirm; ein-/ausklappbar und in der Breite veränderbar. GRAFIDA_BTN_TOGGLE_CONTENTS. |
 | paste as plain text | Als unformatierten Text einfügen | Das Tastenkürzel Cmd/Strg+Shift+V: fügt die Zwischenablage mit einem Anschlag als unformatierten Text ein. Nicht der TinyMCE-Menüpunkt „Als Text einfügen“, der ein Moduswechsel ist. GRAFIDA_LBL_HELP_SC_PASTE_TEXT. |

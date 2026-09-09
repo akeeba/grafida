@@ -20,7 +20,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
  * manifest (which is the *only* index — nothing is discovered by scanning, so a
  * malformed entry has to fail visibly rather than take the table of contents
  * down with it) and the link rewriting that lets one set of Markdown files serve
- * both the GitHub wiki and a webview that can follow neither kind of link.
+ * both the documentation website and a webview that can follow neither kind of link.
  */
 final class HelpServiceTest extends TestCase
 {
@@ -264,7 +264,7 @@ final class HelpServiceTest extends TestCase
      * GitHub's alert blockquotes are a GitHub *rendering* feature, not part of
      * the GFM spec, so CommonMark's GFM extension does not implement them and
      * `HelpService` synthesises them. Without that, the marker survives as a
-     * literal `[!NOTE]` line — the one place the wiki and the app would visibly
+     * literal `[!NOTE]` line — the one place the website and the app would visibly
      * disagree about what a page means.
      *
      * @return list<array{0: string, 1: string, 2: string, 3: string}>
@@ -418,12 +418,12 @@ final class HelpServiceTest extends TestCase
     public function testAnExternalLinkKeepsItsFragment(): void
     {
         $this->writeManifest([['slug' => 'Home', 'title' => 'Introduction']]);
-        $this->writePage('Home', "See the [README](https://github.com/akeeba/grafida#readme).\n");
+        $this->writePage('Home', "See the [README](https://github.com/grafida/grafida#readme).\n");
 
         $page = $this->service()->page('Home');
 
         $this->assertNotNull($page);
-        $this->assertStringContainsString('href="https://github.com/akeeba/grafida#readme"', $page['html']);
+        $this->assertStringContainsString('href="https://github.com/grafida/grafida#readme"', $page['html']);
         $this->assertStringContainsString('data-help-external="1"', $page['html']);
     }
 

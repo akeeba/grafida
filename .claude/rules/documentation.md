@@ -1,9 +1,8 @@
 ---
-description: Grafida's documentation — the docs/ Markdown that is BOTH the in-app Help screen and the GitHub wiki. Source-format constraints, the manifest, the in-app renderer, and the wiki sync.
+description: Grafida's documentation — the docs/ Markdown shared by the in-app Help screen and the Grafida.app Documentation section. Source-format constraints, the manifest, the in-app renderer, and site sync.
 paths:
   - "docs/**"
   - "src/Help/**"
-  - "scripts/sync-wiki.sh"
   - "scripts/sync-site-docs.sh"
 ---
 
@@ -11,27 +10,25 @@ paths:
 
 (gh-55.)
 
-`docs/` is a **single source with three consumers**: the in-app **Help** screen (`src/Help/`,
-`src/Http/Controller/HelpController.php`, the SPA's `help` screen), the project's **GitHub
-wiki** at <https://github.com/akeeba/grafida/wiki> (`scripts/sync-wiki.sh`), and the marketing
-site's documentation section, `../grafida-site/content/docs/desktop/` (`scripts/sync-site-docs.sh`,
-`phing site-docs`) — a **verbatim** mirror (whole tree, `_manifest.json` and `images/` included, no
-H1 stripping unlike the wiki sync) since that consumer renders the files as-is. It only writes the
+`docs/` is a **single source with two consumers**: the in-app **Help** screen (`src/Help/`,
+`src/Http/Controller/HelpController.php`, the SPA's `help` screen), and the Grafida.app
+Documentation section, mirrored into `../grafida-site/content/docs/desktop/`
+(`scripts/sync-site-docs.sh`, `phing site-docs`, or `composer docs:site`). The mirror is
+**verbatim** (whole tree, `_manifest.json` and `images/` included) since the website renders the
+files as-is. It only writes the
 sibling repository's working tree; committing and pushing there is that repository's own job. Run
 it as part of `phing release` (best-effort — a missing `../grafida-site` checkout does not fail the
 release) or standalone whenever `docs/` changes and the site should catch up sooner.
 
-The wiki is the dumber consumer, so **it dictates the source format and the app adapts** — not the
-other way round. That is the single decision everything below follows from.
+The website and app deliberately share one predictable source format.
 
-## Source-format rules (breaking one breaks the wiki silently)
+## Source-format rules
 
-- **One flat directory, one file per page.** The file name *is* the wiki page name:
-  `Custom-API-Access.md` → the wiki's "Custom API Access" page. Slugs are `[A-Za-z0-9_-]+` — that
+- **One flat directory, one file per page.** The file name is the page slug:
+  `Custom-API-Access.md` → the website's "Custom API Access" page. Slugs are `[A-Za-z0-9_-]+` — that
   same character class is the route placeholder (`{key}`) *and* the file name, so a space or a
   slash in a slug is not a style question, it is a 404.
-- ⚠️ **No YAML front matter.** A GitHub wiki does not strip it; it renders as visible junk at the
-  top of the page. Page metadata lives in `docs/_manifest.json` instead.
+- ⚠️ **No YAML front matter.** Page metadata lives in `docs/_manifest.json` instead.
 - ⚠️ **Every page must be listed in `docs/_manifest.json`, and nothing is discovered by scanning.**
   This is not a preference: `glob()` does not work on a `phar://` path, and the docs are read
   straight out of the compiled binary. A manifest-driven index is what lets
@@ -43,7 +40,7 @@ other way round. That is the single decision everything below follows from.
   `{slug?, title, children?}`, to a depth of `HelpService::MAX_DEPTH` (4). A node with no `slug` is
   a **heading** — a section with no page of its own, so a section never has to invent a landing
   page just to exist. But the `.md` files stay in **one flat directory** however deep the tree
-  goes, because a GitHub wiki has a flat page namespace and cannot represent a folder. The
+  goes, because the website's manifest-driven builder expects a flat page namespace. The
   hierarchy lives in the manifest and nowhere else; do not mirror it as subdirectories.
   Two parser rules worth knowing: a node with an *unusable* slug is dropped **whole, children
   included** (it cannot be linked to, so its subtree would be orphaned under an unreachable
@@ -51,12 +48,11 @@ other way round. That is the single decision everything below follows from.
   *after* its children are parsed, the flat slug index is built by walking the **finished** tree
   (`indexOf()`), never accumulated on the way down — anything recorded during the descent could
   belong to a subtree that no longer exists.
-- **Links between pages are written the way the wiki resolves them**: a bare relative page name,
+- **Links between pages are bare relative page names**:
   `[Custom API access](Custom-API-Access)`. A `.md` suffix and a `#fragment` are stripped from the
   slug.
 - **Images live in `docs/images/`, flat, referenced as `images/foo.png`.** The renderer rewrites
-  that to `/api/help/image/foo.png` by **basename**, so a subdirectory would resolve in the wiki
-  and 404 in the app.
+  that to `/api/help/image/foo.png` by **basename**, so a subdirectory would 404 in the app.
   ⚠️ **They ship inside every binary** (`docs/` is in `boson.json`'s `build.directories`), so a
   screenshot's file size is multiplied by every platform we build. Full-resolution 2× PNG captures
   run 0.5–0.7 MB each; run every new one through
@@ -75,13 +71,11 @@ other way round. That is the single decision everything below follows from.
   `> [!WARNING]`, `> [!CAUTION]`, written exactly as GitHub wants them. They are *not* part of the
   GFM spec (they are a GitHub rendering feature), so CommonMark's GFM extension does not implement
   them and `HelpService::styleAlerts()` synthesises the callout for the app; the source is untouched
-  and the wiki goes on using GitHub's own styling. An **unrecognised** marker (`> [!SOMETHING]`) is
+  and the website can apply matching styling. An **unrecognised** marker (`> [!SOMETHING]`) is
   deliberately left as a plain blockquote, which is what GitHub does with it too.
 - **Keep the `# H1`** at the top of each file. It is what makes the file readable on its own, in
-  the repository and on GitHub's blob view. The sync script strips it on the way to the wiki, where
-  GitHub already prints the page name as a heading.
-- **The documentation is English only**, deliberately. A GitHub wiki has a flat page namespace with
-  nowhere to put a translated set, and the two consumers share one source. Only the Help screen's
+  the repository and on GitHub's blob view, and the website uses it as the page heading.
+- **The documentation is English only**, deliberately. The two consumers share one source. Only the Help screen's
   *chrome* (filter box, buttons, error states) is translated, through the usual
   `language/en-GB/en-GB.ini` + `UiStrings::KEYS` route.
 
@@ -138,7 +132,7 @@ the delegated handler in `initHelpLinks()`:
 
 ⚠️ **`mailto:` and friends are deliberately left untagged.** `UrlOpener::open()` accepts **http(s)
 only** and throws otherwise, so tagging them external would turn a click into an error toast —
-worse than nothing. The href stays intact so the link still reads correctly on the wiki, and the
+worse than nothing. The href stays intact so the link still reads correctly on the website, and the
 SPA's handler ends with a catch-all `preventDefault()` for any non-fragment anchor it did not
 classify, so an unclassified link can never navigate the webview away. CommonMark's
 `allow_unsafe_links => false` has already removed `javascript:`, `data:`, `vbscript:` and `file:`
@@ -174,28 +168,9 @@ their render functions (`renderMediaHeaderActions()`, `renderRequestLogScreen()`
 `renderHelpActions()`), which would destroy a static button placed within them — silently, and only
 from the second render onwards.
 
-## Publishing to the wiki (`scripts/sync-wiki.sh`)
+## Publishing to Grafida.app (`scripts/sync-site-docs.sh`)
 
-`phing wiki` / `composer docs:wiki` (and step 4 of `phing release`). The wiki is a **separate git
-repository** (`akeeba/grafida.wiki.git`) that nothing else in the build touches, so it is cloned
-into `build/wiki-repo` (gitignored), written, committed and pushed.
-
-- ⚠️ **The wiki is a mirror.** Anything edited through GitHub's wiki editor is overwritten on the
-  next sync. Restrict wiki editing to collaborators in the repository settings, and let
-  `_Footer.md` (which the script generates) say so on every page.
-- ⚠️ **GitHub creates the wiki repository lazily** — it does not exist until one page has been
-  saved through the web UI, and cloning a never-created wiki fails rather than yielding an empty
-  repository. The script says this in its error message; the first run on a fresh repository needs
-  that manual step.
-- Exactly **three** transformations happen on the way across, and the file tree is otherwise
-  verbatim: `_manifest.json` becomes `_Sidebar.md` (and is not itself published), a leading `# H1`
-  is dropped, and `_Footer.md` is generated. Resist adding a fourth — the value of this arrangement
-  is that a writer can predict what the wiki will look like from the file in front of them.
-- The sidebar mirrors the manifest tree as a nested Markdown list. A **top-level heading** renders
-  as a bold section title (`**Section**`) and its children stay at list depth 0 — the bold line
-  already supplies the level, so indenting them under a list item that does not exist would just
-  add stray whitespace. A heading deeper down is a plain unlinked list item instead, because a bold
-  run inside a list reads as a mistake.
-- Every `.md` in the clone is deleted before the mirror is written, so a page removed from `docs/`
-  disappears from the wiki instead of lingering.
-- `--dry-run` prepares `build/wiki-repo` without committing or pushing.
+`phing site-docs` / `composer docs:site` (and step 4 of `phing release`) mirrors `docs/` verbatim
+into the sibling `grafida-site` repository's `content/docs/desktop/` directory. The website
+repository owns committing, building and publishing those changes. `--dry-run` previews the rsync
+without writing anything.

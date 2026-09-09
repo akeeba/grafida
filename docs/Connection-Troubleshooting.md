@@ -136,7 +136,7 @@ answered instead of Joomla.
 > **Grafida fires its three candidate requests in quick succession**, which is exactly the pattern a
 > rate limiter is built to catch. A site that works perfectly in a browser can still refuse
 > Grafida's probe. This is a real, reported case
-> ([issue #46](https://github.com/akeeba/grafida/issues/46)): a host's WAF answered all three probes
+> ([issue #46](https://github.com/grafida/grafida/issues/46)): a host's WAF answered all three probes
 > with `429` and its own HTML page, and the generic "no endpoint" message sent the user looking at
 > the URL when the URL was fine all along.
 
@@ -198,13 +198,7 @@ wrong later — a publish that fails, an image that does not upload — switch o
 [Request Log](Request-Log) under **Debug** in [Settings](Settings#debug), reproduce the problem, and
 look at what was actually sent and returned.
 
-If you are troubleshooting a Joomla site's Web Services API in general, the
-[Panopticon connection troubleshooting guide](https://github.com/akeeba/panopticon/wiki/Connection-Troubleshooting)
-covers much of the same ground from the other side of the wire. Panopticon is a server watching your
-site rather than a desktop application, so the network advice differs — but the site-side causes are
-identical, because both use the same API.
-
 When you report a problem on the
-[issue tracker](https://github.com/akeeba/grafida/issues), an exported diagnostic or request log is
+[issue tracker](https://github.com/grafida/grafida/issues), an exported diagnostic or request log is
 by far the most useful thing you can attach. Read it first: it is redacted, but it still describes
 your site.

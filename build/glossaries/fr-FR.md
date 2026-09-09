@@ -166,7 +166,7 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | HTML tag (markup) | balise HTML | Un élément de balisage comme `<p>` dans l'éditeur de code source (gh-52). ⚠️ À ne pas confondre avec le terme Joomla « Tags » (taxonomie) : il s'agit ici de balisage. GRAFIDA_LBL_AUTO_CLOSE_TAGS. |
 | close tags for me | Fermer les balises HTML à ma place | Le réglage de l'éditeur de code source, à trois valeurs : « Balises ouvrantes et fermantes » / « Balises fermantes uniquement » / « Désactivé » (gh-52). |
 | help (screen / documentation) | Aide | L'écran de navigation qui affiche la documentation intégrée. GRAFIDA_NAV_HELP. |
-| documentation | documentation | Les pages Markdown livrées avec l'application, également publiées comme wiki GitHub. Les pages elles-mêmes restent en anglais — seule l'interface de l'écran est traduite. |
+| documentation | documentation | Les pages Markdown livrées avec l'application, également publiées sur Grafida.app. Les pages elles-mêmes restent en anglais — seule l'interface de l'écran est traduite. |
 | page (documentation) | page | Un article de documentation dans la table des matières ; jamais « article » (réservé au contenu Joomla!). |
 | table of contents | table des matières | L'index des pages de l'écran d'aide ; repliable et redimensionnable. GRAFIDA_BTN_TOGGLE_CONTENTS. |
 | paste as plain text | Coller comme texte brut | Le raccourci Cmd/Ctrl+Maj+V : colle le presse-papiers en texte brut d’une seule frappe. Ce n’est pas l’entrée « Coller comme texte » du menu TinyMCE, qui est une bascule de mode. GRAFIDA_LBL_HELP_SC_PASTE_TEXT. |

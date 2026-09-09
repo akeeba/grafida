@@ -9,8 +9,8 @@ Spanish, Italian and Portuguese (Portugal).
 
 > [!NOTE]
 > This applies to the **interface**: menus, buttons, labels and messages. The documentation you are
-> reading is English only, deliberately — it is a single source shared with the project's GitHub
-> wiki, which has a flat page namespace with nowhere to put a translated set.
+> reading is English only, deliberately — the app and the Grafida.app Documentation section share
+> the same English source.
 
 ## The language files
 
@@ -204,7 +204,7 @@ drop-down. This is the quickest way to try a translation without building anythi
 
 ## Where to send it
 
-Open a pull request on the [project's GitHub repository](https://github.com/akeeba/grafida/pulls),
-or raise it on the [Discussions page](https://github.com/akeeba/grafida/discussions) if you would
+Open a pull request on the [project's GitHub repository](https://github.com/grafida/grafida/pulls),
+or raise it on the [Discussions page](https://github.com/grafida/grafida/discussions) if you would
 rather not use git. Please include the glossary change alongside the language file; see
 [Community and help](Community-and-help).

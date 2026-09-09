@@ -159,7 +159,7 @@ Proper nouns kept as-is: Grafida, Joomla!, API, Markdown, HTML, TinyMCE.
 | HTML tag (markup) | etiqueta HTML | Um elemento de marcação como `<p>` no editor de código-fonte (gh-52). ⚠️ Não confundir com o termo Joomla «Etiquetas» (tags, taxonomia): aqui trata-se de marcação. GRAFIDA_LBL_AUTO_CLOSE_TAGS. |
 | close tags for me | Fechar as etiquetas HTML por mim | A definição do editor de código-fonte, com três valores: «Etiquetas de abertura e fecho» / «Apenas etiquetas de fecho» / «Desativado» (gh-52). |
 | help (screen / documentation) | Ajuda | O ecrã de navegação que mostra a documentação integrada. GRAFIDA_NAV_HELP. |
-| documentation | documentação | As páginas Markdown incluídas na aplicação, publicadas também como wiki do GitHub. As páginas mantêm-se em inglês; apenas a interface do ecrã é traduzida. |
+| documentation | documentação | As páginas Markdown incluídas na aplicação, publicadas também no Grafida.app. As páginas mantêm-se em inglês; apenas a interface do ecrã é traduzida. |
 | page (documentation) | página | Um artigo de documentação no índice; nunca «artigo» (reservado para o conteúdo do Joomla!). |
 | table of contents | índice | A lista de páginas no ecrã de ajuda; pode ser recolhida e redimensionada. GRAFIDA_BTN_TOGGLE_CONTENTS. |
 | paste as plain text | Colar como texto simples | O atalho Cmd/Ctrl+Shift+V: cola a área de transferência como texto simples com uma única pressão. Não é a entrada «Colar como texto» do menu do TinyMCE, que alterna um modo. GRAFIDA_LBL_HELP_SC_PASTE_TEXT. |

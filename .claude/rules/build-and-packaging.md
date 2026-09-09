@@ -145,7 +145,7 @@ the guard also fires on a Linux or Windows `composer test`. See the checklist st
 target `git` (also `composer build:git`) compiles the native binary for **every** platform but stops
 short of the installers/DMG — `git` depends on six per-platform targets (`git-macos-arm`,
 `git-macos-x86`, `git-win-x86`, `git-linux-x86`, `git-linux-arm`, `git-phar`). **Phing is expected as a
-globally-installed command** (`phing` on the PATH — like the other Akeeba projects; it is deliberately
+globally-installed command** (`phing` on the PATH; it is deliberately
 *not* a Composer dev dependency), so `composer build:git` just shells out to `phing git`. Because
 `boson compile` builds *all* `boson.json` targets in one pass with no per-OS CLI flag, each target
 shells out to `build/tasks/compile-target.php`, which filters the master `boson.json` down to the one
@@ -158,7 +158,7 @@ can live in `build/.temp/`), drops the stale box/entrypoint cache, then runs `bo
 front-end libraries (force a re-vendor with `-Drefresh.assets=1`); Phing runs `prepare` once per
 invocation. `prepare` also runs **`set-version`** (`build/tasks/set-version.php`): the **`CHANGELOG`
 is the single source of truth for the version** — its topmost entry's heading ends with the version
-number (Akeeba convention, e.g. `Grafida 0.1`; parsed like Akeeba's `AutoVersionTask`), and the step
+number (the project convention, e.g. `Grafida 0.1`), and the step
 stamps it into `App::VERSION` in `src/Support/App.php` before every compile (idempotent; no-ops when
 already current). `GRAFIDA_VERSION` overrides the CHANGELOG. So every `git-*` build (and transitively
 `package-*`/`run`) reports the CHANGELOG version in the binary and the About dialog.
@@ -244,7 +244,7 @@ map is for when the update mechanism itself is built.
 
 ## Release procedure
 
-The exact procedure that worked for 0.1; it refines the generic Akeeba release-workflow skill.
+The exact procedure that worked for 0.1; it refines the generic release-workflow guidance.
 The version comes from the CHANGELOG's top entry; `-Dversion=X.Y.Z` overrides it and stamps
 `App::VERSION`.
 
@@ -267,19 +267,15 @@ The version comes from the CHANGELOG's top entry; `-Dversion=X.Y.Z` overrides it
 6. **Tag:** `git tag X.Y.Z -sm "Tagging X.Y.Z"` (signed), then `git push origin X.Y.Z`.
 7. **Publish:** `phing release -Dversion=X.Y.Z` — repackages all platforms, creates and publishes a
    GitHub release with the six assets, generates `grafida.json`, uploads it over FTPS to the
-   BunnyCDN `updates/` directory, pushes `docs/` to the GitHub wiki, and mirrors `docs/` into the
+   BunnyCDN `updates/` directory and mirrors `docs/` into the
    sibling `grafida-site` repository's `content/docs/desktop/` (best-effort — missing checkout does
    not fail the release; that repository's own commit/push is a separate, manual step).
-8. **Verify:** `curl https://cdn.akeeba.com/updates/grafida.json` reports the new version, and
-   `gh release view X.Y.Z --repo akeeba/grafida` shows `draft=false` with all six assets.
+8. **Verify:** `curl https://grafida.app/updates/grafida.json` reports the new version, and
+   `gh release view X.Y.Z --repo grafida/grafida` shows `draft=false` with all six assets.
 
-The wiki step is **last on purpose**: it is the only step writing to a repository other than the
-release itself, and a wiki that lags the release by a minute is a far smaller problem than a
-release that never got published because a wiki clone failed. It is also a standalone target —
-`phing wiki` / `composer docs:wiki` — so a documentation fix does not have to wait for a version
-bump. See `.claude/rules/documentation.md`; the one thing to know from here is that the wiki is a
-**separate git repository** (`akeeba/grafida.wiki.git`) which GitHub creates lazily, so the very
-first run needs one page saved through the web UI or the clone fails.
+The site documentation mirror is also a standalone target — `phing site-docs` / `composer
+docs:site` — so a documentation fix does not have to wait for a version bump. See
+`.claude/rules/documentation.md`.
 
 ⚠️ **Non-fatal noise to expect:** the Windows `signtool verify` step prints `Timestamp Server
 Signature verification: failed` / `Signature verification: failed` when run on macOS. The Azure
@@ -292,11 +288,11 @@ The whole flow builds no feature branch — commit on `main`.
 
 In `RELEASENOTES.md` the Downloads table must **link** each filename to its GitHub release asset,
 not list bare filenames, so a reader can click straight through. The URL is entirely predictable —
-`https://github.com/akeeba/grafida/releases/download/<TAG>/<FILENAME>`, where `<TAG>` is the version
+`https://github.com/grafida/grafida/releases/download/<TAG>/<FILENAME>`, where `<TAG>` is the version
 number (e.g. `0.1`). So a row is:
 
 ```
-| macOS (Apple Silicon) | [`Grafida-<v>-macos-arm64.dmg`](https://github.com/akeeba/grafida/releases/download/<v>/Grafida-<v>-macos-arm64.dmg) |
+| macOS (Apple Silicon) | [`Grafida-<v>-macos-arm64.dmg`](https://github.com/grafida/grafida/releases/download/<v>/Grafida-<v>-macos-arm64.dmg) |
 ```
 
 Do this for every platform row when writing release notes for a new version.

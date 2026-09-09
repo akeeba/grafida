@@ -12,7 +12,7 @@ On Linux you need the GTK 4 and WebKitGTK 6.0 libraries — on Debian and Ubuntu
 On Windows you need the Microsoft Edge WebView2 Runtime. It is part of Windows 11 and of current Windows 10 installations, so you almost certainly have it already; if Grafida tells you it is missing, [install it from Microsoft](https://developer.microsoft.com/microsoft-edge/webview2/).
 
 > [!IMPORTANT]
-> This application may not work on Windows 11 Home with Smart App Control (SAC) enabled due to a limitation on Microsoft's side. You may try [disabling SAC](https://www.elevenforum.com/t/turn-on-or-off-smart-app-control-in-windows-11.4996/). For more information, please read the project's [README](https://github.com/akeeba/grafida/#readme).
+> This application may not work on Windows 11 Home with Smart App Control (SAC) enabled due to a limitation on Microsoft's side. You may try [disabling SAC](https://www.elevenforum.com/t/turn-on-or-off-smart-app-control-in-windows-11.4996/). For more information, please read the project's [README](https://github.com/grafida/grafida/#readme).
 
 ## Server
 

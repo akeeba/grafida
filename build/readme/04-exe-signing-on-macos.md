@@ -55,7 +55,7 @@ az provider show --namespace Microsoft.CodeSigning --query registrationState -o 
 ### Step 3: Create a Resource Group
 
 ```sh
-az group create --name AkeebaCodeSigning --location westeurope
+az group create --name GrafidaCodeSigning --location westeurope
 ```
 
 Western Europe is the appropriate region for Cyprus/EU.
@@ -64,8 +64,8 @@ Western Europe is the appropriate region for Cyprus/EU.
 
 ```sh
 az trustedsigning create \
-  --name akeeba-signing \
-  --resource-group AkeebaCodeSigning \
+  --name grafida-signing \
+  --resource-group GrafidaCodeSigning \
   --location westeurope \
   --sku Basic
 ```
@@ -76,8 +76,8 @@ Before you can submit an identity validation request in the portal, your Azure u
 
 ```sh
 RESOURCE_ID=$(az trustedsigning show \
-  --name akeeba-signing \
-  --resource-group AkeebaCodeSigning \
+  --name grafida-signing \
+  --resource-group GrafidaCodeSigning \
   --query id -o tsv)
 
 MY_OBJECT_ID=$(az ad signed-in-user show --query id -o tsv)
@@ -92,32 +92,32 @@ Wait a minute or two for the role assignment to propagate before proceeding.
 
 ### Step 6: Submit Identity Validation
 
-This is the only manual step and the slowest part. Microsoft needs to verify that Akeeba Ltd is a legitimate legal entity before issuing publicly trusted certificates. Expect a few days to two weeks.
+This is the only manual step and the slowest part. Microsoft needs to verify the publisher's identity before issuing publicly trusted certificates. Expect a few days to two weeks.
 
 In the Azure Portal ([portal.azure.com](https://portal.azure.com)):
 
 1. Use the search bar at the top and search for **"Trusted Signing"**.
 2. In the results, click **Artifact Signing Accounts** (under Services). Note: the portal uses the old name "Trusted Signing" in search but lists the resource as "Artifact Signing Accounts".
-3. Click on **akeeba-signing**.
+3. Click on **grafida-signing**.
 4. In the left menu, find **Identity validation** and click **New identity validation**.
-5. Select **Organization**.
-6. Fill in Akeeba Ltd's details: legal name, registration number, country (Cyprus), registered address, primary contact email, and website.
+5. Select **Individual**.
+6. Fill in Nicholas K. Dionysopoulos' identity details as requested by the portal.
 7. Submit and wait for the approval email.
 
 Nothing in the steps below is possible until identity validation is approved.
 
 ### Step 7: Create a Certificate Profile
 
-Once identity validation is approved, return to the **akeeba-signing** account in the portal:
+Once identity validation is approved, return to the **grafida-signing** account in the portal:
 
 1. In the left menu, click **Certificate profiles** → **New**.
 2. Set the profile type to **Public Trust**. This is mandatory — "Private Trust" profiles are for internal enterprise apps only and will not produce publicly trusted signatures.
-3. Name it `AkeebaPublic` (or similar — note the exact name).
+3. Name it `GrafidaPublic` (or similar — note the exact name).
 
 ### Step 8: Create a Service Principal for Non-Interactive Signing
 
 ```sh
-az ad sp create-for-rbac --name "akeeba-codesigning" --output json
+az ad sp create-for-rbac --name "grafida-codesigning" --output json
 ```
 
 The output looks like:
@@ -136,8 +136,8 @@ The output looks like:
 
 ```sh
 RESOURCE_ID=$(az trustedsigning show \
-  --name akeeba-signing \
-  --resource-group AkeebaCodeSigning \
+  --name grafida-signing \
+  --resource-group GrafidaCodeSigning \
   --query id -o tsv)
 
 SP_OBJECT_ID=$(az ad sp show --id <appId> --query id -o tsv)
@@ -179,7 +179,7 @@ jsign \
   --storepass "$(az account get-access-token \
     --resource https://codesigning.azure.net \
     --query accessToken -o tsv)" \
-  --alias akeeba-signing/AkeebaPublic \
+  --alias grafida-signing/GrafidaPublic \
   --tsaurl http://timestamp.acs.microsoft.com \
   --tsmode RFC3161 \
   grafida.exe

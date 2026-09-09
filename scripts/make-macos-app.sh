@@ -122,7 +122,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <dict>
     <key>CFBundleName</key><string>Grafida</string>
     <key>CFBundleDisplayName</key><string>Grafida</string>
-    <key>CFBundleIdentifier</key><string>com.akeeba.grafida</string>
+    <key>CFBundleIdentifier</key><string>app.grafida.desktop</string>
     <key>CFBundleVersion</key><string>${VERSION}</string>
     <key>CFBundleShortVersionString</key><string>${VERSION}</string>
     <key>CFBundleExecutable</key><string>grafida</string>

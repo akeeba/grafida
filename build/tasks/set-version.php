@@ -13,12 +13,12 @@ declare(strict_types=1);
  * Stamp the application version (Grafida\Support\App::VERSION) from the CHANGELOG.
  *
  * The CHANGELOG is the single source of truth for the version: its topmost entry's
- * heading ends with the version number, following the Akeeba convention
+ * heading ends with the version number, following the project's convention
  * (e.g. "Grafida 0.1"). This reads that version and writes it into src/Support/App.php
  * so the compiled binary and the SPA's About dialog report it. Run by the build.xml
  * git-* targets (via `prepare`) before every compile.
  *
- * The version is parsed the same way Akeeba's AutoVersionTask does: take the first
+ * The version is parsed by taking the first
  * non-empty line of the CHANGELOG, keep its last whitespace-delimited token, and pull
  * the version number out of it. An optional GRAFIDA_VERSION env var overrides the
  * CHANGELOG (mirroring the build scripts' fallback).

@@ -23,7 +23,7 @@ use Phing\Type\FileSet;
  * partial release is never visible to users or the update stream.
  *
  * Attributes:
- *  - organization  GitHub organisation or user (e.g. "akeeba")
+ *  - organization  GitHub organisation or user (e.g. "grafida")
  *  - repository    GitHub repository name      (e.g. "grafida")
  *  - token         GitHub personal access token with release permission
  *  - tagName       The tag for the release (created from targetCommitish if absent on GitHub)

@@ -5,13 +5,10 @@
 # GNU General Public License version 3, or later.
 #
 # Mirrors docs/ into the grafida-site repository's desktop-docs section, so the
-# marketing site's documentation stays in step with the in-app Help screen and
-# the GitHub wiki without a third format to maintain.
+# marketing site's documentation stays in step with the in-app Help screen.
 #
-# Unlike scripts/sync-wiki.sh, this is a VERBATIM copy — no H1 stripping, no
-# generated footer/sidebar — because content/docs/desktop/ consumes the same
-# _manifest.json the app and the wiki sync do, and grafida-site is expected to
-# render the files as-is.
+# This is a VERBATIM copy because content/docs/desktop/ consumes the same
+# _manifest.json as the app, and grafida-site renders the files as-is.
 #
 # grafida-site is a SEPARATE sibling repository (assumed checked out at
 # ../grafida-site relative to this one, override with GRAFIDA_SITE_DIR). This

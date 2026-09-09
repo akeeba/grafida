@@ -13,7 +13,7 @@ Security issues are only within scope when the software is used in a supported e
 
 Please use GitHub Security Advisories to report vulnerabilities.
 
-1. Go to the [Security tab](https://github.com/akeeba/grafida-ipad/security/advisories).
+1. Go to the [Security tab](https://github.com/grafida/grafida/security/advisories).
 2. Click "Report a vulnerability".
 3. Fill out the advisory form.
 

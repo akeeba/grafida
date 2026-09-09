@@ -24,7 +24,7 @@
 #   WINDOWS_SIGN_OP_FIELD_PASSWORD 1Password field name for the password (default: password)
 #   WINDOWS_SIGN_OP_FIELD_TENANT   1Password field name for the tenant   (default: tenant)
 #   WINDOWS_SIGN_KEYSTORE          Jsign --keystore                      (default: weu.codesigning.azure.net)
-#   WINDOWS_SIGN_ALIAS             Jsign --alias                         (default: akeeba-signing/AkeebaPublic)
+#   WINDOWS_SIGN_ALIAS             Jsign --alias                         (default: grafida-signing/GrafidaPublic)
 #   WINDOWS_SIGN_TSAURL            Jsign --tsaurl                        (default: http://timestamp.acs.microsoft.com)
 #
 # IMPORTANT: this script must only be invoked from packaging (package-win-x86 /
@@ -68,7 +68,7 @@ OP_FIELD_APPID="${WINDOWS_SIGN_OP_FIELD_APPID:-appId}"
 OP_FIELD_PASSWORD="${WINDOWS_SIGN_OP_FIELD_PASSWORD:-password}"
 OP_FIELD_TENANT="${WINDOWS_SIGN_OP_FIELD_TENANT:-tenant}"
 KEYSTORE="${WINDOWS_SIGN_KEYSTORE:-weu.codesigning.azure.net}"
-ALIAS="${WINDOWS_SIGN_ALIAS:-akeeba-signing/AkeebaPublic}"
+ALIAS="${WINDOWS_SIGN_ALIAS:-grafida-signing/GrafidaPublic}"
 TSAURL="${WINDOWS_SIGN_TSAURL:-http://timestamp.acs.microsoft.com}"
 
 for bin in az jsign op; do

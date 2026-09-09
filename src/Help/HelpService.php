@@ -29,19 +29,18 @@ use League\CommonMark\Node\Query;
 /**
  * Serves the documentation bundled in `docs/` to the in-app Help screen.
  *
- * The same Markdown files are published verbatim as the project's GitHub wiki
- * (see `scripts/sync-wiki.sh`), so the *wiki* — the dumber of the two consumers
- * — dictates the source format and this class adapts to it rather than the
- * other way round:
+ * The same Markdown files are published in the Grafida.app Documentation section
+ * (see `scripts/sync-site-docs.sh`), so the website and this class share one
+ * predictable source format:
  *
- * - One flat directory, one file per page, the file name being the wiki page
- *   name (`Custom-API-Access.md` → the wiki's "Custom API Access" page).
- * - **No YAML front matter**, which a GitHub wiki renders as visible junk. Page
+ * - One flat directory, one file per page, the file name being the page slug
+ *   (`Custom-API-Access.md` → the "Custom API Access" page).
+ * - **No YAML front matter**. Page
  *   metadata lives in `docs/_manifest.json` instead — which also spares us
  *   `glob()`, a function the phar stream wrapper cannot serve, so the docs can
  *   be read straight out of the compiled binary with no extraction step (see
  *   {@see \Grafida\Support\Resources::docsDir()}).
- * - Links between pages are written the way the wiki resolves them, as a bare
+ * - Links between pages are written as a bare
  *   relative page name (`[Custom API access](Custom-API-Access)`). Nothing in
  *   this app can follow such a link, so {@see self::rewriteReferences()}
  *   annotates every anchor with the attributes the SPA's click handler reads.
@@ -76,7 +75,7 @@ final class HelpService
      * Keyed by the marker GitHub uses, mapping to the FontAwesome icon and the
      * label to render. The labels are English and stay English: they sit inside
      * an English document (the documentation is English-only by design, being one
-     * source shared with the wiki), and a translated word in an untranslated
+     * source shared with the website), and a translated word in an untranslated
      * paragraph would read worse than GitHub's own wording. They are therefore
      * deliberately **not** in `I18n\UiStrings::KEYS`.
      *
@@ -110,8 +109,8 @@ final class HelpService
      * A node is `{slug, title, children}`. `slug` is null for a node that only
      * groups others and has no page of its own — a heading — which is how a
      * section can exist without inventing a landing page for it. The *files*
-     * stay in one flat directory whatever the nesting says: the wiki has a flat
-     * page namespace and cannot represent a folder, so the hierarchy lives in
+     * stay in one flat directory whatever the nesting says: the site builder has a flat
+     * page namespace, so the hierarchy lives in
      * the manifest and only there.
      *
      * @return array{home: string, tree: list<array<string, mixed>>}
@@ -230,8 +229,8 @@ final class HelpService
      * about what a page means, which is exactly what this whole arrangement
      * exists to prevent.
      *
-     * The **source stays untouched**: the page keeps GitHub's syntax, so the wiki
-     * goes on rendering it with GitHub's own styling, and only the in-app
+     * The **source stays untouched**: the page keeps GitHub's syntax, so the website
+     * can render it with matching styling, and only the in-app
      * rendering is synthesised here.
      *
      * The marker parses as a single `Text` node followed by a `Newline` (the
@@ -506,14 +505,14 @@ final class HelpService
                 // tagged: UrlOpener accepts http(s) only and would answer a
                 // click with an error toast, which is worse than nothing. The
                 // href is left intact so the link still reads correctly on the
-                // wiki; in the app the SPA's handler swallows the click (see
+                // website; in the app the SPA's handler swallows the click (see
                 // initHelpLinks()) so it cannot navigate the webview away.
                 // CommonMark's `allow_unsafe_links => false` has already removed
                 // the dangerous schemes (javascript:, data:, vbscript:, file:).
                 continue;
             }
 
-            // A relative target is a wiki page name. Strip the `.md` a writer may
+            // A relative target is a documentation page name. Strip the `.md` a writer may
             // have added out of habit and any fragment; an unknown slug is left
             // pointing at itself so the Help screen can say the page is missing,
             // which is far easier to notice than a link that quietly does nothing.
@@ -535,8 +534,8 @@ final class HelpService
                 continue;
             }
 
-            // `docs/images/` is deliberately flat: the wiki repository has no
-            // meaningful directory structure either, and a basename is the only
+            // `docs/images/` is deliberately flat: the website mirror has no
+            // nested image directory structure either, and a basename is the only
             // thing both consumers can resolve identically.
             $image->setUrl('/api/help/image/' . rawurlencode(basename($url)));
         }

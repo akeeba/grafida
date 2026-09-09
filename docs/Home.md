@@ -4,7 +4,7 @@ Grafida is a cross-platform desktop application for creating and editing Joomla!
 
 Grafida is a tool for _focused content authoring_. It does not attempt to put Joomla's article editor and backend interface in a desktop application, nor does it concern itself with content management. We provided a carefully curated list of features to make authoring content enjoyable while maintaining a familiar interface.
 
-This documentation can be found in the application itself, using the **Help** item. The documentation of the latest published version can also be found in our [GitHub project's wiki](https://github.com/akeeba/grafida/wiki).
+This documentation can be found in the application itself, using the **Help** item. The documentation of the latest published version can also be found in the [Documentation section on Grafida.app](https://grafida.app/documentation.html).
 
 ## Ready to dive in?
 
