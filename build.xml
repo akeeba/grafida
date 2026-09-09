@@ -455,17 +455,11 @@
 			description="Alias for 'package' — build and package every platform" />
 
 	<!--
-	Mirrors docs/ into the sibling grafida-site repository's content/docs/desktop/, so the
-	marketing site's documentation stays current. It can be run standalone as well as during
-	`release`; it only writes to the site's working tree — it is that
-	repository's own job to commit and push. Needs the sibling checkout at ../grafida-site (or
-	GRAFIDA_SITE_DIR).
+	Publishing docs/ to the Grafida.app Documentation section is scripts/upload-docs.sh
+	(`composer docs:publish`), and it is deliberately NOT a Phing target and NOT a release step: the
+	app serves Help out of its own bundle, so the site and the shipped build are independent and a
+	typo fix should not wait for a version bump. See build/readme/05-documentation-publishing.md.
 	-->
-	<target name="site-docs" description="Mirror docs/ into the grafida-site repository">
-		<exec executable="bash" dir="${dirs.root}" passthru="true" checkreturn="true">
-			<arg value="scripts/sync-site-docs.sh" />
-		</exec>
-	</target>
 
 	<target name="release" depends="all"
 			description="Build, publish a GitHub release with the artifacts, and push grafida.json to the CDN">
@@ -512,10 +506,6 @@
 				<include name="grafida.json" />
 			</fileset>
 		</ftpsupload>
-
-		<!-- 4. Mirror the documentation into the sibling grafida-site repository, best-effort — a
-		     missing checkout must not fail the release. -->
-		<phing phingfile="${phing.file}" target="site-docs" inheritAll="true" haltonfailure="false" />
 
 		<echo>Release ${version} complete.</echo>
 	</target>

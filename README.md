@@ -203,6 +203,21 @@ files are committed, so you only need to re-run this after editing the SVG.
   `build/icon/png/grafida-256.png` → `~/.local/share/icons/hicolor/256x256/apps/grafida.png`)
   and install `build/icon/grafida.desktop` (its `Icon=grafida` line resolves against the theme).
 
+### Documentation
+
+The Markdown pages under `docs/` are both the in-app Help screen and the Documentation section of
+[Grafida.app](https://grafida.app). Publish the site copy with:
+
+```bash
+composer docs:publish -- --dry-run   # show what would be sent, connect to nothing
+composer docs:publish                # upload over SFTP
+```
+
+This is deliberately not a release step: the app serves Help out of its own binary, so a corrected
+page is worth publishing the day it is committed. Configure the destination with the `docs.sftp.*`
+properties in `build/build.properties` — see
+[`build/readme/05-documentation-publishing.md`](build/readme/05-documentation-publishing.md).
+
 ## Testing
 
 ```bash

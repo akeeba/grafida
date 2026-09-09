@@ -409,8 +409,13 @@ window-free in tests (a null dialog makes the endpoint return 503).
   pass cannot reformat the markup the way a parse/serialise round trip would.
 - `src/Help/HelpService.php` — the **in-app documentation** (gh-55). `docs/` is a **single source
   with two consumers**: the sidebar's **Help** screen and the Grafida.app Documentation section,
-  mirrored by `scripts/sync-site-docs.sh` (`phing site-docs` / `composer docs:site`, and step 4 of
-  `phing release`). The shared source is one flat directory of `.md` files whose names are the page
+  published by `scripts/upload-docs.sh` (`composer docs:publish`), which uploads the pages,
+  `docs/images/` and `_manifest.json` over SFTP — the manifest last, so a reader loading the site
+  mid-upload never sees a table of contents pointing at a page that has not arrived. It is
+  deliberately **not** a release step and **not** a Phing target: the app serves Help out of its own
+  binary, so the site and the shipped build are independent and a typo fix should not wait for a
+  version bump. It also **never deletes**, so a renamed or dropped page keeps its old file on the
+  server until somebody removes it by hand. The shared source is one flat directory of `.md` files whose names are the page
   slugs, with no YAML front matter and inter-page links written as bare relative page names. The table
   of contents is `docs/_manifest.json`, a **tree** (`{slug?, title, children?}`, max depth 4; a
   node with no `slug` is a heading). It is not a convenience: `glob()` does not work on `phar://`,
@@ -418,8 +423,9 @@ window-free in tests (a null dialog makes the endpoint return 503).
   compiled binary with no extraction step. Endpoints `GET /api/help`, `/api/help/page/{key}`,
   `/api/help/image/{file}`; none of them touches a site, the network or the database, so the Help
   screen works with nothing configured at all.
-  ⚠️ **Detail is in `.claude/rules/documentation.md`**, which loads when you touch `docs/`,
-  `src/Help/` or `scripts/sync-site-docs.sh`. Two rules worth carrying without it: **no link in a
+  ⚠️ **Detail is in `.claude/rules/documentation.md`** (and the procedure in
+  `build/readme/05-documentation-publishing.md`), which loads when you touch `docs/`, `src/Help/` or
+  `scripts/upload-docs.sh`. Two rules worth carrying without it: **no link in a
   documentation page may be followed normally** — Boson's webview opens no new window and a
   same-window navigation would replace the SPA with no way back, so an external URL leaves through
   `api.openUrl()` and anything unclassified has its click swallowed (`mailto:` is deliberately
@@ -684,11 +690,12 @@ safety-critical prohibition resident, so those never depend on a rules file bein
 | `.claude/rules/drafts-and-articles.md` | `src/Article/**`, the draft/article controllers |
 | `.claude/rules/joomla-api-and-references.md` | `src/Reference/**`, `src/Joomla/**`, `src/Publish/**`, `src/Field/**`, `src/Site/**` |
 | `.claude/rules/internal-api.md` | `src/Http/**`, `src/Application/**`, `src/Debug/**` |
-| `.claude/rules/documentation.md` | `docs/**`, `src/Help/**`, `scripts/sync-site-docs.sh` |
+| `.claude/rules/documentation.md` | `docs/**`, `src/Help/**`, `scripts/upload-docs.sh` |
 | `.claude/rules/build-and-packaging.md` | `build/**`, `scripts/**`, `build.xml`, `boson.json`, `composer.json`, CHANGELOG, RELEASENOTES.md |
 
 ⚠️ A new rules file's `paths:` must actually cover the code it describes, or it will silently
-never load. Deep build/signing recipes live in `build/readme/01`–`04`.
+never load. Deep build/signing recipes live in `build/readme/01`–`04`, and publishing the
+documentation to Grafida.app in `build/readme/05-documentation-publishing.md`.
 
 ## Translation flow (must be followed every time)
 

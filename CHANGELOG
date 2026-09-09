@@ -1,6 +1,7 @@
 Grafida 1.0
 ================================================================================
 ~ The Windows build no longer enables opcache, matching every other platform
+~ The documentation is published to Grafida.app over SFTP, replacing the copy into a sibling site repository
 
 Grafida 0.3
 ================================================================================

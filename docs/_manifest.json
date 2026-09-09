@@ -2,7 +2,7 @@
     "_comment": [
         "Table of contents for the documentation in docs/. This one file drives BOTH consumers:",
         "the in-app Help screen (Grafida\\Help\\HelpService reads it) and the Grafida.app",
-        "Documentation section (scripts/sync-site-docs.sh mirrors it). Adding a page means adding its .md",
+        "Documentation section (scripts/upload-docs.sh uploads it). Adding a page means adding its .md",
         "file here AND to this list — nothing is discovered by scanning, because glob() does not",
         "work inside the compiled binary's phar.",
         "",

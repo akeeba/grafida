@@ -1,9 +1,9 @@
 ---
-description: Grafida's documentation — the docs/ Markdown shared by the in-app Help screen and the Grafida.app Documentation section. Source-format constraints, the manifest, the in-app renderer, and site sync.
+description: Grafida's documentation — the docs/ Markdown shared by the in-app Help screen and the Grafida.app Documentation section. Source-format constraints, the manifest, the in-app renderer, and publishing to the site.
 paths:
   - "docs/**"
   - "src/Help/**"
-  - "scripts/sync-site-docs.sh"
+  - "scripts/upload-docs.sh"
 ---
 
 # The documentation (`docs/`)
@@ -12,13 +12,10 @@ paths:
 
 `docs/` is a **single source with two consumers**: the in-app **Help** screen (`src/Help/`,
 `src/Http/Controller/HelpController.php`, the SPA's `help` screen), and the Grafida.app
-Documentation section, mirrored into `../grafida-site/content/docs/desktop/`
-(`scripts/sync-site-docs.sh`, `phing site-docs`, or `composer docs:site`). The mirror is
-**verbatim** (whole tree, `_manifest.json` and `images/` included) since the website renders the
-files as-is. It only writes the
-sibling repository's working tree; committing and pushing there is that repository's own job. Run
-it as part of `phing release` (best-effort — a missing `../grafida-site` checkout does not fail the
-release) or standalone whenever `docs/` changes and the site should catch up sooner.
+Documentation section, uploaded over SFTP by `scripts/upload-docs.sh` (`composer docs:publish`).
+The upload is **verbatim** (every page, `docs/images/` and `_manifest.json`) since the website
+renders the files as-is. Run it whenever `docs/` changes — it is not a release step, and the
+procedure is `build/readme/05-documentation-publishing.md`.
 
 The website and app deliberately share one predictable source format.
 
@@ -168,9 +165,31 @@ their render functions (`renderMediaHeaderActions()`, `renderRequestLogScreen()`
 `renderHelpActions()`), which would destroy a static button placed within them — silently, and only
 from the second render onwards.
 
-## Publishing to Grafida.app (`scripts/sync-site-docs.sh`)
+## Publishing to Grafida.app (`scripts/upload-docs.sh`)
 
-`phing site-docs` / `composer docs:site` (and step 4 of `phing release`) mirrors `docs/` verbatim
-into the sibling `grafida-site` repository's `content/docs/desktop/` directory. The website
-repository owns committing, building and publishing those changes. `--dry-run` previews the rsync
-without writing anything.
+`composer docs:publish` uploads `docs/` to the site's documentation directory over SFTP: every
+`*.md` page, everything in `docs/images/` (into an `images/` directory it creates if needed), and
+`_manifest.json`. `--dry-run` prints the destination and the whole SFTP batch without connecting to
+anything. The settings are `docs.sftp.host` / `.path` / `.user` / `.port` in
+`build/build.properties`, overridden by `DOCS_SFTP_*` in the environment;
+`build/readme/05-documentation-publishing.md` is the full procedure.
+
+⚠️ **This is deliberately NOT a release step and must not become one.** The app serves Help out of
+its own binary, so the site and the shipped build are independent: a typo fix is worth publishing
+the day it is committed, and a release does not require the site to be republished. That is also why
+there is no `phing` target for it — the release target is where a step would inevitably be added.
+
+⚠️ **The manifest is uploaded LAST**, after every page it points at, so a reader who loads the site
+mid-upload sees the old table of contents rather than a new entry linking to a page the server does
+not have yet. Two preflight checks run before the connection: a manifest slug with no matching file
+is fatal, and a page no manifest entry names is a warning.
+
+⚠️ **Nothing is ever deleted from the server.** A renamed or dropped page keeps its old file, still
+served at its old URL, until somebody removes it by hand — in the same session, because nothing in
+this repository can tell you it is there. The in-app Help is correct either way.
+
+⚠️ **Do not add a key or password setting.** The connection is `~/.ssh/config`'s business, and its
+`IdentityAgent` line points ssh at 1Password's SSH agent, which authorises every connection with a
+biometric prompt. `sftp -b` implies `BatchMode=yes`, which suppresses ssh's own prompts but not the
+agent's separate window; what it does break is an unknown host key, so the host must be connected to
+by hand once.

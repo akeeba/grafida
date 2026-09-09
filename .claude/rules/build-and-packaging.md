@@ -266,16 +266,17 @@ The version comes from the CHANGELOG's top entry; `-Dversion=X.Y.Z` overrides it
    already names the version leaves nothing to commit and this step is skipped.
 6. **Tag:** `git tag X.Y.Z -sm "Tagging X.Y.Z"` (signed), then `git push origin X.Y.Z`.
 7. **Publish:** `phing release -Dversion=X.Y.Z` — repackages all platforms, creates and publishes a
-   GitHub release with the six assets, generates `grafida.json`, uploads it over FTPS to the
-   BunnyCDN `updates/` directory and mirrors `docs/` into the
-   sibling `grafida-site` repository's `content/docs/desktop/` (best-effort — missing checkout does
-   not fail the release; that repository's own commit/push is a separate, manual step).
+   GitHub release with the six assets, generates `grafida.json` and uploads it over FTPS to the
+   BunnyCDN `updates/` directory.
 8. **Verify:** `curl https://grafida.app/updates/grafida.json` reports the new version, and
    `gh release view X.Y.Z --repo grafida/grafida` shows `draft=false` with all six assets.
 
-The site documentation mirror is also a standalone target — `phing site-docs` / `composer
-docs:site` — so a documentation fix does not have to wait for a version bump. See
-`.claude/rules/documentation.md`.
+⚠️ **Publishing the documentation to Grafida.app is not part of this and must not be added to it.**
+`scripts/upload-docs.sh` (`composer docs:publish`) uploads `docs/` over SFTP whenever the pages
+change; the app serves Help out of its own binary, so the site and the shipped build are
+independent, and folding the upload into `release` would leave the public documentation stale
+between versions. That is also why it is not a Phing target. See
+`build/readme/05-documentation-publishing.md` and `.claude/rules/documentation.md`.
 
 ⚠️ **Non-fatal noise to expect:** the Windows `signtool verify` step prints `Timestamp Server
 Signature verification: failed` / `Signature verification: failed` when run on macOS. The Azure

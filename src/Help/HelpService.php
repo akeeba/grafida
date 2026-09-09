@@ -30,7 +30,7 @@ use League\CommonMark\Node\Query;
  * Serves the documentation bundled in `docs/` to the in-app Help screen.
  *
  * The same Markdown files are published in the Grafida.app Documentation section
- * (see `scripts/sync-site-docs.sh`), so the website and this class share one
+ * (uploaded by `scripts/upload-docs.sh`), so the website and this class share one
  * predictable source format:
  *
  * - One flat directory, one file per page, the file name being the page slug
@@ -534,9 +534,9 @@ final class HelpService
                 continue;
             }
 
-            // `docs/images/` is deliberately flat: the website mirror has no
-            // nested image directory structure either, and a basename is the only
-            // thing both consumers can resolve identically.
+            // `docs/images/` is deliberately flat: the copy uploaded to the website
+            // has no nested image directory structure either, and a basename is the
+            // only thing both consumers can resolve identically.
             $image->setUrl('/api/help/image/' . rawurlencode(basename($url)));
         }
     }
