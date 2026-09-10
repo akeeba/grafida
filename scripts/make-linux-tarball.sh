@@ -33,7 +33,7 @@ if [ ! -f "$LINUX_BIN" ]; then
 fi
 
 VERSION="${GRAFIDA_VERSION:-$(sed -nE "s/.*VERSION = '([^']+)'.*/\1/p" "$ROOT/src/Support/App.php" | head -1)}"
-ICON_DIR="$ROOT/build/icon"
+ICON_DIR="$ROOT/assets/logo"
 DIST="$ROOT/build/dist"
 mkdir -p "$DIST"
 

@@ -105,7 +105,7 @@ fi
 chmod +x "$MACOS/grafida"
 
 # Application icon. Generate it from the master SVG if it is missing.
-ICNS="$ROOT/build/icon/Grafida.icns"
+ICNS="$ROOT/assets/logo/Grafida.icns"
 if [ ! -f "$ICNS" ] && [ -x "$ROOT/scripts/make-icons.sh" ]; then
   "$ROOT/scripts/make-icons.sh" >/dev/null
 fi

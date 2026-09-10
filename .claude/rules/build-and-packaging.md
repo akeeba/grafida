@@ -41,8 +41,8 @@ warn+skip), but a failing compile or a genuine packaging-tool error is fatal. Pi
   the Finder styling, since opening the volume in Finder deletes a pre-existing one. The whole
   styling stage is **best-effort**: a missing asset or an `osascript` failure (e.g. the macOS
   automation-permission-to-control-Finder TCC prompt is denied) only warns and still emits a
-  functional plain DMG. The background is a committed raster (`build/icon/dmg-background.{png,
-  @2x.png,tiff}`) rendered from the single SVG master `build/icon/dmg-background.svg` by
+  functional plain DMG. The background is a committed raster (`assets/logo/dmg-background.{png,
+  @2x.png,tiff}`) rendered from the single SVG master `assets/logo/dmg-background.svg` by
   `scripts/make-dmg-background.sh` — a multi-resolution `.tiff` (`tiffutil -cathidpicheck`) for
   retina — following the same "SVG master → committed raster" pattern as the app icons;
   `scripts/make-icons.sh` invokes it too, so one command refreshes all visual assets. **Code signing works via a

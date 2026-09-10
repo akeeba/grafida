@@ -4,12 +4,12 @@
 # Copyright (c) 2026 Nicholas K. Dionysopoulos
 # GNU General Public License version 3, or later.
 #
-# Rasterises the master icon (build/icon/grafida.svg) into every per-platform
+# Rasterises the master icon (assets/logo/grafida.svg) into every per-platform
 # format used when packaging the app:
 #
-#   build/icon/png/grafida-<size>.png   PNG set (Linux hicolor theme, sources)
-#   build/icon/Grafida.icns             macOS .app bundle icon
-#   build/icon/Grafida.ico              Windows .exe icon (multi-resolution)
+#   assets/logo/png/grafida-<size>.png   PNG set (Linux hicolor theme, sources)
+#   assets/logo/Grafida.icns             macOS .app bundle icon
+#   assets/logo/Grafida.ico              Windows .exe icon (multi-resolution)
 #
 # Re-run this whenever grafida.svg changes, then commit the regenerated assets.
 #
@@ -21,7 +21,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ICON_DIR="$ROOT/build/icon"
+ICON_DIR="$ROOT/assets/logo"
 SVG="$ICON_DIR/grafida.svg"
 PNG_DIR="$ICON_DIR/png"
 

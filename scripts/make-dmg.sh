@@ -67,8 +67,8 @@ hdiutil create -volname "$VOLNAME" -srcfolder "$STAGING" -ov \
 # Best-effort: a missing background asset, or an osascript failure (e.g. the macOS
 # automation permission to control Finder has not been granted — the first run
 # prompts for it), only warns and leaves a plain-but-working DMG.
-BG_TIFF="$ROOT/build/icon/dmg-background.tiff"
-VOL_ICNS="$ROOT/build/icon/Grafida.icns"
+BG_TIFF="$ROOT/assets/logo/dmg-background.tiff"
+VOL_ICNS="$ROOT/assets/logo/Grafida.icns"
 style_dmg() {
   [ -f "$BG_TIFF" ] || { echo "  Background artwork not found ($BG_TIFF) — leaving the DMG unstyled." >&2; return 1; }
 

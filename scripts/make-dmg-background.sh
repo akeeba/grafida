@@ -4,12 +4,12 @@
 # Copyright (c) 2026 Nicholas K. Dionysopoulos
 # GNU General Public License version 3, or later.
 #
-# Rasterises the DMG background artwork master (build/icon/dmg-background.svg)
+# Rasterises the DMG background artwork master (assets/logo/dmg-background.svg)
 # into the assets scripts/make-dmg.sh drops into the disk image:
 #
-#   build/icon/dmg-background.png     640x400  (1x)
-#   build/icon/dmg-background@2x.png  1280x800 (2x, retina)
-#   build/icon/dmg-background.tiff    multi-resolution TIFF combining both
+#   assets/logo/dmg-background.png     640x400  (1x)
+#   assets/logo/dmg-background@2x.png  1280x800 (2x, retina)
+#   assets/logo/dmg-background.tiff    multi-resolution TIFF combining both
 #
 # Re-run this whenever dmg-background.svg changes, then commit the regenerated
 # assets. Mirrors scripts/make-icons.sh: the raster tools are optional (missing
@@ -23,7 +23,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ICON_DIR="$ROOT/build/icon"
+ICON_DIR="$ROOT/assets/logo"
 SVG="$ICON_DIR/dmg-background.svg"
 
 [ -f "$SVG" ] || { echo "DMG background SVG not found: $SVG" >&2; exit 1; }

@@ -9,7 +9,7 @@
 <project name="Grafida" description="Grafida — desktop Joomla! article editor" default="git" basedir=".">
 
 	<property name="dirs.root" value="${phing.dir}" />
-	<property name="dirs.icon" value="${dirs.root}/build/icon" />
+	<property name="dirs.icon" value="${dirs.root}/assets/logo" />
 	<property name="dirs.dist" value="${dirs.root}/build/dist" />
 	<property name="boson.config" value="${dirs.root}/boson.json" />
 	<property name="compile.target.script" value="${dirs.root}/build/tasks/compile-target.php" />
@@ -114,7 +114,7 @@
 
 	<!--
 	The per-platform icons (Grafida.icns / Grafida.ico / the PNG set) are committed, so this normally
-	no-ops; it only re-rasterises them from build/icon/grafida.svg if they have gone missing.
+	no-ops; it only re-rasterises them from assets/logo/grafida.svg if they have gone missing.
 	-->
 	<condition property="icons.present">
 		<and>
@@ -125,7 +125,7 @@
 
 	<target name="prepare-icons" unless="icons.present"
 			description="Rasterise the application icons from the master SVG (only if missing)">
-		<echo>Application icons missing — regenerating from build/icon/grafida.svg</echo>
+		<echo>Application icons missing — regenerating from assets/logo/grafida.svg</echo>
 		<exec executable="bash" dir="${dirs.root}" passthru="true" checkreturn="true">
 			<arg value="scripts/make-icons.sh" />
 		</exec>

@@ -36,7 +36,7 @@ cd "$ROOT"
 
 BOSON="vendor/bin/boson"
 DIST="build/dist"
-ICON_DIR="build/icon"
+ICON_DIR="assets/logo"
 VERSION="${GRAFIDA_VERSION:-$(sed -nE "s/.*VERSION = '([^']+)'.*/\1/p" src/Support/App.php | head -1)}"
 
 PRODUCED=()

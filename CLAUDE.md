@@ -547,15 +547,20 @@ window-free in tests (a null dialog makes the endpoint return 503).
   `boson.json`'s `build.directories`) **and** published on Grafida.app; see `src/Help/` above.
 - `storage/migrations/*.sql` — schema. `.plans/` — implementation step notes (gitignored).
 - `build/glossaries/` — per-language translation glossaries.
-- `build/icon/` — application icon. `grafida.svg` is the **single master** (clipart pencil
-  drawing a capital “J”); `scripts/make-icons.sh` rasterises it into `Grafida.icns` (macOS),
-  `Grafida.ico` (Windows), a `png/` set + `grafida.png` (Linux), all committed. Wiring:
-  `make-macos-app.sh` copies the `.icns` into the bundle + `Info.plist` (`CFBundleIconFile`);
-  the Windows installer bundles the `.ico` beside `grafida.exe`; Linux ships `grafida.desktop`
-  + a hicolor PNG. `build/` is otherwise gitignored — the whitelisted exceptions are
-  `build/icon/`, `build/glossaries/`, `build/composer/` (the npm-vendoring install script), and the
-  two packaging sources `build/linux-install.sh` + `build/windows-installer.nsi` (see
-  `build/.gitignore`). Re-run make-icons after editing the SVG.
+- `assets/logo/` — application icon and branding artwork. `grafida.svg` is the **single master**
+  (clipart pencil drawing a capital “J”); `scripts/make-icons.sh` rasterises it into `Grafida.icns`
+  (macOS), `Grafida.ico` (Windows), a `png/` set + `grafida.png` (Linux), all committed. It also
+  holds the DMG background artwork (`dmg-background.svg` master + its rendered `.png`/`@2x.png`/
+  `.tiff`, via `scripts/make-dmg-background.sh`) and the Linux desktop entry (`grafida.desktop`).
+  Wiring: `make-macos-app.sh` copies the `.icns` into the bundle + `Info.plist`
+  (`CFBundleIconFile`); the Windows installer bundles the `.ico` beside `grafida.exe`; Linux ships
+  `grafida.desktop` + a hicolor PNG. It lives under `assets/` (not `build/`, which is gitignored
+  apart from a small whitelist) because these are versioned source assets, not build output.
+  Re-run make-icons after editing the SVG.
+- `build/glossaries/` — per-language translation glossaries. `build/` is otherwise gitignored — the
+  whitelisted exceptions are `build/glossaries/`, `build/composer/` (the npm-vendoring install
+  script), and the two packaging sources `build/linux-install.sh` + `build/windows-installer.nsi`
+  (see `build/.gitignore`).
 
 ## Build & packaging (one step)
 

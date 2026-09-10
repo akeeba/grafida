@@ -13,7 +13,6 @@ Thumbs.db
 /build/*
 !/build/composer/
 !/build/glossaries/
-!/build/icon/
 /vendor
 /node_modules
 
