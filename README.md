@@ -4,7 +4,7 @@
 
 [Download from GitHub](https://github.com/grafida/grafida/releases/latest)
 
-Grafida is also available on [iPad / iPhone](https://github.com/grafida/grafida-ipad) and [Android](https://github.com/grafida/grafida-tauri). Learn more on [Grafida.app](https://grafida.app).
+Grafida is also available on [iPad / iPhone](https://github.com/grafida/grafida-ipad). Learn more on [Grafida.app](https://grafida.app).
 
 > [!IMPORTANT]
 > Developing and maintaining this software is neither easy, nor free. Please [support me](https://www.dionysopoulos.me/about-me.html#support-me) to keep it maintained and available free of charge.
